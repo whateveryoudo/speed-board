@@ -4,13 +4,13 @@
       <h2>Speed-Board Collaborative Whiteboard Demo</h2>
     </header>
     <main class="demo-main">
-      <BoardCanvas @created="onBoardCreated" />
+      <SpeedBoard @created="onBoardCreated" />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { BoardCanvas, type Board } from '@speed-board/vue3'
+import { SpeedBoard, type Board } from '@speed-board/vue3-antd'
 
 const onBoardCreated = (board: Board) => {
   console.log('Speed-Board initialized:', board)
