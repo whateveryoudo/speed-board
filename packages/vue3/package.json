@@ -1,0 +1,21 @@
+{
+  "name": "@speed-board/vue3",
+  "version": "0.1.0",
+  "description": "Vue 3 components and bindings for speed-board",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@speed-board/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vue": "^3.5.0",
+    "vue-tsc": "^2.1.0"
+  }
+}
