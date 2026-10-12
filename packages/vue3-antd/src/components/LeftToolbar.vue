@@ -1,167 +1,271 @@
 <template>
-  <div class="left-toolbar-wrapper">
-    <div class="board-floating-capsule left-toolbar-capsule">
-      <!-- 1. Iconfont 矢量素材库 (Popover) -->
-      <a-popover
-        trigger="click"
-        placement="rightTop"
-        :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"
-      >
-        <template #content>
-          <IconfontPopover :provider="props.iconProvider" @select="onSelectIcon" />
-        </template>
-        <a-tooltip title="Iconfont 矢量素材库" placement="right">
-          <a-button type="text" class="shadow-btn-wrapper iconfont-entry-btn">
-            <AppstoreOutlined />
-            <span class="icon-sub-tag">ICON</span>
+  <transition name="slide-fade">
+    <div v-show="props.visible !== false" class="left-toolbar-wrapper">
+      <div class="board-floating-capsule left-toolbar-capsule">
+        <!-- 1. 选择指针 (Select - 'V') -->
+        <a-tooltip title="选择指针 (V)" placement="right">
+          <a-button
+            type="text"
+            class="shadow-btn-wrapper"
+            :class="{ 'is-active': currentTool === 'select' }"
+            @click="setTool('select')"
+          >
+            <SIconFont type="icon-kl-board-select-cursor" :size="20" />
           </a-button>
         </a-tooltip>
-      </a-popover>
 
-      <!-- 2. 基础图形 (矩形 / 圆形 / 菱形 下拉) -->
-      <a-popover
-        trigger="click"
-        placement="rightTop"
-        :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
-      >
-        <template #content>
-          <div class="shapes-picker">
+        <!-- 2. 自由手绘与画笔组 (铅笔 / 马克笔 / 画笔 / 橡皮擦) -->
+        <a-popover
+          trigger="click"
+          placement="rightTop"
+          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
+        >
+          <template #content>
+            <div class="tool-dropdown-picker">
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                :class="{ 'is-active': currentBrush === 'pencil' }"
+                @click="selectBrush('pencil')"
+              >
+                <SIconFont type="icon-kl-board-pencil" :size="18" />
+                <span>普通铅笔</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                :class="{ 'is-active': currentBrush === 'marker' }"
+                @click="selectBrush('marker')"
+              >
+                <SIconFont type="icon-kl-board-marker-pen" :size="18" />
+                <span>马克笔</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                :class="{ 'is-active': currentBrush === 'brush' }"
+                @click="selectBrush('brush')"
+              >
+                <SIconFont type="icon-kl-board-brush" :size="18" />
+                <span>水彩画笔</span>
+              </a-button>
+              <div class="dropdown-divider" />
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                :class="{ 'is-active': currentBrush === 'eraser' }"
+                @click="selectBrush('eraser')"
+              >
+                <SIconFont type="icon-kl-board-eraser" :size="18" />
+                <span>橡皮擦</span>
+              </a-button>
+            </div>
+          </template>
+          <a-tooltip title="画笔工具" placement="right">
             <a-button
               type="text"
-              class="shape-pick-btn"
-              @click="addShape('rect')"
+              class="shadow-btn-wrapper"
+              :class="{ 'is-active': currentTool === 'brush' }"
             >
-              <BorderOutlined class="shape-icon" />
-              <span>矩形</span>
+              <SIconFont :type="activeBrushIcon" :size="20" />
             </a-button>
-            <a-button
-              type="text"
-              class="shape-pick-btn"
-              @click="addShape('circle')"
-            >
-              <span class="shape-icon circle-icon" />
-              <span>圆形</span>
+          </a-tooltip>
+        </a-popover>
+
+        <!-- 3. 基础图形 (矩形 / 圆形 / 菱形 / 三角形 / 圆角矩形 下拉) -->
+        <a-popover
+          trigger="click"
+          placement="rightTop"
+          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
+        >
+          <template #content>
+            <div class="tool-dropdown-picker">
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                @click="addShape('rect')"
+              >
+                <SIconFont type="icon-kl-board-shape-rect" :size="18" />
+                <span>矩形</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                @click="addShape('circle')"
+              >
+                <SIconFont type="icon-kl-board-shape-circle" :size="18" />
+                <span>圆形</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                @click="addShape('diamond')"
+              >
+                <SIconFont type="icon-kl-board-shape-diamond" :size="18" />
+                <span>菱形</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                @click="addShape('triangle')"
+              >
+                <SIconFont type="icon-kl-board-shape-triangle" :size="18" />
+                <span>三角形</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                @click="addShape('rect', { rx: 8, ry: 8 })"
+              >
+                <SIconFont type="icon-kl-board-shape-round-rect" :size="18" />
+                <span>圆角矩形</span>
+              </a-button>
+            </div>
+          </template>
+          <a-tooltip title="基础图形" placement="right">
+            <a-button type="text" class="shadow-btn-wrapper">
+              <SIconFont type="icon-kl-board-shape-rect" :size="20" />
             </a-button>
-            <a-button
-              type="text"
-              class="shape-pick-btn"
-              @click="addShape('diamond')"
-            >
-              <span class="shape-icon diamond-icon" />
-              <span>菱形</span>
-            </a-button>
-          </div>
-        </template>
-        <a-tooltip title="基础图形" placement="right">
-          <a-button type="text" class="shadow-btn-wrapper">
-            <BorderOutlined />
+          </a-tooltip>
+        </a-popover>
+
+        <!-- 4. 插入文本 (Text - 'T') -->
+        <a-tooltip title="插入文本 (T)" placement="right">
+          <a-button
+            type="text"
+            class="shadow-btn-wrapper"
+            @click="addShape('text')"
+          >
+            <SIconFont type="icon-kl-board-text-edit" :size="20" />
           </a-button>
         </a-tooltip>
-      </a-popover>
 
-      <div class="tool-divider" />
-
-      <!-- 3. 选择指针 (Select - 'V') -->
-      <a-tooltip title="选择指针 (V)" placement="right">
-        <a-button
-          type="text"
-          class="shadow-btn-wrapper"
-          :class="{ 'is-active': currentTool === 'select' }"
-          @click="setTool('select')"
+        <!-- 5. 连线箭头 (直线 / 箭头 / 折线 / 曲线) -->
+        <a-popover
+          trigger="click"
+          placement="rightTop"
+          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
         >
-          <SelectOutlined />
-        </a-button>
-      </a-tooltip>
+          <template #content>
+            <div class="tool-dropdown-picker">
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                @click="addShape('rect', { text: '连接点', shapeType: 'arrow' })"
+              >
+                <SIconFont type="icon-kl-board-line-arrow" :size="18" />
+                <span>箭头连线</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                @click="addShape('rect', { text: '直连线', shapeType: 'straight' })"
+              >
+                <SIconFont type="icon-kl-board-line-straight" :size="18" />
+                <span>直线</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                @click="addShape('rect', { text: '折线', shapeType: 'elbow' })"
+              >
+                <SIconFont type="icon-kl-board-line-elbow" :size="18" />
+                <span>折线</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                @click="addShape('rect', { text: '曲线', shapeType: 'curve' })"
+              >
+                <SIconFont type="icon-kl-board-line-curve" :size="18" />
+                <span>曲线</span>
+              </a-button>
+            </div>
+          </template>
+          <a-tooltip title="连线工具" placement="right">
+            <a-button type="text" class="shadow-btn-wrapper">
+              <SIconFont type="icon-kl-board-line-arrow" :size="20" />
+            </a-button>
+          </a-tooltip>
+        </a-popover>
 
-      <!-- 4. 抓手平移画布 (Hand / Pan - 'H') -->
-      <a-tooltip title="抓手拖映画布 (H)" placement="right">
-        <a-button
-          type="text"
-          class="shadow-btn-wrapper"
-          :class="{ 'is-active': currentTool === 'hand' }"
-          @click="setTool('hand')"
-        >
-          <DragOutlined />
-        </a-button>
-      </a-tooltip>
+        <!-- 6. 思维导图 (Mindmap) -->
+        <a-tooltip title="思维导图" placement="right">
+          <a-button
+            type="text"
+            class="shadow-btn-wrapper"
+            @click="addShape('rect', { text: '中心主题', fill: '#ede9fe', stroke: '#8b5cf6' })"
+          >
+            <SIconFont type="icon-kl-board-mindmap" :size="20" />
+          </a-button>
+        </a-tooltip>
 
-      <!-- 5. 插入文本 (Text - 'T') -->
-      <a-tooltip title="插入文本 (T)" placement="right">
-        <a-button
-          type="text"
-          class="shadow-btn-wrapper"
-          @click="addShape('text')"
-        >
-          <FontSizeOutlined />
-        </a-button>
-      </a-tooltip>
+        <div class="tool-divider" />
 
-      <!-- 6. 便签贴纸 (Sticky Note) -->
-      <a-tooltip title="便签贴纸" placement="right">
-        <a-button
-          type="text"
-          class="shadow-btn-wrapper"
-          @click="addShape('sticky')"
+        <!-- 7. Iconfont 矢量素材库 (Popover) -->
+        <a-popover
+          trigger="click"
+          placement="rightTop"
+          :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"
         >
-          <SnippetsOutlined />
-        </a-button>
-      </a-tooltip>
-
-      <!-- 7. 连线箭头 (Arrow / Edge) -->
-      <a-tooltip title="连线箭头" placement="right">
-        <a-button
-          type="text"
-          class="shadow-btn-wrapper"
-          @click="addShape('rect', { text: '连接节点' })"
-        >
-          <ArrowUpOutlined class="arrow-tool-icon" />
-        </a-button>
-      </a-tooltip>
-
-      <!-- 8. 思维导图 (Mindmap) -->
-      <a-tooltip title="思维导图 (Tree)" placement="right">
-        <a-button
-          type="text"
-          class="shadow-btn-wrapper"
-          @click="addShape('rect', { text: '中心主题', fill: '#ede9fe', stroke: '#8b5cf6' })"
-        >
-          <ApartmentOutlined />
-        </a-button>
-      </a-tooltip>
+          <template #content>
+            <IconfontPopover :provider="props.iconProvider" @select="onSelectIcon" />
+          </template>
+          <a-tooltip title="素材库" placement="right">
+            <a-button type="text" class="shadow-btn-wrapper iconfont-entry-btn">
+              <AppstoreOutlined style="font-size: 20px" />
+              <span class="icon-sub-tag">素材</span>
+            </a-button>
+          </a-tooltip>
+        </a-popover>
+      </div>
     </div>
-  </div>
+  </transition>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import {
   Popover as APopover,
   Tooltip as ATooltip,
   Button as AButton,
 } from 'ant-design-vue'
-import {
-  SelectOutlined,
-  DragOutlined,
-  BorderOutlined,
-  FontSizeOutlined,
-  SnippetsOutlined,
-  ArrowUpOutlined,
-  ApartmentOutlined,
-  AppstoreOutlined,
-} from '@ant-design/icons-vue'
+import { AppstoreOutlined } from '@ant-design/icons-vue'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
 import type { Board, ShapeType } from '@speed-board/core'
 import IconfontPopover from './IconfontPopover.vue'
 import type { BoardIconItem, IconProvider } from '../data/defaultIcons'
 
-const props = defineProps<{
-  board: Board | null
-  iconProvider?: IconProvider
-}>()
+const props = withDefaults(
+  defineProps<{
+    board: Board | null
+    iconProvider?: IconProvider
+    visible?: boolean
+  }>(),
+  {
+    visible: true,
+  }
+)
 
-const currentTool = ref<'select' | 'hand'>('select')
+const currentTool = ref<'select' | 'hand' | 'brush'>('select')
+const currentBrush = ref<'pencil' | 'marker' | 'brush' | 'eraser'>('marker')
 
-const setTool = (tool: 'select' | 'hand') => {
+const activeBrushIcon = computed(() => {
+  switch (currentBrush.value) {
+    case 'pencil':
+      return 'icon-kl-board-pencil'
+    case 'marker':
+      return 'icon-kl-board-marker-pen'
+    case 'brush':
+      return 'icon-kl-board-brush'
+    case 'eraser':
+      return 'icon-kl-board-eraser'
+    default:
+      return 'icon-kl-board-marker-pen'
+  }
+})
+
+const setTool = (tool: 'select' | 'hand' | 'brush') => {
   currentTool.value = tool
   if (!props.board) return
   if (tool === 'hand') {
@@ -171,10 +275,15 @@ const setTool = (tool: 'select' | 'hand') => {
   }
 }
 
-const addShape = (shape: ShapeType, extra: Record<string, any> = {}) => {
+const selectBrush = (brush: 'pencil' | 'marker' | 'brush' | 'eraser') => {
+  currentBrush.value = brush
+  currentTool.value = 'brush'
+}
+
+const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) => {
   if (!props.board) return
   props.board.addShape({
-    shape,
+    shape: shape as ShapeType,
     ...extra,
   })
 }
@@ -196,9 +305,8 @@ const onSelectIcon = (icon: BoardIconItem) => {
 <style scoped lang="less">
 .left-toolbar-wrapper {
   position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 16px;
+  top: 110px;
   z-index: 100;
   user-select: none;
 }
@@ -220,7 +328,7 @@ const onSelectIcon = (icon: BoardIconItem) => {
     font-weight: 700;
     line-height: 1;
     color: var(--ant-color-primary, #1677ff);
-    transform: scale(0.7);
+    transform: scale(0.65);
   }
 }
 
@@ -230,18 +338,14 @@ const onSelectIcon = (icon: BoardIconItem) => {
   margin: 2px 4px;
 }
 
-.arrow-tool-icon {
-  transform: rotate(45deg);
-}
-
-.shapes-picker {
+.tool-dropdown-picker {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 100px;
+  min-width: 110px;
 }
 
-.shape-pick-btn {
+.dropdown-pick-btn {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -255,35 +359,29 @@ const onSelectIcon = (icon: BoardIconItem) => {
   &:hover {
     background-color: var(--ant-color-fill-secondary, rgba(0, 0, 0, 0.06));
     color: var(--ant-color-primary, #1677ff);
-
-    .shape-icon {
-      border-color: var(--ant-color-primary, #1677ff);
-      color: var(--ant-color-primary, #1677ff);
-    }
   }
 
-  .shape-icon {
-    font-size: 15px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-
-    &.circle-icon {
-      border: 1.5px solid currentColor;
-      border-radius: 50%;
-      width: 14px;
-      height: 14px;
-    }
-
-    &.diamond-icon {
-      border: 1.5px solid currentColor;
-      width: 11px;
-      height: 11px;
-      transform: rotate(45deg);
-    }
+  &.is-active {
+    background-color: var(--ant-color-primary-bg, #e6f4ff);
+    color: var(--ant-color-primary, #1677ff);
   }
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: var(--ant-color-border-secondary, #f0f0f0);
+  margin: 4px 0;
+}
+
+/* 折叠/展开平移动画 */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(-40px);
+  opacity: 0;
 }
 </style>
