@@ -8,14 +8,17 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
     "@speed-board/core": "workspace:*",
     "@speed-board/vue3": "workspace:*",
-    "ant-design-vue": "^4.2.0"
+    "ant-design-vue": "^4.2.0",
+    "speed-components-ui": "^1.1.5"
   },
   "peerDependencies": {
     "vue": "^3.3.0"
   },
   "devDependencies": {
+    "less": "^4.9.1",
     "typescript": "^5.6.0",
     "vue": "^3.5.0",
     "vue-tsc": "^2.1.0"

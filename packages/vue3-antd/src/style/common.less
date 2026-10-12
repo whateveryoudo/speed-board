@@ -1,0 +1,48 @@
+// 对齐 speed-editor 与 speed-sheet 工具栏按钮统一样式
+.shadow-btn-wrapper {
+  padding: 5px;
+  display: inline-flex;
+  height: 32px;
+  min-width: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ant-border-radius, 6px);
+  color: var(--ant-color-text, rgba(0, 0, 0, 0.88));
+  font-size: 16px;
+  cursor: pointer;
+  transition: all var(--ant-motion-duration-mid, 0.2s);
+  border: none;
+  background: transparent;
+
+  &:hover {
+    background-color: var(--ant-color-fill-secondary, rgba(0, 0, 0, 0.06));
+    color: var(--ant-color-primary, #1677ff);
+  }
+
+  &.is-active {
+    background-color: var(--ant-color-primary-bg, #e6f4ff);
+    color: var(--ant-color-primary, #1677ff);
+  }
+
+  &.disabled,
+  &:disabled {
+    cursor: not-allowed;
+    color: var(--ant-color-text-quaternary, #bfbfbf) !important;
+    background: transparent !important;
+  }
+
+  .anticon {
+    font-size: 16px;
+  }
+}
+
+// 浮动胶囊容器与弹窗外壳
+.board-floating-capsule {
+  display: flex;
+  background: var(--speed-board-toolbar-bg, rgba(255, 255, 255, 0.94));
+  backdrop-filter: blur(8px);
+  border-radius: var(--ant-border-radius-lg, 8px);
+  box-shadow: var(--ant-box-shadow-secondary, 0 4px 16px rgba(0, 0, 0, 0.08));
+  border: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+  padding: 4px;
+}

@@ -5,6 +5,7 @@ import { Selection } from '@antv/x6-plugin-selection'
 import { Transform } from '@antv/x6-plugin-transform'
 import { Keyboard } from '@antv/x6-plugin-keyboard'
 import { Clipboard } from '@antv/x6-plugin-clipboard'
+import { History } from '@antv/x6-plugin-history'
 import * as Y from 'yjs'
 import type { Extension } from './extension/Extension'
 
@@ -245,6 +246,9 @@ export class Board {
 
     // 6. 剪贴板
     this.graph.use(new Clipboard({ enabled: true }))
+
+    // 7. 撤销重做历史记录 (History)
+    this.graph.use(new History({ enabled: true }))
   }
 
   private initEvents() {
@@ -543,6 +547,22 @@ export class Board {
 
   public centerContent() {
     this.graph.centerContent()
+  }
+
+  public undo() {
+    ;(this.graph as any).undo?.()
+  }
+
+  public redo() {
+    ;(this.graph as any).redo?.()
+  }
+
+  public canUndo(): boolean {
+    return !!(this.graph as any).canUndo?.()
+  }
+
+  public canRedo(): boolean {
+    return !!(this.graph as any).canRedo?.()
   }
 
   public registerExtension(extension: Extension) {

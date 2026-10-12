@@ -1,5 +1,5 @@
 <template>
-  <div class="speed-board-root">
+  <div class="speed-board">
     <!-- 顶部状态与缩放栏 -->
     <TopToolbar :board="boardInstance" />
 
@@ -14,11 +14,17 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef } from 'vue'
+import { shallowRef, onUnmounted } from 'vue'
 import { BoardCanvas, type Board, type BoardOptions } from '@speed-board/vue3'
+import { useAntdCssVars } from 'speed-components-ui/hooks'
 import LeftToolbar from './LeftToolbar.vue'
 import TopToolbar from './TopToolbar.vue'
 import type { IconProvider } from '../data/defaultIcons'
+import '../style/index.less'
+
+defineOptions({
+  name: 'SpeedBoard',
+})
 
 const props = defineProps<{
   options?: Omit<BoardOptions, 'container'>
@@ -29,6 +35,13 @@ const emit = defineEmits<{
   (e: 'created', board: Board): void
 }>()
 
+// 注入并管理 Ant Design Vue CSS 变量 (--ant-*)
+const { cleanup: cleanupAntdCssVars } = useAntdCssVars()
+
+onUnmounted(() => {
+  cleanupAntdCssVars?.()
+})
+
 const boardInstance = shallowRef<Board | null>(null)
 
 const onBoardCreated = (board: Board) => {
@@ -37,13 +50,14 @@ const onBoardCreated = (board: Board) => {
 }
 </script>
 
-<style scoped>
-.speed-board-root {
+<style scoped lang="less">
+.speed-board {
   width: 100%;
   height: 100%;
   position: relative;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--speed-board-bg, #ffffff);
+  color: var(--speed-board-text, rgba(0, 0, 0, 0.88));
 }
 
 .speed-board-canvas-wrapper {
