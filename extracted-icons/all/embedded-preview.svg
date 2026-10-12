@@ -1,3 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="currentColor">
-  <path d="M952 160H72A8 8 0 0 0 64 168V224c0 4.416 3.584 8 8 8h880A8 8 0 0 0 960 224v-56a8 8 0 0 0-8-8z m-104 704a16 16 0 0 0 16-16V379.904a16 16 0 0 0-16-16H176a16 16 0 0 0-16 16v467.968c0 8.832 7.168 16 16 16h672zM232 435.904h560v355.968h-560V435.968z" fill-opacity=".65" ></path>
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <path d="M952 160H72A8 8 0 0 0 64 168V224c0 4.416 3.584 8 8 8h880A8 8 0 0 0 960 224v-56a8 8 0 0 0-8-8z m-104 704a16 16 0 0 0 16-16V379.904a16 16 0 0 0-16-16H176a16 16 0 0 0-16 16v467.968c0 8.832 7.168 16 16 16h672zM232 435.904h560v355.968h-560V435.968z" fill="#000000" fill-opacity=".65" ></path>
 </svg>

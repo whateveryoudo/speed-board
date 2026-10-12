@@ -1,3 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="currentColor">
-  <path d="M191.3856 128.2048H382.464v768.4608H191.3856V128.1536z m384.512 0h192.8704v768.4608h-192.8704V128.1536z" ></path>
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <path d="M191.3856 128.2048H382.464v768.4608H191.3856V128.1536z m384.512 0h192.8704v768.4608h-192.8704V128.1536z" fill="#595959" ></path>
 </svg>

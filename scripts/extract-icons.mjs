@@ -72,12 +72,26 @@ async function run() {
     // 清理前缀
     const cleanKey = rawId.replace(/^icon-/, '')
 
-    // 构建标准独立 SVG XML，移除固定 fill 方便 iconfont 统一着色
-    const cleanedInner = innerContent
-      .replace(/\sfill="[^"]*"/g, '')
+    // 构建符合 iconfont.cn 严格上传规范的标准独立 SVG XML：
+    // 1. 必须使用实体纯色 (如 fill="#333333")，绝对不能用 currentColor（否则 iconfont 的 canvas 离屏预检会当作空白图判定上传失败）
+    // 2. 补齐 width="1024" height="1024" 与标准 XML 声明
+    let cleanedInner = innerContent
       .replace(/\sclass="[^"]*"/g, '')
+      .trim()
 
-    const svgOutput = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" fill="currentColor">\n  ${cleanedInner.trim()}\n</svg>\n`
+    // 如果 path 没有 fill，或者 fill 是空/currentColor，统一补上 fill="#333333"
+    if (!/fill="/.test(cleanedInner)) {
+      cleanedInner = cleanedInner.replace(/<path\s/g, '<path fill="#333333" ')
+    } else {
+      cleanedInner = cleanedInner.replace(/fill="currentColor"/g, 'fill="#333333"')
+    }
+
+    const svgOutput = `<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg class="icon" viewBox="${viewBox}" version="1.1" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  ${cleanedInner}
+</svg>
+`
 
     // 1. 存入 all/
     const allFilePath = path.join(ALL_DIR, `${cleanKey}.svg`)

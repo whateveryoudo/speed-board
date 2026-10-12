@@ -1,3 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="currentColor">
-  <path d="M112 160m8 0l784 0q8 0 8 8l0 80q0 8-8 8l-784 0q-8 0-8-8l0-80q0-8 8-8Z"  ></path><path d="M112 565.333m8 0l784 0q8 0 8 8l0 80q0 8-8 8l-784 0q-8 0-8-8l0-80q0-8 8-8Z"  ></path><path d="M112 768m8 0l784 0q8 0 8 8l0 80q0 8-8 8l-784 0q-8 0-8-8l0-80q0-8 8-8Z"  ></path><path d="M112 362.667m8 0l784 0q8 0 8 8l0 80q0 8-8 8l-784 0q-8 0-8-8l0-80q0-8 8-8Z"  ></path>
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <path fill="#333333" d="M112 160m8 0l784 0q8 0 8 8l0 80q0 8-8 8l-784 0q-8 0-8-8l0-80q0-8 8-8Z"  ></path><path fill="#333333" d="M112 565.333m8 0l784 0q8 0 8 8l0 80q0 8-8 8l-784 0q-8 0-8-8l0-80q0-8 8-8Z"  ></path><path fill="#333333" d="M112 768m8 0l784 0q8 0 8 8l0 80q0 8-8 8l-784 0q-8 0-8-8l0-80q0-8 8-8Z"  ></path><path fill="#333333" d="M112 362.667m8 0l784 0q8 0 8 8l0 80q0 8-8 8l-784 0q-8 0-8-8l0-80q0-8 8-8Z"  ></path>
 </svg>

@@ -1,3 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="currentColor">
-  <path d="M512 112c22.092 0 40 17.908 40 40v320h320c22.092 0 40 17.908 40 40s-17.908 40-40 40h-320v320c0 22.092-17.908 40-40 40s-40-17.908-40-40v-320H152c-22.092 0-40-17.908-40-40s17.908-40 40-40h320V152c0-22.092 17.908-40 40-40z"  ></path>
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <path fill="#333333" d="M512 112c22.092 0 40 17.908 40 40v320h320c22.092 0 40 17.908 40 40s-17.908 40-40 40h-320v320c0 22.092-17.908 40-40 40s-40-17.908-40-40v-320H152c-22.092 0-40-17.908-40-40s17.908-40 40-40h320V152c0-22.092 17.908-40 40-40z"  ></path>
 </svg>

@@ -1,3 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="currentColor">
-  <path d="M592 460H432v154h160V460z m68 0v154h160V460H660z m-68 376V682H432v154h160z m68 0h160V682H660v154zM364 460H204v154h160V460z m0 376V682H204v154h160zM160 384h704c17.673 0 32 14.327 32 32v464c0 17.673-14.327 32-32 32H160c-17.673 0-32-14.327-32-32V416c0-17.673 14.327-32 32-32z"  ></path><path d="M64 128m8 0l880 0q8 0 8 8l0 144q0 8-8 8l-880 0q-8 0-8-8l0-144q0-8 8-8Z"  ></path>
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <path fill="#333333" d="M592 460H432v154h160V460z m68 0v154h160V460H660z m-68 376V682H432v154h160z m68 0h160V682H660v154zM364 460H204v154h160V460z m0 376V682H204v154h160zM160 384h704c17.673 0 32 14.327 32 32v464c0 17.673-14.327 32-32 32H160c-17.673 0-32-14.327-32-32V416c0-17.673 14.327-32 32-32z"  ></path><path fill="#333333" d="M64 128m8 0l880 0q8 0 8 8l0 144q0 8-8 8l-880 0q-8 0-8-8l0-144q0-8 8-8Z"  ></path>
 </svg>
