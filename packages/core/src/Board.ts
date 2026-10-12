@@ -749,15 +749,21 @@ export class Board {
     }
   }
 
-  private commitFreehandPath(): Node | undefined {
-    if (this.drawPoints.length === 0) return
+  public addFreehandPath(options: {
+    points: Array<{ x: number; y: number }>
+    color?: string
+    width?: number
+    opacity?: number
+    brushType?: string
+  }): Node | undefined {
+    if (!options.points || options.points.length === 0) return
 
     let minX = Infinity
     let minY = Infinity
     let maxX = -Infinity
     let maxY = -Infinity
 
-    for (const p of this.drawPoints) {
+    for (const p of options.points) {
       minX = Math.min(minX, p.x)
       minY = Math.min(minY, p.y)
       maxX = Math.max(maxX, p.x)
@@ -767,41 +773,59 @@ export class Board {
     const width = Math.max(maxX - minX, 10)
     const height = Math.max(maxY - minY, 10)
 
-    // 计算相对于节点包围盒的相对路径坐标
-    const localPoints = this.drawPoints.map((p) => ({
+    const localPoints = options.points.map((p) => ({
       x: p.x - minX,
       y: p.y - minY,
     }))
     const localD = this.pointsToSvgPath(localPoints)
 
+    const color = options.color || this.drawColor || '#333333'
+    const strokeWidth = options.width || this.drawWidth || 3
+    const opacity = options.opacity !== undefined ? options.opacity : this.drawOpacity
+
     const node = this.graph.addNode({
-      shape: 'speed-freehand-path',
+      shape: 'path',
       x: minX,
       y: minY,
       width,
       height,
+      path: localD,
       attrs: {
+        bg: {
+          pointerEvents: 'none',
+        },
         body: {
           d: localD,
-          refD: localD,
-          stroke: this.drawColor,
-          strokeWidth: this.drawWidth,
-          strokeOpacity: this.drawOpacity,
+          stroke: color,
+          strokeWidth,
+          strokeOpacity: opacity,
           strokeLinecap: 'round',
           strokeLinejoin: 'round',
           fill: 'none',
+          pointerEvents: 'stroke',
         },
       },
       data: {
         type: 'freehand',
-        brushType: this.drawingMode,
+        brushType: options.brushType || this.drawingMode,
       },
     })
 
     return node
   }
 
-  private pointsToSvgPath(points: { x: number; y: number }[]): string {
+  private commitFreehandPath(): Node | undefined {
+    if (this.drawPoints.length === 0) return
+    return this.addFreehandPath({
+      points: this.drawPoints,
+      color: this.drawColor,
+      width: this.drawWidth,
+      opacity: this.drawOpacity,
+      brushType: this.drawingMode,
+    })
+  }
+
+  public pointsToSvgPath(points: { x: number; y: number }[]): string {
     if (points.length === 0) return ''
     if (points.length === 1) {
       return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} l 0.01 0.01`

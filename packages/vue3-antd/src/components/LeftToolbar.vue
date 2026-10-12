@@ -324,6 +324,18 @@ const props = withDefaults(
   }
 )
 
+const emit = defineEmits<{
+  (
+    e: 'mode-change',
+    payload: {
+      mode: 'select' | 'pencil' | 'marker' | 'eraser'
+      color?: string
+      width?: number
+      opacity?: number
+    }
+  ): void
+}>()
+
 // 基础模式状态
 const currentTool = ref<'select' | 'brush' | 'vector'>('select')
 const currentBrush = ref<'pencil' | 'marker' | 'eraser'>('pencil')
@@ -352,28 +364,34 @@ const presetColors = [
 
 // 应用手绘模式到画板引擎
 const applyDrawingMode = () => {
-  if (!props.board) return
-
   if (currentTool.value === 'select') {
-    props.board.setDrawingMode('select')
+    props.board?.setDrawingMode('select')
+    emit('mode-change', { mode: 'select' })
     return
   }
 
   if (currentTool.value === 'brush') {
     if (currentBrush.value === 'pencil') {
-      props.board.setDrawingMode('pencil', {
+      const payload = {
+        mode: 'pencil' as const,
         color: strokeColor.value,
         width: strokeWidth.value,
         opacity: 1,
-      })
+      }
+      props.board?.setDrawingMode('pencil', payload)
+      emit('mode-change', payload)
     } else if (currentBrush.value === 'marker') {
-      props.board.setDrawingMode('marker', {
+      const payload = {
+        mode: 'marker' as const,
         color: strokeColor.value,
         width: Math.max(strokeWidth.value * 3, 12),
         opacity: 0.5,
-      })
+      }
+      props.board?.setDrawingMode('marker', payload)
+      emit('mode-change', payload)
     } else if (currentBrush.value === 'eraser') {
-      props.board.setDrawingMode('eraser')
+      props.board?.setDrawingMode('eraser')
+      emit('mode-change', { mode: 'eraser' })
     }
   }
 }
@@ -385,8 +403,10 @@ const setTool = (tool: 'select' | 'brush' | 'vector') => {
     applyDrawingMode()
   } else if (tool === 'select') {
     props.board?.setDrawingMode('select')
+    emit('mode-change', { mode: 'select' })
   } else if (tool === 'vector') {
     props.board?.setDrawingMode('select')
+    emit('mode-change', { mode: 'select' })
     // 矢量绘图可添加直线指引
     addShape('rect', { text: '矢量节点', shapeType: 'straight' })
   }
@@ -426,6 +446,7 @@ const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) =>
   if (!props.board) return
   currentTool.value = 'select'
   props.board.setDrawingMode('select')
+  emit('mode-change', { mode: 'select' })
   props.board.addShape({
     shape: shape as ShapeType,
     ...extra,
@@ -435,6 +456,8 @@ const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) =>
 const onSelectIcon = (icon: BoardIconItem) => {
   if (!props.board) return
   currentTool.value = 'select'
+  props.board.setDrawingMode('select')
+  emit('mode-change', { mode: 'select' })
   props.board.setDrawingMode('select')
   const svgContent =
     icon.svg ||
