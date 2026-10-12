@@ -1,8 +1,25 @@
 export interface BoardIconItem {
-  id: string
+  id: string | number
   name: string
-  category: string
-  svg: string
+  category?: string
+  svg?: string
+  url?: string
+}
+
+export interface IconSearchParams {
+  query?: string
+  category?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface IconSearchResult {
+  icons: BoardIconItem[]
+  total?: number
+}
+
+export interface IconProvider {
+  search: (params: IconSearchParams) => Promise<IconSearchResult>
 }
 
 export const DEFAULT_ICON_CATEGORIES = [
@@ -118,3 +135,52 @@ export const DEFAULT_BOARD_ICONS: BoardIconItem[] = [
     svg: `<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
   },
 ]
+
+/**
+ * 默认本地离线图标 Provider
+ */
+export const defaultIconProvider: IconProvider = {
+  search: async ({ query, category }) => {
+    const icons = DEFAULT_BOARD_ICONS.filter((item) => {
+      const matchCategory = !category || category === 'all' || item.category === category
+      const matchSearch =
+        !query || item.name.toLowerCase().includes(query.toLowerCase())
+      return matchCategory && matchSearch
+    })
+    return {
+      icons,
+      total: icons.length,
+    }
+  },
+}
+
+/**
+ * 开源免后端 Iconify 官方公共 API Provider
+ */
+export function createIconifyProvider(prefix = 'material-symbols'): IconProvider {
+  return {
+    search: async ({ query }) => {
+      const keyword = query ? `${prefix}:${query}` : `${prefix}:*`
+      const url = `https://api.iconify.design/search?query=${encodeURIComponent(keyword)}&limit=48`
+      try {
+        const res = await fetch(url)
+        const json = await res.json()
+        const icons: BoardIconItem[] = (json.icons || []).map((fullId: string) => {
+          const name = fullId.split(':')[1] || fullId
+          return {
+            id: fullId,
+            name,
+            url: `https://api.iconify.design/${fullId}.svg`,
+          }
+        })
+        return {
+          icons,
+          total: json.total || icons.length,
+        }
+      } catch (err) {
+        console.warn('Iconify fetch failed, fallback to local default icons', err)
+        return defaultIconProvider.search({ query })
+      }
+    },
+  }
+}

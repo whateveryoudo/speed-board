@@ -4,7 +4,7 @@
     <TopToolbar :board="boardInstance" />
 
     <!-- 左侧悬浮胶囊工具栏 (Iconfont、基础图形、便签、文本) -->
-    <LeftToolbar :board="boardInstance" />
+    <LeftToolbar :board="boardInstance" :icon-provider="props.iconProvider" />
 
     <!-- 主画布承载容器 -->
     <div class="speed-board-canvas-wrapper">
@@ -18,9 +18,11 @@ import { shallowRef } from 'vue'
 import { BoardCanvas, type Board, type BoardOptions } from '@speed-board/vue3'
 import LeftToolbar from './LeftToolbar.vue'
 import TopToolbar from './TopToolbar.vue'
+import type { IconProvider } from '../data/defaultIcons'
 
 const props = defineProps<{
   options?: Omit<BoardOptions, 'container'>
+  iconProvider?: IconProvider
 }>()
 
 const emit = defineEmits<{

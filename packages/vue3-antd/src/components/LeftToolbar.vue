@@ -8,7 +8,7 @@
         :overlay-inner-style="{ padding: '0' }"
       >
         <template #content>
-          <IconfontPopover @select="onSelectIcon" />
+          <IconfontPopover :provider="props.iconProvider" @select="onSelectIcon" />
         </template>
         <button class="tool-btn" title="Iconfont 矢量素材">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -126,10 +126,11 @@ import { ref } from 'vue'
 import { Popover as APopover } from 'ant-design-vue'
 import type { Board, ShapeType } from '@speed-board/core'
 import IconfontPopover from './IconfontPopover.vue'
-import type { BoardIconItem } from '../data/defaultIcons'
+import type { BoardIconItem, IconProvider } from '../data/defaultIcons'
 
 const props = defineProps<{
   board: Board | null
+  iconProvider?: IconProvider
 }>()
 
 const currentTool = ref<'select' | 'hand'>('select')
@@ -154,8 +155,11 @@ const addShape = (shape: ShapeType, extra: Record<string, any> = {}) => {
 
 const onSelectIcon = (icon: BoardIconItem) => {
   if (!props.board) return
+  const svgContent =
+    icon.svg ||
+    (icon.url ? `<img src="${icon.url}" width="60" height="60" style="pointer-events:none;"/>` : '')
   props.board.addSvgIcon({
-    svg: icon.svg,
+    svg: svgContent,
     name: icon.name,
     width: 60,
     height: 60,

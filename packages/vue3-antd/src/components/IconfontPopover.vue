@@ -16,8 +16,9 @@
       <input
         v-model="searchKeyword"
         type="text"
-        placeholder="搜索图标素材..."
+        placeholder="搜索图标素材 (如 用户、云、服务器)..."
         class="search-input"
+        @input="onSearchInput"
       />
     </div>
 
@@ -28,7 +29,7 @@
         :key="cat.key"
         class="category-btn"
         :class="{ active: currentCategory === cat.key }"
-        @click="currentCategory = cat.key"
+        @click="changeCategory(cat.key)"
       >
         {{ cat.label }}
       </button>
@@ -36,30 +37,52 @@
 
     <!-- 图标网格 -->
     <div class="iconfont-grid">
-      <div
-        v-for="icon in filteredIcons"
-        :key="icon.id"
-        class="icon-grid-item"
-        :title="icon.name"
-        @click="onSelect(icon)"
-      >
-        <div class="icon-svg-wrapper" v-html="icon.svg" />
-        <span class="icon-label">{{ icon.name }}</span>
+      <div v-if="loading" class="loading-state">
+        <div class="loading-spinner" />
+        <span>正在加载素材...</span>
       </div>
-      <div v-if="filteredIcons.length === 0" class="empty-state">
-        未找到相关图标
-      </div>
+
+      <template v-else>
+        <div
+          v-for="icon in icons"
+          :key="icon.id"
+          class="icon-grid-item"
+          :title="icon.name"
+          @click="onSelect(icon)"
+        >
+          <div class="icon-svg-wrapper">
+            <!-- 优先展示本地内嵌 SVG，否则展示 url -->
+            <div v-if="icon.svg" v-html="icon.svg" />
+            <img v-else-if="icon.url" :src="icon.url" :alt="icon.name" class="icon-remote-img" />
+          </div>
+          <span class="icon-label">{{ icon.name }}</span>
+        </div>
+
+        <div v-if="icons.length === 0" class="empty-state">
+          未找到相关图标素材
+        </div>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import {
-  DEFAULT_BOARD_ICONS,
+  defaultIconProvider,
   DEFAULT_ICON_CATEGORIES,
   type BoardIconItem,
+  type IconProvider,
 } from '../data/defaultIcons'
+
+const props = withDefaults(
+  defineProps<{
+    provider?: IconProvider
+  }>(),
+  {
+    provider: () => defaultIconProvider,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'select', icon: BoardIconItem): void
@@ -67,29 +90,79 @@ const emit = defineEmits<{
 
 const searchKeyword = ref('')
 const currentCategory = ref('all')
+const loading = ref(false)
+const icons = ref<BoardIconItem[]>([])
 
-const filteredIcons = computed(() => {
-  return DEFAULT_BOARD_ICONS.filter((item) => {
-    const matchCategory =
-      currentCategory.value === 'all' || item.category === currentCategory.value
-    const matchSearch =
-      !searchKeyword.value ||
-      item.name.toLowerCase().includes(searchKeyword.value.toLowerCase())
-    return matchCategory && matchSearch
-  })
-})
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 
-const onSelect = (icon: BoardIconItem) => {
+const fetchIcons = async () => {
+  loading.value = true
+  try {
+    const res = await props.provider.search({
+      query: searchKeyword.value.trim(),
+      category: currentCategory.value,
+      page: 1,
+      pageSize: 60,
+    })
+    icons.value = res.icons || []
+  } catch (err) {
+    console.error('Failed to fetch icons from provider', err)
+    icons.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+const onSearchInput = () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    fetchIcons()
+  }, 300)
+}
+
+const changeCategory = (key: string) => {
+  currentCategory.value = key
+  fetchIcons()
+}
+
+const onSelect = async (icon: BoardIconItem) => {
+  // 如果 icon 只有 url 没有 svg，异步 fetch 获取其 SVG 结构
+  if (!icon.svg && icon.url) {
+    try {
+      const res = await fetch(icon.url)
+      const svgText = await res.text()
+      emit('select', { ...icon, svg: svgText })
+      return
+    } catch (e) {
+      console.warn('Failed to fetch icon SVG, fallback to img tag', e)
+      emit('select', {
+        ...icon,
+        svg: `<img src="${icon.url}" width="48" height="48" style="pointer-events:none;"/>`,
+      })
+      return
+    }
+  }
   emit('select', icon)
 }
+
+watch(
+  () => props.provider,
+  () => {
+    fetchIcons()
+  }
+)
+
+onMounted(() => {
+  fetchIcons()
+})
 </script>
 
 <style scoped>
 .iconfont-panel {
-  width: 290px;
+  width: 300px;
   background: #ffffff;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -188,6 +261,7 @@ const onSelect = (icon: BoardIconItem) => {
   gap: 8px;
   padding: 10px 14px 14px;
   max-height: 280px;
+  min-height: 180px;
   overflow-y: auto;
 }
 
@@ -215,6 +289,12 @@ const onSelect = (icon: BoardIconItem) => {
   justify-content: center;
 }
 
+.icon-remote-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
 .icon-label {
   font-size: 11px;
   color: #64748b;
@@ -226,10 +306,37 @@ const onSelect = (icon: BoardIconItem) => {
   text-align: center;
 }
 
+.loading-state {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  color: #94a3b8;
+  font-size: 12px;
+  gap: 8px;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .empty-state {
   grid-column: span 4;
   text-align: center;
-  padding: 24px 0;
+  padding: 30px 0;
   color: #94a3b8;
   font-size: 12px;
 }
