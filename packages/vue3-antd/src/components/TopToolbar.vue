@@ -60,7 +60,10 @@
     </div>
 
     <!-- 3. 右上角悬浮胶囊组：拖拽 / 自适应 / 缩放 / 辅助工具 / 展开收起 -->
-    <div class="top-right-floating-group">
+    <div
+      class="top-right-floating-group"
+      :class="{ 'has-settings-open': props.showSettings }"
+    >
       <!-- 胶囊 1: 视口与缩放 -->
       <div class="board-floating-capsule viewport-zoom-capsule">
         <a-tooltip title="拖拽 (Space)">
@@ -122,7 +125,11 @@
         </a-tooltip>
 
         <a-tooltip title="画板偏好设置">
-          <a-button type="text" class="shadow-btn-wrapper">
+          <a-button
+            type="text"
+            class="shadow-btn-wrapper"
+            @click="emit('toggle-settings')"
+          >
             <SettingOutlined />
           </a-button>
         </a-tooltip>
@@ -172,16 +179,19 @@ const props = withDefaults(
     board: Board | null
     title?: string
     showLeftToolbar?: boolean
+    showSettings?: boolean
   }>(),
   {
     title: '测试画板1',
     showLeftToolbar: true,
+    showSettings: false,
   }
 )
 
 const emit = defineEmits<{
   (e: 'update:showLeftToolbar', val: boolean): void
   (e: 'save'): void
+  (e: 'toggle-settings'): void
 }>()
 
 const currentZoom = ref(1)

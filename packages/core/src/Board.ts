@@ -20,7 +20,7 @@ export interface BoardOptions {
 
 export type ShapeType = 'rect' | 'circle' | 'diamond' | 'text' | 'sticky' | 'icon' | 'path'
 
-export type DrawingMode = 'select' | 'hand' | 'pencil' | 'marker' | 'brush' | 'eraser'
+export type DrawingMode = 'select' | 'hand' | 'pencil' | 'marker' | 'brush' | 'eraser' | 'vector'
 
 export interface DrawingOptions {
   color?: string
@@ -41,6 +41,68 @@ export interface AddShapeOptions {
   iconName?: string
   [key: string]: any
 }
+
+// 注册自定义闭合矢量多边形节点 (Vector Polygon)
+Graph.registerNode(
+  'speed-vector-polygon',
+  {
+    inherit: 'path',
+    attrs: {
+      bg: {
+        fill: 'transparent',
+        stroke: 'transparent',
+        strokeWidth: 0,
+        pointerEvents: 'none',
+      },
+      body: {
+        fill: '#fce7f3',
+        stroke: '#333333',
+        strokeWidth: 2,
+        strokeDasharray: 'none',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        pointerEvents: 'auto',
+      },
+    },
+  },
+  true
+)
+
+// 注册自定义文本图元节点 (Speed Text Node)
+Graph.registerNode(
+  'speed-text-node',
+  {
+    inherit: 'rect',
+    markup: [
+      {
+        tagName: 'rect',
+        selector: 'body',
+      },
+      {
+        tagName: 'text',
+        selector: 'label',
+      },
+    ],
+    attrs: {
+      body: {
+        fill: 'transparent',
+        stroke: 'transparent',
+        strokeWidth: 0,
+      },
+      label: {
+        text: '文本',
+        fontSize: 14,
+        fill: '#262626',
+        textAnchor: 'start',
+        textVerticalAnchor: 'middle',
+        refX: 8,
+        refY: '50%',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      },
+    },
+  },
+  true
+)
 
 // 注册自定义自由手绘路径节点 (Freehand Path)
 Graph.registerNode(
@@ -159,6 +221,7 @@ export class Board {
   // 插件实例引用
   private scrollerPlugin?: Scroller
   private selectionPlugin?: Selection
+  private transformPlugin?: Transform
 
   // 手绘状态
   private drawingMode: DrawingMode = 'select'
@@ -195,6 +258,7 @@ export class Board {
     this.graph = new Graph({
       container: this.container,
       autoResize: true,
+      async: false,
       grid: {
         visible: true,
         size: 15,
@@ -246,11 +310,7 @@ export class Board {
       pannable: true,
       pageVisible: false,
       pageBreak: false,
-      autoResize: true,
-      autoResizeOptions: {
-        minWidth: 3000,
-        minHeight: 2000,
-      },
+      autoResize: false, // 禁用添加节点时自动强制重算原点与居中，避免画第一笔时视口被强行跳变居中
     })
     this.graph.use(this.scrollerPlugin)
 
@@ -269,24 +329,23 @@ export class Board {
       multiple: true,
       rubberband: true,
       movable: true,
-      showNodeSelectionBox: true,
+      showNodeSelectionBox: false, // 禁用独立选框，由 Transform 变换插件统一提供单一控制框，避免旋转时出现双重框
     })
     this.graph.use(this.selectionPlugin)
 
     // 4. 图元大小缩放与旋转控制柄 (Transform)
-    this.graph.use(
-      new Transform({
-        resizing: {
-          enabled: true,
-          minWidth: 24,
-          minHeight: 24,
-        },
-        rotating: {
-          enabled: true,
-          grid: 15,
-        },
-      })
-    )
+    this.transformPlugin = new Transform({
+      resizing: {
+        enabled: true,
+        minWidth: 24,
+        minHeight: 24,
+      },
+      rotating: {
+        enabled: true,
+        grid: 1,
+      },
+    })
+    this.graph.use(this.transformPlugin)
 
     // 5. 快捷键系统
     this.graph.use(new Keyboard({ enabled: true }))
@@ -299,8 +358,13 @@ export class Board {
   }
 
   private initEvents() {
-    // 居中视口到内容
-    this.graph.centerContent()
+    // 选中图元时同步激活 Transform 单一控制框，取消选中时清除，保证仅有单一控制框
+    this.graph.on('node:selected', ({ node }) => {
+      this.transformPlugin?.createWidget(node)
+    })
+    this.graph.on('node:unselected', () => {
+      this.transformPlugin?.clearWidgets()
+    })
 
     // 绑定删除快捷键 Delete / Backspace
     this.graph.bindKey(['backspace', 'delete'], () => {
@@ -459,17 +523,30 @@ export class Board {
 
       case 'text':
         node = this.graph.addNode({
-          shape: 'text-block',
+          shape: 'speed-text-node',
           x,
           y,
-          width: options.width ?? 120,
-          height: options.height ?? 40,
-          text: options.text || '双击编辑文本',
+          width: options.width ?? 100,
+          height: options.height ?? 36,
           attrs: {
-            body: {
-              fill: 'transparent',
-              stroke: 'transparent',
+            label: {
+              text: options.text || '文本',
+              fontSize: options.fontSize || 14,
+              fill: options.fill || '#262626',
             },
+          },
+          data: {
+            type: 'text',
+            text: options.text || '文本',
+            link: options.link || '',
+            fontSize: options.fontSize || 14,
+            fill: options.fill || '#262626',
+            bold: false,
+            italic: false,
+            strike: false,
+            underline: false,
+            align: 'left',
+            verticalAlign: 'middle',
           },
         })
         break
@@ -758,24 +835,26 @@ export class Board {
   }): Node | undefined {
     if (!options.points || options.points.length === 0) return
 
-    let minX = Infinity
-    let minY = Infinity
-    let maxX = -Infinity
-    let maxY = -Infinity
+    let _minX = Infinity
+    let _minY = Infinity
+    let _maxX = -Infinity
+    let _maxY = -Infinity
 
     for (const p of options.points) {
-      minX = Math.min(minX, p.x)
-      minY = Math.min(minY, p.y)
-      maxX = Math.max(maxX, p.x)
-      maxY = Math.max(maxY, p.y)
+      _minX = Math.min(_minX, p.x)
+      _minY = Math.min(_minY, p.y)
+      _maxX = Math.max(_maxX, p.x)
+      _maxY = Math.max(_maxY, p.y)
     }
 
-    const width = Math.max(maxX - minX, 10)
-    const height = Math.max(maxY - minY, 10)
+    const minX = Number(_minX.toFixed(1))
+    const minY = Number(_minY.toFixed(1))
+    const width = Math.max(Number((_maxX - _minX).toFixed(1)), 10)
+    const height = Math.max(Number((_maxY - _minY).toFixed(1)), 10)
 
     const localPoints = options.points.map((p) => ({
-      x: p.x - minX,
-      y: p.y - minY,
+      x: Number((p.x - minX).toFixed(1)),
+      y: Number((p.y - minY).toFixed(1)),
     }))
     const localD = this.pointsToSvgPath(localPoints)
 
@@ -783,35 +862,375 @@ export class Board {
     const strokeWidth = options.width || this.drawWidth || 3
     const opacity = options.opacity !== undefined ? options.opacity : this.drawOpacity
 
-    const node = this.graph.addNode({
-      shape: 'path',
-      x: minX,
-      y: minY,
-      width,
-      height,
-      path: localD,
-      attrs: {
-        bg: {
-          pointerEvents: 'none',
+    const node = this.graph.addNode(
+      {
+        shape: 'path',
+        x: minX,
+        y: minY,
+        width,
+        height,
+        attrs: {
+          bg: {
+            fill: 'none',
+            stroke: 'none',
+            pointerEvents: 'none',
+          },
+          body: {
+            d: localD,
+            stroke: color,
+            strokeWidth,
+            'stroke-width': strokeWidth,
+            strokeOpacity: opacity,
+            'stroke-opacity': opacity,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            fill: 'none',
+            pointerEvents: 'stroke',
+          },
         },
-        body: {
-          d: localD,
-          stroke: color,
-          strokeWidth,
-          strokeOpacity: opacity,
-          strokeLinecap: 'round',
-          strokeLinejoin: 'round',
-          fill: 'none',
-          pointerEvents: 'stroke',
+        data: {
+          type: 'freehand',
+          brushType: options.brushType || this.drawingMode,
         },
       },
-      data: {
-        type: 'freehand',
-        brushType: options.brushType || this.drawingMode,
-      },
-    })
+      { async: false }
+    )
 
     return node
+  }
+
+  /**
+   * 添加闭合矢量图形 (Vector Polygon)
+   */
+  public addPolygonShape(options: {
+    points: Array<{ x: number; y: number }>
+    fill?: string
+    stroke?: string
+    strokeWidth?: number
+    strokeDasharray?: string
+    opacity?: number
+  }): Node | undefined {
+    if (!options.points || options.points.length < 3) return
+
+    let _minX = Infinity
+    let _minY = Infinity
+    let _maxX = -Infinity
+    let _maxY = -Infinity
+
+    for (const p of options.points) {
+      _minX = Math.min(_minX, p.x)
+      _minY = Math.min(_minY, p.y)
+      _maxX = Math.max(_maxX, p.x)
+      _maxY = Math.max(_maxY, p.y)
+    }
+
+    const minX = Number(_minX.toFixed(1))
+    const minY = Number(_minY.toFixed(1))
+    const width = Math.max(Number((_maxX - _minX).toFixed(1)), 20)
+    const height = Math.max(Number((_maxY - _minY).toFixed(1)), 20)
+
+    const localPoints = options.points.map((p) => ({
+      x: Number((p.x - minX).toFixed(1)),
+      y: Number((p.y - minY).toFixed(1)),
+    }))
+
+    // 构建闭合 SVG 路径: M x0 y0 L x1 y1 ... Z
+    let localD = `M ${localPoints[0].x} ${localPoints[0].y}`
+    for (let i = 1; i < localPoints.length; i++) {
+      localD += ` L ${localPoints[i].x} ${localPoints[i].y}`
+    }
+    localD += ' Z'
+
+    const fill = options.fill !== undefined ? options.fill : '#fce7f3'
+    const stroke = options.stroke || '#333333'
+    const strokeWidth = options.strokeWidth ?? 2
+    const strokeDasharray = options.strokeDasharray || 'none'
+    const opacity = options.opacity !== undefined ? options.opacity : 1
+
+    const node = this.graph.addNode(
+      {
+        shape: 'speed-vector-polygon',
+        x: minX,
+        y: minY,
+        width,
+        height,
+        attrs: {
+          body: {
+            refD: localD,
+            d: localD,
+            fill,
+            stroke,
+            strokeWidth,
+            'stroke-width': strokeWidth,
+            strokeDasharray,
+            'stroke-dasharray': strokeDasharray,
+            opacity,
+            fillOpacity: opacity,
+            strokeOpacity: opacity,
+          },
+        },
+        data: {
+          type: 'vector-polygon',
+          points: localPoints,
+          fill,
+          stroke,
+          strokeWidth,
+          strokeDasharray,
+          opacity,
+        },
+      },
+      { async: false }
+    )
+
+    this.graph.cleanSelection()
+    this.graph.select(node)
+    return node
+  }
+
+  /**
+   * 更新当前选中图元的样式 (填充色, 边框色, 边框粗细, 虚线样式, 不透明度)
+   */
+  public updateSelectedStyle(style: {
+    fill?: string
+    stroke?: string
+    strokeWidth?: number
+    strokeDasharray?: string
+    opacity?: number
+  }) {
+    const selectedCells = this.graph.getSelectedCells()
+    if (!selectedCells || selectedCells.length === 0) return
+
+    for (const cell of selectedCells) {
+      if (!cell.isNode()) continue
+
+      if (style.fill !== undefined) {
+        cell.setAttrByPath('body/fill', style.fill)
+      }
+      if (style.stroke !== undefined) {
+        cell.setAttrByPath('body/stroke', style.stroke)
+      }
+      if (style.strokeWidth !== undefined) {
+        cell.setAttrByPath('body/strokeWidth', style.strokeWidth)
+        cell.setAttrByPath('body/stroke-width', style.strokeWidth)
+      }
+      if (style.strokeDasharray !== undefined) {
+        cell.setAttrByPath('body/strokeDasharray', style.strokeDasharray)
+        cell.setAttrByPath('body/stroke-dasharray', style.strokeDasharray)
+      }
+      if (style.opacity !== undefined) {
+        cell.setAttrByPath('body/opacity', style.opacity)
+        cell.setAttrByPath('body/fillOpacity', style.opacity)
+        cell.setAttrByPath('body/strokeOpacity', style.opacity)
+      }
+
+      // 同步更新 data 属性以供持久化与状态读取
+      const data = cell.getData() || {}
+      cell.setData({
+        ...data,
+        ...style,
+      })
+    }
+  }
+
+  /**
+   * 获取当前首个选中图元的样式
+   */
+  public getSelectedStyle(): {
+    fill?: string
+    stroke?: string
+    strokeWidth?: number
+    strokeDasharray?: string
+    opacity?: number
+  } | null {
+    const selectedCells = this.graph.getSelectedCells()
+    if (!selectedCells || selectedCells.length === 0) return null
+    const cell = selectedCells[0]
+    if (!cell.isNode()) return null
+
+    const attrs = cell.getAttrs()?.body || {}
+    const data = cell.getData() || {}
+
+    return {
+      fill: (attrs.fill as string) || (data.fill as string) || '#ffffff',
+      stroke: (attrs.stroke as string) || (data.stroke as string) || '#333333',
+      strokeWidth: Number(attrs.strokeWidth || attrs['stroke-width'] || data.strokeWidth || 2),
+      strokeDasharray: (attrs.strokeDasharray as string) || (attrs['stroke-dasharray'] as string) || (data.strokeDasharray as string) || 'none',
+      opacity: Number(attrs.opacity !== undefined ? attrs.opacity : data.opacity !== undefined ? data.opacity : 1),
+    }
+  }
+
+  /**
+   * 判断图元是否为文本节点
+   */
+  public isTextNode(cell?: any): boolean {
+    if (!cell) {
+      const selected = this.graph.getSelectedCells()
+      if (!selected.length) return false
+      cell = selected[0]
+    }
+    if (!cell || !cell.isNode()) return false
+    return (
+      cell.shape === 'speed-text-node' ||
+      cell.shape === 'text-block' ||
+      cell.getData()?.type === 'text'
+    )
+  }
+
+  /**
+   * 更新指定文本节点属性 (内容、字号、颜色、样式、对齐、链接)
+   */
+  public updateTextNode(
+    nodeOrId: Node | string,
+    options: {
+      text?: string
+      link?: string
+      fontSize?: number
+      fill?: string
+      bold?: boolean
+      italic?: boolean
+      strike?: boolean
+      underline?: boolean
+      align?: 'left' | 'center' | 'right' | 'justify'
+      verticalAlign?: 'top' | 'middle' | 'bottom'
+    }
+  ) {
+    const node = typeof nodeOrId === 'string' ? (this.graph.getCellById(nodeOrId) as Node) : nodeOrId
+    if (!node || !node.isNode()) return
+
+    const data = node.getData() || {}
+    const newData = { ...data, ...options }
+    node.setData(newData)
+
+    if (options.text !== undefined) {
+      node.setAttrByPath('label/text', options.text)
+    }
+    if (options.fontSize !== undefined) {
+      node.setAttrByPath('label/fontSize', options.fontSize)
+    }
+    if (options.fill !== undefined) {
+      node.setAttrByPath('label/fill', options.fill)
+    }
+    if (options.bold !== undefined) {
+      node.setAttrByPath('label/fontWeight', options.bold ? 'bold' : 'normal')
+    }
+    if (options.italic !== undefined) {
+      node.setAttrByPath('label/fontStyle', options.italic ? 'italic' : 'normal')
+    }
+
+    const isUnderline = options.underline !== undefined ? options.underline : data.underline
+    const isStrike = options.strike !== undefined ? options.strike : data.strike
+    let decoration = 'none'
+    if (isUnderline && isStrike) decoration = 'underline line-through'
+    else if (isUnderline) decoration = 'underline'
+    else if (isStrike) decoration = 'line-through'
+    node.setAttrByPath('label/textDecoration', decoration)
+
+    const align = options.align || data.align || 'left'
+    if (align === 'left' || align === 'justify') {
+      node.setAttrByPath('label/textAnchor', 'start')
+      node.setAttrByPath('label/refX', 8)
+    } else if (align === 'center') {
+      node.setAttrByPath('label/textAnchor', 'middle')
+      node.setAttrByPath('label/refX', '50%')
+    } else if (align === 'right') {
+      node.setAttrByPath('label/textAnchor', 'end')
+      node.setAttrByPath('label/refX', 'calc(100% - 8px)')
+    }
+
+    const verticalAlign = options.verticalAlign || data.verticalAlign || 'middle'
+    if (verticalAlign === 'top') {
+      node.setAttrByPath('label/textVerticalAnchor', 'top')
+      node.setAttrByPath('label/refY', 8)
+    } else if (verticalAlign === 'middle') {
+      node.setAttrByPath('label/textVerticalAnchor', 'middle')
+      node.setAttrByPath('label/refY', '50%')
+    } else if (verticalAlign === 'bottom') {
+      node.setAttrByPath('label/textVerticalAnchor', 'bottom')
+      node.setAttrByPath('label/refY', 'calc(100% - 8px)')
+    }
+
+    // 动态调整宽度与高度以适应文字
+    const text = options.text !== undefined ? options.text : ((node.getAttrByPath('label/text') as string) || '')
+    const fs = options.fontSize || ((node.getAttrByPath('label/fontSize') as number) || 14)
+    const lines = text.split('\n')
+    const maxLineLen = Math.max(...lines.map((l: string) => l.length), 2)
+    const minWidth = 80
+    const minHeight = 36
+    const calcWidth = Math.max(minWidth, maxLineLen * fs * 0.95 + 24)
+    const calcHeight = Math.max(minHeight, lines.length * fs * 1.45 + 16)
+    node.setSize(Math.round(calcWidth), Math.round(calcHeight))
+  }
+
+  /**
+   * 更新当前选中文本图元属性
+   */
+  public updateSelectedTextStyle(options: {
+    text?: string
+    link?: string
+    fontSize?: number
+    fill?: string
+    bold?: boolean
+    italic?: boolean
+    strike?: boolean
+    underline?: boolean
+    align?: 'left' | 'center' | 'right' | 'justify'
+    verticalAlign?: 'top' | 'middle' | 'bottom'
+  }) {
+    const selectedCells = this.graph.getSelectedCells()
+    if (!selectedCells || selectedCells.length === 0) return
+    for (const cell of selectedCells) {
+      if (cell.isNode()) {
+        this.updateTextNode(cell, options)
+      }
+    }
+  }
+
+  /**
+   * 获取当前选中图元的文本属性
+   */
+  public getSelectedTextData(): {
+    text: string
+    link: string
+    fontSize: number
+    fill: string
+    bold: boolean
+    italic: boolean
+    strike: boolean
+    underline: boolean
+    align: 'left' | 'center' | 'right' | 'justify'
+    verticalAlign: 'top' | 'middle' | 'bottom'
+  } | null {
+    const selectedCells = this.graph.getSelectedCells()
+    if (!selectedCells || selectedCells.length === 0) return null
+    const cell = selectedCells[0]
+    if (!cell.isNode()) return null
+
+    const attrs = cell.getAttrs()?.label || {}
+    const data = cell.getData() || {}
+
+    const text = (attrs.text as string) ?? (data.text as string) ?? ''
+    const fontSize = Number(attrs.fontSize ?? data.fontSize ?? 14)
+    const fill = (attrs.fill as string) ?? (data.fill as string) ?? '#262626'
+    const bold = attrs.fontWeight === 'bold' || !!data.bold
+    const italic = attrs.fontStyle === 'italic' || !!data.italic
+    const dec = (attrs.textDecoration as string) || ''
+    const underline = dec.includes('underline') || !!data.underline
+    const strike = dec.includes('line-through') || !!data.strike
+    const align = data.align || (attrs.textAnchor === 'middle' ? 'center' : attrs.textAnchor === 'end' ? 'right' : 'left')
+    const verticalAlign = data.verticalAlign || (attrs.textVerticalAnchor === 'top' ? 'top' : attrs.textVerticalAnchor === 'bottom' ? 'bottom' : 'middle')
+
+    return {
+      text,
+      link: data.link || '',
+      fontSize,
+      fill,
+      bold,
+      italic,
+      strike,
+      underline,
+      align,
+      verticalAlign,
+    }
   }
 
   private commitFreehandPath(): Node | undefined {
@@ -861,6 +1280,10 @@ export class Board {
     if (mode === 'pencil') {
       if (options?.width === undefined) this.drawWidth = 3
       if (options?.opacity === undefined) this.drawOpacity = 1
+      this.selectionPlugin?.disableRubberband()
+      this.scrollerPlugin?.disablePanning()
+      this.container.style.cursor = 'crosshair'
+    } else if (mode === 'vector') {
       this.selectionPlugin?.disableRubberband()
       this.scrollerPlugin?.disablePanning()
       this.container.style.cursor = 'crosshair'

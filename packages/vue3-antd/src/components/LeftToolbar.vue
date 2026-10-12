@@ -231,9 +231,12 @@
 
           <!-- 2.4 线条粗细 (波浪线图标 + 粗细弹窗) -->
           <a-popover
+            v-model:open="widthPopoverOpen"
             trigger="click"
             placement="right"
+            :destroy-tooltip-on-hide="true"
             :overlay-inner-style="{ padding: '8px', borderRadius: '8px' }"
+            @update:open="onWidthOpenChange"
           >
             <template #content>
               <div class="width-picker-panel">
@@ -249,8 +252,16 @@
                 </div>
               </div>
             </template>
-            <a-tooltip title="粗细" placement="top">
-              <a-button type="text" class="shadow-btn-wrapper sub-capsule-btn">
+            <a-tooltip
+              :title="widthPopoverOpen ? '' : '粗细'"
+              :open="widthPopoverOpen ? false : undefined"
+              placement="top"
+            >
+              <a-button
+                type="text"
+                class="shadow-btn-wrapper sub-capsule-btn"
+                :class="{ 'is-active': widthPopoverOpen }"
+              >
                 <svg
                   width="18"
                   height="18"
@@ -269,9 +280,12 @@
 
           <!-- 2.5 颜色选择器 (圆点色块 + 调色板弹窗) -->
           <a-popover
+            v-model:open="colorPopoverOpen"
             trigger="click"
             placement="right"
+            :destroy-tooltip-on-hide="true"
             :overlay-inner-style="{ padding: '8px', borderRadius: '8px' }"
+            @update:open="onColorOpenChange"
           >
             <template #content>
               <div class="color-picker-palette">
@@ -285,8 +299,16 @@
                 />
               </div>
             </template>
-            <a-tooltip title="颜色" placement="top">
-              <a-button type="text" class="shadow-btn-wrapper sub-capsule-btn">
+            <a-tooltip
+              :title="colorPopoverOpen ? '' : '颜色'"
+              :open="colorPopoverOpen ? false : undefined"
+              placement="top"
+            >
+              <a-button
+                type="text"
+                class="shadow-btn-wrapper sub-capsule-btn"
+                :class="{ 'is-active': colorPopoverOpen }"
+              >
                 <span
                   class="active-color-dot"
                   :style="{ backgroundColor: strokeColor }"
@@ -328,10 +350,17 @@ const emit = defineEmits<{
   (
     e: 'mode-change',
     payload: {
-      mode: 'select' | 'pencil' | 'marker' | 'eraser'
+      mode: 'select' | 'pencil' | 'marker' | 'eraser' | 'vector'
       color?: string
       width?: number
       opacity?: number
+    }
+  ): void
+  (
+    e: 'shape-added',
+    payload: {
+      shape: string
+      node: any
     }
   ): void
 }>()
@@ -339,6 +368,24 @@ const emit = defineEmits<{
 // 基础模式状态
 const currentTool = ref<'select' | 'brush' | 'vector'>('select')
 const currentBrush = ref<'pencil' | 'marker' | 'eraser'>('pencil')
+
+// 弹窗状态受控管理（避免同时展开冲突，并在选择后即时关闭消除残影/闪烁）
+const widthPopoverOpen = ref(false)
+const colorPopoverOpen = ref(false)
+
+const onWidthOpenChange = (open: boolean) => {
+  widthPopoverOpen.value = open
+  if (open) {
+    colorPopoverOpen.value = false
+  }
+}
+
+const onColorOpenChange = (open: boolean) => {
+  colorPopoverOpen.value = open
+  if (open) {
+    widthPopoverOpen.value = false
+  }
+}
 
 // 手绘样式参数
 const strokeColor = ref('#333333')
@@ -399,16 +446,16 @@ const applyDrawingMode = () => {
 // 切换主工具
 const setTool = (tool: 'select' | 'brush' | 'vector') => {
   currentTool.value = tool
+  widthPopoverOpen.value = false
+  colorPopoverOpen.value = false
   if (tool === 'brush') {
     applyDrawingMode()
   } else if (tool === 'select') {
     props.board?.setDrawingMode('select')
     emit('mode-change', { mode: 'select' })
   } else if (tool === 'vector') {
-    props.board?.setDrawingMode('select')
-    emit('mode-change', { mode: 'select' })
-    // 矢量绘图可添加直线指引
-    addShape('rect', { text: '矢量节点', shapeType: 'straight' })
+    props.board?.setDrawingMode('vector')
+    emit('mode-change', { mode: 'vector' })
   }
 }
 
@@ -416,18 +463,28 @@ const setTool = (tool: 'select' | 'brush' | 'vector') => {
 const selectBrush = (brush: 'pencil' | 'marker' | 'eraser') => {
   currentBrush.value = brush
   currentTool.value = 'brush'
+  widthPopoverOpen.value = false
+  colorPopoverOpen.value = false
   applyDrawingMode()
 }
 
-// 调整粗细
+// 调整粗细 (选定后立刻关闭弹窗并生效，恢复画笔)
 const setStrokeWidth = (w: number) => {
   strokeWidth.value = w
+  widthPopoverOpen.value = false
+  if (currentBrush.value === 'eraser') {
+    currentBrush.value = 'pencil'
+  }
   applyDrawingMode()
 }
 
-// 调整颜色
+// 调整颜色 (选定后立刻关闭弹窗并生效，恢复画笔)
 const setStrokeColor = (c: string) => {
   strokeColor.value = c
+  colorPopoverOpen.value = false
+  if (currentBrush.value === 'eraser') {
+    currentBrush.value = 'pencil'
+  }
   applyDrawingMode()
 }
 
@@ -447,10 +504,11 @@ const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) =>
   currentTool.value = 'select'
   props.board.setDrawingMode('select')
   emit('mode-change', { mode: 'select' })
-  props.board.addShape({
+  const node = props.board.addShape({
     shape: shape as ShapeType,
     ...extra,
   })
+  emit('shape-added', { shape: shape as string, node })
 }
 
 const onSelectIcon = (icon: BoardIconItem) => {
@@ -482,12 +540,14 @@ const onSelectIcon = (icon: BoardIconItem) => {
   flex-direction: row;
   align-items: flex-start;
   gap: 8px;
+  pointer-events: none; // 让胶囊外部的整个空白区域点击/绘制100%穿透到画布
 }
 
 .left-toolbar-capsule {
   flex-direction: column;
   gap: 6px;
   padding: 6px;
+  pointer-events: auto; // 仅胶囊自身响应事件
 }
 
 /* 语雀风格画笔二级悬浮胶囊 */
@@ -496,6 +556,7 @@ const onSelectIcon = (icon: BoardIconItem) => {
   gap: 6px;
   padding: 6px;
   animation: subCapsuleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto; // 仅胶囊自身响应事件
 }
 
 .sub-capsule-btn {
