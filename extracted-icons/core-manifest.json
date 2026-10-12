@@ -1,0 +1,134 @@
+[
+  {
+    "key": "xuanze",
+    "name": "board-select-cursor",
+    "label": "选择指针",
+    "path": "board-core/board-select-cursor.svg"
+  },
+  {
+    "key": "qianbiicon",
+    "name": "board-pencil",
+    "label": "铅笔",
+    "path": "board-core/board-pencil.svg"
+  },
+  {
+    "key": "makebi",
+    "name": "board-marker-pen",
+    "label": "马克笔/荧光笔",
+    "path": "board-core/board-marker-pen.svg"
+  },
+  {
+    "key": "huabiicon",
+    "name": "board-brush",
+    "label": "画笔",
+    "path": "board-core/board-brush.svg"
+  },
+  {
+    "key": "xiangpi",
+    "name": "board-eraser",
+    "label": "橡皮擦",
+    "path": "board-core/board-eraser.svg"
+  },
+  {
+    "key": "shilianghuitu",
+    "name": "board-vector-drawing",
+    "label": "矢量绘图",
+    "path": "board-core/board-vector-drawing.svg"
+  },
+  {
+    "key": "gangbixinzengjiedian",
+    "name": "board-pen-add-node",
+    "label": "钢笔新增节点",
+    "path": "board-core/board-pen-add-node.svg"
+  },
+  {
+    "key": "yidongjiedian",
+    "name": "board-move-node",
+    "label": "移动节点",
+    "path": "board-core/board-move-node.svg"
+  },
+  {
+    "key": "bihetuxing",
+    "name": "board-closed-shape",
+    "label": "闭合图形",
+    "path": "board-core/board-closed-shape.svg"
+  },
+  {
+    "key": "shape2",
+    "name": "board-shape-diamond",
+    "label": "基础菱形",
+    "path": "board-core/board-shape-diamond.svg"
+  },
+  {
+    "key": "shape3",
+    "name": "board-shape-round-rect",
+    "label": "圆角矩形",
+    "path": "board-core/board-shape-round-rect.svg"
+  },
+  {
+    "key": "shape4",
+    "name": "board-shape-triangle",
+    "label": "三角形",
+    "path": "board-core/board-shape-triangle.svg"
+  },
+  {
+    "key": "line-s2",
+    "name": "board-line-elbow",
+    "label": "折线连线",
+    "path": "board-core/board-line-elbow.svg"
+  },
+  {
+    "key": "line-s1",
+    "name": "board-line-arrow",
+    "label": "箭头连线",
+    "path": "board-core/board-line-arrow.svg"
+  },
+  {
+    "key": "hand",
+    "name": "board-hand-pan",
+    "label": "抓手拖拽",
+    "path": "board-core/board-hand-pan.svg"
+  },
+  {
+    "key": "shape1",
+    "name": "board-shape-circle",
+    "label": "基础圆形",
+    "path": "board-core/board-shape-circle.svg"
+  },
+  {
+    "key": "mind",
+    "name": "board-mindmap",
+    "label": "思维导图",
+    "path": "board-core/board-mindmap.svg"
+  },
+  {
+    "key": "edit-pen",
+    "name": "board-text-edit",
+    "label": "文本编辑",
+    "path": "board-core/board-text-edit.svg"
+  },
+  {
+    "key": "curve1",
+    "name": "board-line-curve",
+    "label": "曲线连线",
+    "path": "board-core/board-line-curve.svg"
+  },
+  {
+    "key": "shape",
+    "name": "board-shape-rect",
+    "label": "基础矩形",
+    "path": "board-core/board-shape-rect.svg"
+  },
+  {
+    "key": "xuanzequyu",
+    "name": "board-select-area",
+    "label": "框选区域",
+    "path": "board-core/board-select-area.svg"
+  },
+  {
+    "key": "line",
+    "name": "board-line-straight",
+    "label": "直线",
+    "path": "board-core/board-line-straight.svg"
+  }
+]
