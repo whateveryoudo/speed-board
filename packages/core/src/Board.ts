@@ -18,7 +18,15 @@ export interface BoardOptions {
   readonly?: boolean
 }
 
-export type ShapeType = 'rect' | 'circle' | 'diamond' | 'text' | 'sticky' | 'icon'
+export type ShapeType = 'rect' | 'circle' | 'diamond' | 'text' | 'sticky' | 'icon' | 'path'
+
+export type DrawingMode = 'select' | 'hand' | 'pencil' | 'marker' | 'brush' | 'eraser'
+
+export interface DrawingOptions {
+  color?: string
+  width?: number
+  opacity?: number
+}
 
 export interface AddShapeOptions {
   shape: ShapeType
@@ -33,6 +41,31 @@ export interface AddShapeOptions {
   iconName?: string
   [key: string]: any
 }
+
+// 注册自定义自由手绘路径节点 (Freehand Path)
+Graph.registerNode(
+  'speed-freehand-path',
+  {
+    inherit: 'path',
+    attrs: {
+      bg: {
+        fill: 'transparent',
+        stroke: 'transparent',
+        strokeWidth: 0,
+        pointerEvents: 'none',
+      },
+      body: {
+        fill: 'none',
+        stroke: '#333333',
+        strokeWidth: 3,
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        pointerEvents: 'stroke',
+      },
+    },
+  },
+  true
+)
 
 // 注册自定义 SVG 图标节点
 Graph.registerNode(
@@ -123,6 +156,22 @@ export class Board {
   // 内部标记：防止协同循环触发
   private isApplyingRemoteUpdate = false
 
+  // 插件实例引用
+  private scrollerPlugin?: Scroller
+  private selectionPlugin?: Selection
+
+  // 手绘状态
+  private drawingMode: DrawingMode = 'select'
+  private drawColor: string = '#333333'
+  private drawWidth: number = 3
+  private drawOpacity: number = 1
+  private isDrawing: boolean = false
+  private drawPoints: { x: number; y: number }[] = []
+  private tempSvgPath: SVGPathElement | null = null
+
+  // 事件解绑回调
+  private drawingCleanupFns: Array<() => void> = []
+
   constructor(options: BoardOptions) {
     this.container = options.container
     this.ydoc = options.ydoc || new Y.Doc()
@@ -192,19 +241,18 @@ export class Board {
 
   private initPlugins() {
     // 1. 无限滚动与抓手平移画布 (Scroller)
-    this.graph.use(
-      new Scroller({
-        enabled: true,
-        pannable: true,
-        pageVisible: false,
-        pageBreak: false,
-        autoResize: true,
-        autoResizeOptions: {
-          minWidth: 3000,
-          minHeight: 2000,
-        },
-      })
-    )
+    this.scrollerPlugin = new Scroller({
+      enabled: true,
+      pannable: true,
+      pageVisible: false,
+      pageBreak: false,
+      autoResize: true,
+      autoResizeOptions: {
+        minWidth: 3000,
+        minHeight: 2000,
+      },
+    })
+    this.graph.use(this.scrollerPlugin)
 
     // 2. 磁吸对齐参考线 (Snapline)
     this.graph.use(
@@ -216,15 +264,14 @@ export class Board {
     )
 
     // 3. 多选框选 (Selection)
-    this.graph.use(
-      new Selection({
-        enabled: true,
-        multiple: true,
-        rubberband: true,
-        movable: true,
-        showNodeSelectionBox: true,
-      })
-    )
+    this.selectionPlugin = new Selection({
+      enabled: true,
+      multiple: true,
+      rubberband: true,
+      movable: true,
+      showNodeSelectionBox: true,
+    })
+    this.graph.use(this.selectionPlugin)
 
     // 4. 图元大小缩放与旋转控制柄 (Transform)
     this.graph.use(
@@ -267,6 +314,9 @@ export class Board {
       this.graph.select(nodes)
       return false
     })
+
+    // 初始化自由手绘与橡皮擦事件
+    this.initDrawingEvents()
   }
 
   /**
@@ -571,11 +621,277 @@ export class Board {
     extension.onInit?.()
   }
 
+  // ===================== 自由手绘与橡皮擦系统 =====================
+
+  private initDrawingEvents() {
+    const onPointerDown = (e: PointerEvent) => {
+      // 仅响应鼠标左键 (button === 0)
+      if (e.button !== 0) return
+
+      if (this.drawingMode === 'eraser') {
+        this.eraseAtPoint(e.clientX, e.clientY)
+        this.isDrawing = true
+        return
+      }
+
+      if (
+        this.drawingMode !== 'pencil' &&
+        this.drawingMode !== 'marker' &&
+        this.drawingMode !== 'brush'
+      ) {
+        return
+      }
+
+      // 拦截默认事件，防止 X6 触发选框或节点拖拽
+      e.preventDefault()
+      e.stopPropagation()
+
+      this.isDrawing = true
+      const pt = this.graph.clientToLocal(e.clientX, e.clientY)
+      this.drawPoints = [pt]
+
+      // 创建实时预览 SVG Path
+      if (!this.tempSvgPath) {
+        this.tempSvgPath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        this.tempSvgPath.setAttribute('style', 'pointer-events: none;')
+      }
+      this.tempSvgPath.setAttribute('stroke', this.drawColor)
+      this.tempSvgPath.setAttribute('stroke-width', String(this.drawWidth))
+      this.tempSvgPath.setAttribute('stroke-opacity', String(this.drawOpacity))
+      this.tempSvgPath.setAttribute('stroke-linecap', 'round')
+      this.tempSvgPath.setAttribute('stroke-linejoin', 'round')
+      this.tempSvgPath.setAttribute('fill', 'none')
+      this.tempSvgPath.setAttribute('d', `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} l 0.01 0.01`)
+
+      const stage =
+        (this.graph.view as any)?.stage ||
+        this.container.querySelector('.x6-graph-svg-stage') ||
+        this.container.querySelector('svg')
+      stage?.appendChild(this.tempSvgPath)
+    }
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!this.isDrawing) return
+
+      if (this.drawingMode === 'eraser') {
+        this.eraseAtPoint(e.clientX, e.clientY)
+        return
+      }
+
+      if (
+        this.drawingMode !== 'pencil' &&
+        this.drawingMode !== 'marker' &&
+        this.drawingMode !== 'brush'
+      ) {
+        return
+      }
+
+      const pt = this.graph.clientToLocal(e.clientX, e.clientY)
+      const lastPt = this.drawPoints[this.drawPoints.length - 1]
+      if (lastPt) {
+        const dx = pt.x - lastPt.x
+        const dy = pt.y - lastPt.y
+        if (dx * dx + dy * dy < 4) return
+      }
+
+      this.drawPoints.push(pt)
+      if (this.tempSvgPath) {
+        this.tempSvgPath.setAttribute('d', this.pointsToSvgPath(this.drawPoints))
+      }
+    }
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (!this.isDrawing) return
+      this.isDrawing = false
+
+      if (this.tempSvgPath && this.tempSvgPath.parentNode) {
+        this.tempSvgPath.parentNode.removeChild(this.tempSvgPath)
+      }
+
+      if (
+        this.drawingMode !== 'pencil' &&
+        this.drawingMode !== 'marker' &&
+        this.drawingMode !== 'brush'
+      ) {
+        return
+      }
+
+      if (this.drawPoints.length === 0) return
+
+      this.commitFreehandPath()
+      this.drawPoints = []
+    }
+
+    // 橡皮擦在已有图元上的点击监听
+    this.graph.on('cell:click', ({ cell }) => {
+      if (this.drawingMode === 'eraser') {
+        this.graph.removeCell(cell)
+      }
+    })
+
+    // 捕获阶段监听画布上的 pointerdown，以拦截在已有节点之上的画笔触发
+    this.container.addEventListener('pointerdown', onPointerDown, { capture: true })
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+
+    this.drawingCleanupFns.push(() => {
+      this.container.removeEventListener('pointerdown', onPointerDown, { capture: true })
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    })
+  }
+
+  private eraseAtPoint(clientX: number, clientY: number) {
+    const pt = this.graph.clientToLocal(clientX, clientY)
+    const nodes = this.graph.getNodesFromPoint(pt.x, pt.y)
+    if (nodes && nodes.length > 0) {
+      this.graph.removeCell(nodes[nodes.length - 1])
+    }
+  }
+
+  private commitFreehandPath(): Node | undefined {
+    if (this.drawPoints.length === 0) return
+
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+
+    for (const p of this.drawPoints) {
+      minX = Math.min(minX, p.x)
+      minY = Math.min(minY, p.y)
+      maxX = Math.max(maxX, p.x)
+      maxY = Math.max(maxY, p.y)
+    }
+
+    const width = Math.max(maxX - minX, 10)
+    const height = Math.max(maxY - minY, 10)
+
+    // 计算相对于节点包围盒的相对路径坐标
+    const localPoints = this.drawPoints.map((p) => ({
+      x: p.x - minX,
+      y: p.y - minY,
+    }))
+    const localD = this.pointsToSvgPath(localPoints)
+
+    const node = this.graph.addNode({
+      shape: 'speed-freehand-path',
+      x: minX,
+      y: minY,
+      width,
+      height,
+      attrs: {
+        body: {
+          d: localD,
+          refD: localD,
+          stroke: this.drawColor,
+          strokeWidth: this.drawWidth,
+          strokeOpacity: this.drawOpacity,
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          fill: 'none',
+        },
+      },
+      data: {
+        type: 'freehand',
+        brushType: this.drawingMode,
+      },
+    })
+
+    return node
+  }
+
+  private pointsToSvgPath(points: { x: number; y: number }[]): string {
+    if (points.length === 0) return ''
+    if (points.length === 1) {
+      return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} l 0.01 0.01`
+    }
+    if (points.length === 2) {
+      return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} L ${points[1].x.toFixed(1)} ${points[1].y.toFixed(1)}`
+    }
+
+    let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`
+    for (let i = 1; i < points.length - 1; i++) {
+      const midX = ((points[i].x + points[i + 1].x) / 2).toFixed(1)
+      const midY = ((points[i].y + points[i + 1].y) / 2).toFixed(1)
+      d += ` Q ${points[i].x.toFixed(1)} ${points[i].y.toFixed(1)} ${midX} ${midY}`
+    }
+    const last = points[points.length - 1]
+    d += ` L ${last.x.toFixed(1)} ${last.y.toFixed(1)}`
+    return d
+  }
+
+  public setDrawingMode(mode: DrawingMode, options?: DrawingOptions) {
+    this.drawingMode = mode
+
+    if (options?.color !== undefined) {
+      this.drawColor = options.color
+    }
+    if (options?.width !== undefined) {
+      this.drawWidth = options.width
+    }
+    if (options?.opacity !== undefined) {
+      this.drawOpacity = options.opacity
+    }
+
+    if (mode === 'pencil') {
+      if (options?.width === undefined) this.drawWidth = 3
+      if (options?.opacity === undefined) this.drawOpacity = 1
+      this.selectionPlugin?.disableRubberband()
+      this.scrollerPlugin?.disablePanning()
+      this.container.style.cursor = 'crosshair'
+    } else if (mode === 'marker') {
+      if (options?.width === undefined) this.drawWidth = 14
+      if (options?.opacity === undefined) this.drawOpacity = 0.5
+      this.selectionPlugin?.disableRubberband()
+      this.scrollerPlugin?.disablePanning()
+      this.container.style.cursor = 'crosshair'
+    } else if (mode === 'brush') {
+      if (options?.width === undefined) this.drawWidth = 6
+      if (options?.opacity === undefined) this.drawOpacity = 0.85
+      this.selectionPlugin?.disableRubberband()
+      this.scrollerPlugin?.disablePanning()
+      this.container.style.cursor = 'crosshair'
+    } else if (mode === 'eraser') {
+      this.selectionPlugin?.disableRubberband()
+      this.scrollerPlugin?.disablePanning()
+      this.container.style.cursor = 'pointer'
+    } else if (mode === 'hand') {
+      this.selectionPlugin?.disableRubberband()
+      this.scrollerPlugin?.enablePanning()
+      this.container.style.cursor = 'grab'
+    } else {
+      // 'select'
+      this.selectionPlugin?.enableRubberband()
+      this.scrollerPlugin?.enablePanning()
+      this.container.style.cursor = 'default'
+    }
+  }
+
+  public getDrawingMode(): DrawingMode {
+    return this.drawingMode
+  }
+
+  public getDrawingOptions(): { color: string; width: number; opacity: number } {
+    return {
+      color: this.drawColor,
+      width: this.drawWidth,
+      opacity: this.drawOpacity,
+    }
+  }
+
   public destroy() {
     for (const ext of this.extensions.values()) {
       ext.onDestroy?.()
     }
     this.extensions.clear()
+    for (const cleanup of this.drawingCleanupFns) {
+      cleanup()
+    }
+    this.drawingCleanupFns = []
+    if (this.tempSvgPath && this.tempSvgPath.parentNode) {
+      this.tempSvgPath.parentNode.removeChild(this.tempSvgPath)
+    }
     this.graph.dispose()
   }
 }
