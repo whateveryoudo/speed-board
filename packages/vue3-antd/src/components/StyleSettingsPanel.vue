@@ -9,14 +9,23 @@
         </button>
       </div>
 
-      <!-- 2. 一级分类选项卡 (文本/样式 + 排列) -->
+      <!-- 2. 一级分类选项卡 (样式 / 文本 / 排列 - 1:1 语雀白板) -->
       <div class="panel-tabs">
         <div
+          v-if="!isTextOnlyNodeSelected"
           class="tab-item"
-          :class="{ 'is-active': activeTab === 'main' }"
-          @click="activeTab = 'main'"
+          :class="{ 'is-active': activeTab === 'style' }"
+          @click="activeTab = 'style'"
         >
-          {{ isTextNodeSelected ? '文本' : '样式' }}
+          样式
+        </div>
+        <div
+          v-if="hasTextCapability"
+          class="tab-item"
+          :class="{ 'is-active': activeTab === 'text' }"
+          @click="activeTab = 'text'"
+        >
+          文本
         </div>
         <div
           class="tab-item"
@@ -27,10 +36,9 @@
         </div>
       </div>
 
-      <!-- 3. 主设置面板内容 -->
-      <div v-if="activeTab === 'main'" class="panel-content">
-        <!-- 3.1 文本专用配置面板 (1:1 语雀白板风格) -->
-        <template v-if="isTextNodeSelected">
+      <!-- 3.1 文本专用配置面板 (1:1 语雀白板风格) -->
+      <div v-if="activeTab === 'text'" class="panel-content">
+        <div>
           <!-- B I S U 格式按钮组 -->
           <div class="text-format-btn-group">
             <button
@@ -147,18 +155,6 @@
                   <line x1="6" y1="18" x2="21" y2="18" />
                 </svg>
               </button>
-              <button
-                class="align-btn"
-                :class="{ 'is-active': textState.align === 'justify' }"
-                title="两端对齐"
-                @click="setTextAlign('justify')"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-              </button>
             </div>
 
             <!-- 垂直对齐 3 键 -->
@@ -223,19 +219,28 @@
               添加链接
             </a-button>
           </div>
-        </template>
+        </div>
+      </div>
 
-        <!-- 3.2 普通图形/多边形专用配置面板 -->
-        <template v-else>
-          <!-- 节点属性 (填充颜色) -->
-          <div class="setting-group">
-            <div class="group-header">
-              <CaretDownOutlined class="group-arrow" />
-              <span>节点</span>
+      <!-- 3.2 图形/多边形专用配置面板 (样式 Tab - 1:1 语雀白板) -->
+      <div v-else-if="activeTab === 'style'" class="panel-content">
+        <!-- 节点属性 (形状类型 + 填充颜色) -->
+        <div class="setting-group">
+          <div class="group-header">
+            <CaretDownOutlined class="group-arrow" />
+            <span>节点</span>
+          </div>
+
+          <!-- 形状类型 (如果是图形节点，显示当前形状预览方块，与语雀截图一模一样) -->
+          <div v-if="isShapeNodeSelected" class="setting-row">
+            <span class="row-label">形状</span>
+            <div class="shape-type-preview-box" :title="currentShapeDef?.name || '形状'">
+              <div v-if="currentShapeDef" class="shape-type-svg" v-html="getShapeIconSvg(currentShapeDef)" />
             </div>
+          </div>
 
-            <div class="setting-row">
-              <span class="row-label">填充颜色</span>
+          <div class="setting-row">
+            <span class="row-label">填充颜色</span>
               <a-popover
                 trigger="click"
                 placement="bottomRight"
@@ -385,11 +390,10 @@
               <span class="opacity-value-label">{{ opacityPercent }}%</span>
             </div>
           </div>
-        </template>
-      </div>
+        </div>
 
       <!-- 4. 排列图层控制内容 -->
-      <div v-else class="panel-content">
+      <div v-else-if="activeTab === 'arrange'" class="panel-content">
         <div class="setting-group">
           <div class="group-header">
             <CaretDownOutlined class="group-arrow" />
@@ -417,7 +421,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import {
   CloseOutlined,
   CaretDownOutlined,
@@ -430,6 +434,11 @@ import {
 } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import ColorTonePicker from './ColorTonePicker.vue'
+import {
+  getShapeById,
+  renderShapeCanvasSvg,
+  getShapeIconSvg,
+} from '../data/shapeLibrary'
 
 const props = withDefaults(
   defineProps<{
@@ -443,8 +452,8 @@ const props = withDefaults(
   }>(),
   {
     visible: false,
-    defaultFill: '#ec4899',
-    defaultStroke: '#333333',
+    defaultFill: 'transparent',
+    defaultStroke: '#374151',
     defaultStrokeWidth: 2,
     defaultStrokeDash: 'none',
     defaultOpacity: 1,
@@ -466,8 +475,22 @@ const emit = defineEmits<{
   ): void
 }>()
 
-const activeTab = ref<'main' | 'arrange'>('main')
+const activeTab = ref<'style' | 'text' | 'arrange'>('style')
 const isTextNodeSelected = ref(false)
+const isShapeNodeSelected = ref(false)
+const currentShapeId = ref('rect')
+
+const currentShapeDef = computed(() => {
+  return getShapeById(currentShapeId.value)
+})
+
+const isTextOnlyNodeSelected = computed(() => {
+  return isTextNodeSelected.value && !isShapeNodeSelected.value
+})
+
+const hasTextCapability = computed(() => {
+  return isTextNodeSelected.value || isShapeNodeSelected.value
+})
 
 // 文本配置状态
 const textState = ref({
@@ -589,7 +612,43 @@ const applyStyle = (styleObj: {
   strokeDasharray?: string
   opacity?: number
 }) => {
-  props.board?.updateSelectedStyle(styleObj)
+  if (isShapeNodeSelected.value && props.board) {
+    const selectedCells = props.board.graph.getSelectedCells()
+    for (const cell of selectedCells) {
+      if (props.board.isShapeNode(cell)) {
+        const data = cell.getData() || {}
+        const sId = data.shapeId || currentShapeId.value
+        const shapeDef = getShapeById(sId)
+        const newFill = styleObj.fill !== undefined ? styleObj.fill : fillColor.value
+        const newStroke = styleObj.stroke !== undefined ? styleObj.stroke : strokeColor.value
+        const newStrokeWidth = styleObj.strokeWidth !== undefined ? styleObj.strokeWidth : strokeWidth.value
+        const newDash = styleObj.strokeDasharray !== undefined ? styleObj.strokeDasharray : strokeDasharray.value
+        const newOpacity = styleObj.opacity !== undefined ? styleObj.opacity : opacityPercent.value / 100
+
+        let svgContent: string | undefined = undefined
+        if (shapeDef) {
+          svgContent = renderShapeCanvasSvg(shapeDef, {
+            fill: newFill,
+            stroke: newStroke,
+            strokeWidth: newStrokeWidth,
+            strokeDasharray: newDash,
+          })
+        }
+        props.board.updateShapeNode(cell as any, {
+          ...styleObj,
+          fill: newFill,
+          stroke: newStroke,
+          strokeWidth: newStrokeWidth,
+          strokeDasharray: newDash,
+          opacity: newOpacity,
+          svgContent,
+        })
+      }
+    }
+  } else {
+    props.board?.updateSelectedStyle(styleObj)
+  }
+
   emit('style-change', {
     fill: fillColor.value,
     stroke: strokeColor.value,
@@ -630,13 +689,33 @@ const sendBackward = () => {
 // 选中单元格同步回显
 const syncSelectionStyle = () => {
   if (!props.board) return
+  isShapeNodeSelected.value = props.board.isShapeNode()
   isTextNodeSelected.value = props.board.isTextNode()
 
-  if (isTextNodeSelected.value) {
+  if (isShapeNodeSelected.value) {
+    const shapeData = props.board.getShapeNodeData()
+    if (shapeData) {
+      currentShapeId.value = shapeData.shapeId || 'rect'
+      if (shapeData.fill !== undefined) fillColor.value = shapeData.fill
+      if (shapeData.stroke !== undefined) strokeColor.value = shapeData.stroke
+      if (shapeData.strokeWidth !== undefined) strokeWidth.value = shapeData.strokeWidth
+      if (shapeData.strokeDasharray !== undefined) strokeDasharray.value = shapeData.strokeDasharray
+      if (shapeData.opacity !== undefined) opacityPercent.value = Math.round(shapeData.opacity * 100)
+    }
     const textData = props.board.getSelectedTextData()
     if (textData) {
       textState.value = { ...textData }
     }
+    // 形状节点有样式+文本，保持用户当前停留在的标签；若处于非法的main则切到style
+    if (activeTab.value !== 'text' && activeTab.value !== 'arrange') {
+      activeTab.value = 'style'
+    }
+  } else if (isTextOnlyNodeSelected.value) {
+    const textData = props.board.getSelectedTextData()
+    if (textData) {
+      textState.value = { ...textData }
+    }
+    activeTab.value = 'text'
   } else {
     const style = props.board.getSelectedStyle()
     if (style) {
@@ -646,6 +725,7 @@ const syncSelectionStyle = () => {
       if (style.strokeDasharray) strokeDasharray.value = style.strokeDasharray
       if (style.opacity !== undefined) opacityPercent.value = Math.round(style.opacity * 100)
     }
+    activeTab.value = 'style'
   }
   emit('update:visible', true)
 }
@@ -688,7 +768,7 @@ onUnmounted(() => {
   position: absolute;
   top: 108px; // 紧随右上角工具条下方垂直排列，不与工具条并行
   right: 16px;
-  width: 256px;
+  width: 290px;
   max-height: calc(100vh - 124px);
   background: #ffffff;
   border-radius: 12px;
@@ -706,7 +786,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px 8px;
+  padding: 14px 16px 10px;
 
   .panel-title {
     font-size: 14px;
@@ -737,7 +817,7 @@ onUnmounted(() => {
 .panel-tabs {
   display: flex;
   border-bottom: 1px solid #f3f4f6;
-  padding: 0 14px;
+  padding: 0 16px;
 
   .tab-item {
     font-size: 13px;
@@ -771,10 +851,10 @@ onUnmounted(() => {
 }
 
 .panel-content {
-  padding: 12px 14px 16px;
+  padding: 14px 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .text-format-btn-group {
@@ -905,7 +985,7 @@ onUnmounted(() => {
 .setting-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 
   .group-header {
     display: flex;
@@ -926,6 +1006,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 2px 0;
 
   .row-label {
     font-size: 13px;
@@ -1022,6 +1103,30 @@ onUnmounted(() => {
     font-variant-numeric: tabular-nums;
     min-width: 32px;
     text-align: right;
+  }
+}
+
+.shape-type-preview-box {
+  width: 44px;
+  height: 28px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fafafa;
+  color: #595959;
+
+  .shape-type-svg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+
+    :deep(svg) {
+      width: 20px;
+      height: 20px;
+    }
   }
 }
 

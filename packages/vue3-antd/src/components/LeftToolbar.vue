@@ -46,69 +46,40 @@
             class="shadow-btn-wrapper"
             @click="addShape('text')"
           >
-            <SIconFont type="icon-kl-board-text-edit" :size="20" />
+            <SIconFont type="icon-kl-text1" :size="20" />
           </a-button>
         </a-tooltip>
 
-        <!-- 1.5 闭合图形/基础图形 (矩形 / 圆形 / 菱形 / 三角形 / 圆角矩形 下拉) -->
+        <!-- 1.5 全量图形库选择器 (1:1 语雀白板风格 Popover) -->
         <a-popover
+          v-model:open="shapePickerOpen"
           trigger="click"
           placement="rightTop"
-          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
+          overlay-class-name="shape-picker-popover-overlay"
+          :arrow="false"
+          :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"
         >
           <template #content>
-            <div class="tool-dropdown-picker">
-              <a-button
-                type="text"
-                class="dropdown-pick-btn"
-                @click="addShape('rect')"
-              >
-                <SIconFont type="icon-kl-board-shape-rect" :size="18" />
-                <span>矩形</span>
-              </a-button>
-              <a-button
-                type="text"
-                class="dropdown-pick-btn"
-                @click="addShape('circle')"
-              >
-                <SIconFont type="icon-kl-board-shape-circle" :size="18" />
-                <span>圆形</span>
-              </a-button>
-              <a-button
-                type="text"
-                class="dropdown-pick-btn"
-                @click="addShape('diamond')"
-              >
-                <SIconFont type="icon-kl-board-shape-diamond" :size="18" />
-                <span>菱形</span>
-              </a-button>
-              <a-button
-                type="text"
-                class="dropdown-pick-btn"
-                @click="addShape('triangle')"
-              >
-                <SIconFont type="icon-kl-board-shape-triangle" :size="18" />
-                <span>三角形</span>
-              </a-button>
-              <a-button
-                type="text"
-                class="dropdown-pick-btn"
-                @click="addShape('rect', { rx: 8, ry: 8 })"
-              >
-                <SIconFont type="icon-kl-board-shape-round-rect" :size="18" />
-                <span>圆角矩形</span>
-              </a-button>
-            </div>
+            <ShapePickerPopover @select="onShapeLibrarySelect" />
           </template>
-          <a-tooltip title="基础图形" placement="right">
-            <a-button type="text" class="shadow-btn-wrapper">
-              <SIconFont type="icon-kl-board-closed-shape" :size="20" />
+          <a-tooltip
+            :title="shapePickerOpen ? '' : '图形库'"
+            :open="shapePickerOpen ? false : undefined"
+            placement="right"
+          >
+            <a-button
+              type="text"
+              class="shadow-btn-wrapper"
+              :class="{ 'is-active': shapePickerOpen }"
+            >
+              <SIconFont type="icon-kl-board-shape-circle" :size="20" />
             </a-button>
           </a-tooltip>
         </a-popover>
 
-        <!-- 1.6 连线箭头 (直线 / 箭头 / 折线 / 曲线) -->
+        <!-- 1.6 连线工具 (折线 / 直线 / 曲线) -->
         <a-popover
+          v-model:open="linePopoverOpen"
           trigger="click"
           placement="rightTop"
           :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
@@ -118,40 +89,46 @@
               <a-button
                 type="text"
                 class="dropdown-pick-btn"
-                @click="addShape('rect', { text: '连接点', shapeType: 'arrow' })"
+                :class="{ 'is-active': currentTool === 'line' && currentLineType === 'elbow' }"
+                @click="onSelectLineTool('elbow')"
               >
-                <SIconFont type="icon-kl-board-line-arrow" :size="18" />
-                <span>箭头连线</span>
-              </a-button>
-              <a-button
-                type="text"
-                class="dropdown-pick-btn"
-                @click="addShape('rect', { text: '直连线', shapeType: 'straight' })"
-              >
-                <SIconFont type="icon-kl-board-line-straight" :size="18" />
-                <span>直线</span>
-              </a-button>
-              <a-button
-                type="text"
-                class="dropdown-pick-btn"
-                @click="addShape('rect', { text: '折线', shapeType: 'elbow' })"
-              >
-                <SIconFont type="icon-kl-board-line-elbow" :size="18" />
+                <SIconFont type="icon-kl-line11" :size="18" />
                 <span>折线</span>
               </a-button>
               <a-button
                 type="text"
                 class="dropdown-pick-btn"
-                @click="addShape('rect', { text: '曲线', shapeType: 'curve' })"
+                :class="{ 'is-active': currentTool === 'line' && currentLineType === 'straight' }"
+                @click="onSelectLineTool('straight')"
               >
-                <SIconFont type="icon-kl-board-line-curve" :size="18" />
+                <SIconFont type="icon-kl-line2" :size="18" />
+                <span>直线</span>
+              </a-button>
+              <a-button
+                type="text"
+                class="dropdown-pick-btn"
+                :class="{ 'is-active': currentTool === 'line' && currentLineType === 'curve' }"
+                @click="onSelectLineTool('curve')"
+              >
+                <SIconFont type="icon-kl-line21" :size="18" />
                 <span>曲线</span>
               </a-button>
             </div>
           </template>
-          <a-tooltip title="连线工具" placement="right">
-            <a-button type="text" class="shadow-btn-wrapper">
-              <SIconFont type="icon-kl-board-line-arrow" :size="20" />
+          <a-tooltip
+            :title="linePopoverOpen ? '' : (currentLineType === 'elbow' ? '折线工具' : currentLineType === 'straight' ? '直线工具' : '曲线工具')"
+            :open="linePopoverOpen ? false : undefined"
+            placement="right"
+          >
+            <a-button
+              type="text"
+              class="shadow-btn-wrapper"
+              :class="{ 'is-active': linePopoverOpen || currentTool === 'line' }"
+            >
+              <SIconFont
+                :type="currentLineType === 'straight' ? 'icon-kl-line2' : currentLineType === 'curve' ? 'icon-kl-line21' : 'icon-kl-line11'"
+                :size="20"
+              />
             </a-button>
           </a-tooltip>
         </a-popover>
@@ -333,6 +310,8 @@ import { AppstoreOutlined } from '@ant-design/icons-vue'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
 import type { Board, ShapeType } from '@speed-board/core'
 import IconfontPopover from './IconfontPopover.vue'
+import ShapePickerPopover from './ShapePickerPopover.vue'
+import { renderShapeCanvasSvg, getShapeTightViewBox, type ShapeDefinition } from '../data/shapeLibrary'
 import type { BoardIconItem, IconProvider } from '../data/defaultIcons'
 
 const props = withDefaults(
@@ -340,9 +319,19 @@ const props = withDefaults(
     board: Board | null
     iconProvider?: IconProvider
     visible?: boolean
+    activeMode?: string
   }>(),
   {
     visible: true,
+  }
+)
+
+watch(
+  () => props.activeMode,
+  (mode) => {
+    if (mode === 'select' || mode === 'brush' || mode === 'vector' || mode === 'line') {
+      currentTool.value = mode
+    }
   }
 )
 
@@ -350,7 +339,8 @@ const emit = defineEmits<{
   (
     e: 'mode-change',
     payload: {
-      mode: 'select' | 'pencil' | 'marker' | 'eraser' | 'vector'
+      mode: 'select' | 'pencil' | 'marker' | 'eraser' | 'vector' | 'line'
+      lineType?: 'elbow' | 'straight' | 'curve'
       color?: string
       width?: number
       opacity?: number
@@ -366,12 +356,15 @@ const emit = defineEmits<{
 }>()
 
 // 基础模式状态
-const currentTool = ref<'select' | 'brush' | 'vector'>('select')
+const currentTool = ref<'select' | 'brush' | 'vector' | 'line'>('select')
 const currentBrush = ref<'pencil' | 'marker' | 'eraser'>('pencil')
+const currentLineType = ref<'elbow' | 'straight' | 'curve'>('elbow')
 
 // 弹窗状态受控管理（避免同时展开冲突，并在选择后即时关闭消除残影/闪烁）
 const widthPopoverOpen = ref(false)
 const colorPopoverOpen = ref(false)
+const shapePickerOpen = ref(false)
+const linePopoverOpen = ref(false)
 
 const onWidthOpenChange = (open: boolean) => {
   widthPopoverOpen.value = open
@@ -444,10 +437,12 @@ const applyDrawingMode = () => {
 }
 
 // 切换主工具
-const setTool = (tool: 'select' | 'brush' | 'vector') => {
+const setTool = (tool: 'select' | 'brush' | 'vector' | 'line') => {
   currentTool.value = tool
   widthPopoverOpen.value = false
   colorPopoverOpen.value = false
+  shapePickerOpen.value = false
+  linePopoverOpen.value = false
   if (tool === 'brush') {
     applyDrawingMode()
   } else if (tool === 'select') {
@@ -456,6 +451,14 @@ const setTool = (tool: 'select' | 'brush' | 'vector') => {
   } else if (tool === 'vector') {
     props.board?.setDrawingMode('vector')
     emit('mode-change', { mode: 'vector' })
+  } else if (tool === 'line') {
+    props.board?.setDrawingMode('select')
+    emit('mode-change', {
+      mode: 'line',
+      lineType: currentLineType.value,
+      color: '#374151',
+      width: 2,
+    })
   }
 }
 
@@ -501,14 +504,68 @@ watch(
 
 const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) => {
   if (!props.board) return
+  shapePickerOpen.value = false
   currentTool.value = 'select'
   props.board.setDrawingMode('select')
   emit('mode-change', { mode: 'select' })
   const node = props.board.addShape({
     shape: shape as ShapeType,
+    fill: 'transparent',
+    stroke: '#374151',
     ...extra,
   })
   emit('shape-added', { shape: shape as string, node })
+}
+
+const onShapeLibrarySelect = (shape: ShapeDefinition) => {
+  shapePickerOpen.value = false
+  if (!props.board) return
+  currentTool.value = 'select'
+  props.board.setDrawingMode('select')
+  emit('mode-change', { mode: 'select' })
+
+  // 默认无背景色，经典深灰边框
+  const fill = 'transparent'
+  const stroke = '#374151'
+  const strokeWidth = 2
+  const svgContent = renderShapeCanvasSvg(shape, {
+    fill,
+    stroke,
+    strokeWidth,
+  })
+  const viewBox = getShapeTightViewBox(svgContent, shape.id)
+
+  const node = props.board.addVectorShape({
+    shapeId: shape.id,
+    shapeName: shape.name,
+    svgContent,
+    viewBox,
+    fill,
+    stroke,
+    strokeWidth,
+    strokeDasharray: 'none',
+    opacity: 1,
+    text: '',
+  })
+
+  emit('shape-added', { shape: 'shape', node })
+}
+
+const onSelectLineTool = (type: 'elbow' | 'straight' | 'curve') => {
+  currentLineType.value = type
+  currentTool.value = 'line'
+  linePopoverOpen.value = false
+  widthPopoverOpen.value = false
+  colorPopoverOpen.value = false
+  shapePickerOpen.value = false
+  if (!props.board) return
+  props.board.setDrawingMode('select')
+  emit('mode-change', {
+    mode: 'line',
+    lineType: type,
+    color: '#374151',
+    width: 2,
+  })
 }
 
 const onSelectIcon = (icon: BoardIconItem) => {

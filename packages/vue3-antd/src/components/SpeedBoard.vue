@@ -16,6 +16,7 @@
       :board="boardInstance"
       :icon-provider="props.iconProvider"
       :visible="showLeftToolbar"
+      :active-mode="drawConfig.mode"
       @mode-change="onToolbarModeChange"
       @shape-added="onShapeAdded"
     />
@@ -66,12 +67,84 @@
         @dblclick.stop
       />
 
+      <!-- 4 个连接桩点（Ports）与快捷连接延伸手柄 (1:1 语雀白板交互) -->
+      <div v-if="selectedShapeNode && anchorPoints && !isInlineEditing" class="shape-anchor-ports-container">
+        <!-- 上锚点 -->
+        <div
+          class="shape-anchor-btn port-top"
+          :style="{ left: `${anchorPoints.top.x}px`, top: `${anchorPoints.top.y}px` }"
+          title="点击延伸补线"
+          @click.stop="onAnchorClick('top', anchorPoints.top)"
+        >
+          <span class="anchor-dot" />
+          <span class="anchor-arrow">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 15V3M4 8l5-5 5 5" />
+            </svg>
+          </span>
+        </div>
+
+        <!-- 右锚点 -->
+        <div
+          class="shape-anchor-btn port-right"
+          :style="{ left: `${anchorPoints.right.x}px`, top: `${anchorPoints.right.y}px` }"
+          title="点击延伸补线"
+          @click.stop="onAnchorClick('right', anchorPoints.right)"
+        >
+          <span class="anchor-dot" />
+          <span class="anchor-arrow">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9h12M10 4l5 5-5 5" />
+            </svg>
+          </span>
+        </div>
+
+        <!-- 下锚点 -->
+        <div
+          class="shape-anchor-btn port-bottom"
+          :style="{ left: `${anchorPoints.bottom.x}px`, top: `${anchorPoints.bottom.y}px` }"
+          title="点击延伸补线"
+          @click.stop="onAnchorClick('bottom', anchorPoints.bottom)"
+        >
+          <span class="anchor-dot" />
+          <span class="anchor-arrow">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 3v12M4 10l5 5 5-5" />
+            </svg>
+          </span>
+        </div>
+
+        <!-- 左锚点 -->
+        <div
+          class="shape-anchor-btn port-left"
+          :style="{ left: `${anchorPoints.left.x}px`, top: `${anchorPoints.left.y}px` }"
+          title="点击延伸补线"
+          @click.stop="onAnchorClick('left', anchorPoints.left)"
+        >
+          <span class="anchor-dot" />
+          <span class="anchor-arrow">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 9H3M8 4L3 9l5 5" />
+            </svg>
+          </span>
+        </div>
+      </div>
+
+      <!-- 锚点点击快捷生成与自动补线 Popover (1:1 语雀白板快捷面板) -->
+      <QuickShapeConnectPopover
+        :visible="showQuickConnect"
+        :x="quickConnectPos.x"
+        :y="quickConnectPos.y"
+        @select="onQuickConnectShapeSelect"
+        @close="showQuickConnect = false"
+      />
+
       <!-- 手绘与矢量交互覆盖层 (画笔/矢量钢笔激活时在顶层捕获并实时渲染) -->
       <svg
         v-show="isDrawingActive"
         ref="overlaySvgRef"
         class="speed-drawing-overlay"
-        :class="{ 'is-vector-mode': drawConfig.mode === 'vector' }"
+        :class="{ 'is-vector-mode': drawConfig.mode === 'vector', 'is-line-mode': drawConfig.mode === 'line' }"
         @pointerdown="onOverlayPointerDown"
         @pointermove="onOverlayPointerMove"
         @pointerup="onOverlayPointerUp"
@@ -141,6 +214,62 @@
             class="snap-start-pulse"
           />
         </g>
+
+        <!-- 3. 连线工具拖拽实时引线与箭头预览 (折线/直线/曲线) -->
+        <g v-if="drawConfig.mode === 'line' && isLineDragging && lineStartPoint && lineEndPoint">
+          <defs>
+            <marker
+              id="speed-line-preview-arrow"
+              viewBox="0 0 10 10"
+              refX="8"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#374151" />
+            </marker>
+          </defs>
+
+          <!-- 3.1 直线预览 -->
+          <line
+            v-if="drawConfig.lineType === 'straight'"
+            :x1="lineStartPoint.ox"
+            :y1="lineStartPoint.oy"
+            :x2="lineEndPoint.ox"
+            :y2="lineEndPoint.oy"
+            stroke="#374151"
+            stroke-width="2"
+            stroke-dasharray="4,4"
+            marker-end="url(#speed-line-preview-arrow)"
+          />
+
+          <!-- 3.2 折线预览 -->
+          <path
+            v-else-if="drawConfig.lineType === 'elbow'"
+            :d="lineElbowPathD"
+            stroke="#374151"
+            stroke-width="2"
+            fill="none"
+            stroke-dasharray="4,4"
+            marker-end="url(#speed-line-preview-arrow)"
+          />
+
+          <!-- 3.3 曲线预览 -->
+          <path
+            v-else-if="drawConfig.lineType === 'curve'"
+            :d="lineCurvePathD"
+            stroke="#374151"
+            stroke-width="2"
+            fill="none"
+            stroke-dasharray="4,4"
+            marker-end="url(#speed-line-preview-arrow)"
+          />
+
+          <!-- 起点与终点小抓手点 -->
+          <circle :cx="lineStartPoint.ox" :cy="lineStartPoint.oy" r="4" fill="#ffffff" stroke="#374151" stroke-width="1.5" />
+          <circle :cx="lineEndPoint.ox" :cy="lineEndPoint.oy" r="4" fill="#ffffff" stroke="#374151" stroke-width="1.5" />
+        </g>
       </svg>
 
       <!-- 3. 图元旋转实时度数指示气泡 (1:1 语雀白板风格) -->
@@ -168,6 +297,8 @@ import LeftToolbar from './LeftToolbar.vue'
 import TopToolbar from './TopToolbar.vue'
 import StyleSettingsPanel from './StyleSettingsPanel.vue'
 import TextOverlayEditor from './TextOverlayEditor.vue'
+import QuickShapeConnectPopover from './QuickShapeConnectPopover.vue'
+import { renderShapeCanvasSvg, getShapeTightViewBox, type ShapeDefinition } from '../data/shapeLibrary'
 import type { IconProvider } from '../data/defaultIcons'
 import '../style/index.less'
 
@@ -293,7 +424,19 @@ const inlineEditorStyle = computed(() => {
   else if (data.underline) textDecoration = 'underline'
   else if (data.strike) textDecoration = 'line-through'
 
-  const align = data.align || 'left'
+  const align = data.align || 'center'
+  const verticalAlign = data.verticalAlign || 'middle'
+
+  // 计算行高与文本高度，实现与 SVG text 垂直居中精确匹配
+  const lineH = fontSize * 1.45
+  const lineCount = Math.max(1, (inlineTextValue.value || '').split('\n').length)
+  const approxTextH = lineCount * lineH
+  let paddingTop = 6
+  if (verticalAlign === 'middle') {
+    paddingTop = Math.max(6, (h - approxTextH) / 2)
+  } else if (verticalAlign === 'bottom') {
+    paddingTop = Math.max(6, h - approxTextH - 8)
+  }
 
   return {
     position: 'absolute' as const,
@@ -306,7 +449,8 @@ const inlineEditorStyle = computed(() => {
     fontWeight,
     fontStyle,
     textDecoration,
-    textAlign: align as any,
+    textAlign: align === 'justify' ? 'left' : (align as any),
+    paddingTop: `${paddingTop}px`,
     transform: angle ? `rotate(${angle}deg)` : undefined,
     transformOrigin: 'center center',
     zIndex: 90,
@@ -348,7 +492,11 @@ const finishInlineTextEdit = () => {
 
   if (activeInlineNode.value && boardInstance.value) {
     const text = inlineTextValue.value
-    boardInstance.value.updateTextNode(activeInlineNode.value, { text })
+    if (boardInstance.value.isShapeNode(activeInlineNode.value)) {
+      boardInstance.value.updateShapeNode(activeInlineNode.value, { text })
+    } else {
+      boardInstance.value.updateTextNode(activeInlineNode.value, { text })
+    }
     activeInlineNode.value.setAttrByPath('label/visibility', 'visible')
   }
   activeInlineNode.value = null
@@ -361,7 +509,11 @@ const onInlineTextInput = (e: Event) => {
   const text = textarea.value
   inlineTextValue.value = text
 
-  boardInstance.value.updateTextNode(activeInlineNode.value, { text })
+  if (boardInstance.value.isShapeNode(activeInlineNode.value)) {
+    boardInstance.value.updateShapeNode(activeInlineNode.value, { text })
+  } else {
+    boardInstance.value.updateTextNode(activeInlineNode.value, { text })
+  }
   inlineUpdateTick.value++
 }
 
@@ -442,9 +594,9 @@ const onTextOverlayConfirm = (payload: { text: string; link: string }) => {
 }
 
 const setupTextListeners = (board: Board) => {
-  // 双击文本图元：直接在选框内激活就地打字（不弹窗）
+  // 双击文本或图形图元：直接在选框内激活就地打字（不弹窗）
   board.graph.on('node:dblclick', ({ node }: any) => {
-    if (board.isTextNode(node)) {
+    if (board.isTextNode(node) || board.isShapeNode(node)) {
       startInlineTextEdit(node)
     }
   })
@@ -480,10 +632,234 @@ const setupTextListeners = (board: Board) => {
   })
 }
 
+// 选中图形节点与周围 4 个连接桩点（Ports）交互
+const selectedShapeNode = shallowRef<any>(null)
+const anchorTick = ref(0)
+const showQuickConnect = ref(false)
+const quickConnectPos = ref({ x: 0, y: 0 })
+const quickConnectDirection = ref<'top' | 'right' | 'bottom' | 'left'>('right')
+const activeAnchorEdge = shallowRef<any>(null)
+
+const anchorPoints = computed(() => {
+  anchorTick.value
+  if (!selectedShapeNode.value || !boardInstance.value || !canvasWrapperRef.value) return null
+  try {
+    const node = selectedShapeNode.value
+    const graph = boardInstance.value.graph
+    const view = graph.findViewByCell(node)
+    if (!view || !view.container) return null
+
+    const cellElem = view.container as SVGElement
+    const cellRect = cellElem.getBoundingClientRect()
+    const wrapperRect = canvasWrapperRef.value.getBoundingClientRect()
+
+    const cx = cellRect.left - wrapperRect.left + cellRect.width / 2
+    const cy = cellRect.top - wrapperRect.top + cellRect.height / 2
+    const zoom = graph.zoom()
+    const size = node.size()
+    const halfW = (size.width * zoom) / 2
+    const halfH = (size.height * zoom) / 2
+    const offset = 14
+    const angle = (node.getAngle() || 0) * (Math.PI / 180)
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+
+    const rotatePoint = (dx: number, dy: number) => ({
+      x: cx + (dx * cos - dy * sin),
+      y: cy + (dx * sin + dy * cos),
+    })
+
+    return {
+      top: rotatePoint(0, -(halfH + offset)),
+      right: rotatePoint(halfW + offset, 0),
+      bottom: rotatePoint(0, halfH + offset),
+      left: rotatePoint(-(halfW + offset), 0),
+    }
+  } catch {
+    return null
+  }
+})
+
+const onAnchorClick = (direction: 'top' | 'right' | 'bottom' | 'left', point: { x: number; y: number }) => {
+  quickConnectDirection.value = direction
+  if (!selectedShapeNode.value || !boardInstance.value) return
+
+  const sourceNode = selectedShapeNode.value
+  const sourcePos = sourceNode.position()
+  const sourceSize = sourceNode.size()
+
+  let targetGraphPt = { x: sourcePos.x, y: sourcePos.y }
+  if (direction === 'right') {
+    targetGraphPt = { x: sourcePos.x + sourceSize.width + 120, y: sourcePos.y + sourceSize.height / 2 }
+  } else if (direction === 'left') {
+    targetGraphPt = { x: sourcePos.x - 120, y: sourcePos.y + sourceSize.height / 2 }
+  } else if (direction === 'bottom') {
+    targetGraphPt = { x: sourcePos.x + sourceSize.width / 2, y: sourcePos.y + sourceSize.height + 100 }
+  } else if (direction === 'top') {
+    targetGraphPt = { x: sourcePos.x + sourceSize.width / 2, y: sourcePos.y - 100 }
+  }
+
+  // 1. 点击锚点立即自动生成深色黑色连线并挂载（默认 Elbow 正交折线 + 箭头，即使后续取消选框也永久保留连线）
+  const edge = boardInstance.value.addLine({
+    type: 'elbow',
+    source: { cell: sourceNode.id, port: direction },
+    target: targetGraphPt,
+    stroke: '#374151',
+    strokeWidth: 2,
+  })
+  activeAnchorEdge.value = edge
+
+  // 2. 计算快捷连接选择器弹窗坐标（放置在延伸线终点附近）
+  let posX = point.x
+  let posY = point.y
+  if (direction === 'right') posX += 100
+  else if (direction === 'left') posX -= 345
+  else if (direction === 'bottom') posY += 90
+  else if (direction === 'top') posY -= 220
+
+  quickConnectPos.value = {
+    x: Math.max(10, posX),
+    y: Math.max(10, posY),
+  }
+  showQuickConnect.value = true
+}
+
+const onQuickConnectShapeSelect = (shape: ShapeDefinition) => {
+  if (!selectedShapeNode.value || !boardInstance.value) return
+  const sourceNode = selectedShapeNode.value
+  const sourcePos = sourceNode.position()
+  const sourceSize = sourceNode.size()
+  const sourceData = sourceNode.getData() || {}
+  const dir = quickConnectDirection.value
+
+  const targetWidth = 100
+  const targetHeight = 80
+  let targetX = sourcePos.x
+  let targetY = sourcePos.y
+  let sourcePort = 'right'
+  let targetPort = 'left'
+
+  if (dir === 'right') {
+    targetX = sourcePos.x + sourceSize.width + 120
+    targetY = sourcePos.y + (sourceSize.height - targetHeight) / 2
+    sourcePort = 'right'
+    targetPort = 'left'
+  } else if (dir === 'left') {
+    targetX = sourcePos.x - 120 - targetWidth
+    targetY = sourcePos.y + (sourceSize.height - targetHeight) / 2
+    sourcePort = 'left'
+    targetPort = 'right'
+  } else if (dir === 'bottom') {
+    targetX = sourcePos.x + (sourceSize.width - targetWidth) / 2
+    targetY = sourcePos.y + sourceSize.height + 100
+    sourcePort = 'bottom'
+    targetPort = 'top'
+  } else if (dir === 'top') {
+    targetX = sourcePos.x + (sourceSize.width - targetWidth) / 2
+    targetY = sourcePos.y - 100 - targetHeight
+    sourcePort = 'top'
+    targetPort = 'bottom'
+  }
+
+  const fill = sourceData.fill !== undefined ? sourceData.fill : 'transparent'
+  const stroke = sourceData.stroke || '#374151'
+  const strokeWidth = sourceData.strokeWidth || 2
+
+  const svgContent = renderShapeCanvasSvg(shape, {
+    fill,
+    stroke,
+    strokeWidth,
+  })
+  const viewBox = getShapeTightViewBox(svgContent, shape.id)
+
+  // 1. 创建目标图形节点（紧凑无内边距）
+  const targetNode = boardInstance.value.addVectorShape({
+    shapeId: shape.id,
+    shapeName: shape.name,
+    svgContent,
+    viewBox,
+    x: targetX,
+    y: targetY,
+    width: targetWidth,
+    height: targetHeight,
+    fill,
+    stroke,
+    strokeWidth,
+    strokeDasharray: 'none',
+    opacity: 1,
+    text: '',
+  })
+
+  // 2. 将之前立即生成的深色黑色连线目标端点无缝对接至新图形端口
+  if (activeAnchorEdge.value) {
+    activeAnchorEdge.value.setTarget({
+      cell: targetNode.id,
+      port: targetPort,
+    })
+  } else {
+    boardInstance.value.connectNodes({
+      source: sourceNode,
+      target: targetNode,
+      sourcePort,
+      targetPort,
+      stroke: '#374151',
+      strokeWidth: 2,
+    })
+  }
+  activeAnchorEdge.value = null
+
+  // 3. 选中新创建的节点
+  boardInstance.value.graph.cleanSelection()
+  boardInstance.value.graph.select(targetNode)
+
+  showQuickConnect.value = false
+}
+
+const setupShapeAnchorListeners = (board: Board) => {
+  const onTick = () => {
+    anchorTick.value++
+  }
+
+  // 监听全局滚动 (使用 capture 捕获包括 scroller 容器在内的所有原生滚动事件，确保零漂移)
+  window.addEventListener('scroll', onTick, true)
+  window.addEventListener('resize', onTick)
+  canvasWrapperRef.value?.addEventListener('wheel', onTick, { passive: true })
+
+  board.graph.on('selection:changed', ({ selected }: any) => {
+    showQuickConnect.value = false
+    activeAnchorEdge.value = null
+    if (selected && selected.length === 1 && board.isShapeNode(selected[0])) {
+      selectedShapeNode.value = selected[0]
+    } else {
+      selectedShapeNode.value = null
+    }
+    anchorTick.value++
+  })
+
+  board.graph.on('node:change:position', onTick)
+  board.graph.on('node:change:size', onTick)
+  board.graph.on('node:change:angle', onTick)
+  board.graph.on('node:moving', onTick)
+  board.graph.on('node:moved', onTick)
+  board.graph.on('node:resizing', onTick)
+  board.graph.on('node:resized', onTick)
+  board.graph.on('node:rotating', onTick)
+  board.graph.on('node:rotated', onTick)
+  board.graph.on('scale', onTick)
+  board.graph.on('translate', onTick)
+  board.graph.on('render:done', onTick)
+
+  board.graph.on('blank:click', () => {
+    showQuickConnect.value = false
+    activeAnchorEdge.value = null
+  })
+}
+
 const onBoardCreated = (board: Board) => {
   boardInstance.value = board
   setupRotationListeners(board)
   setupTextListeners(board)
+  setupShapeAnchorListeners(board)
   emit('created', board)
 }
 
@@ -493,20 +869,22 @@ const onSave = () => {
 
 // 手绘模式与笔触参数状态
 const drawConfig = ref<{
-  mode: 'select' | 'pencil' | 'marker' | 'eraser' | 'vector'
+  mode: 'select' | 'pencil' | 'marker' | 'eraser' | 'vector' | 'line'
+  lineType?: 'elbow' | 'straight' | 'curve'
   color: string
   width: number
   opacity: number
 }>({
   mode: 'select',
+  lineType: 'elbow',
   color: '#333333',
   width: 3,
   opacity: 1,
 })
 
 // 矢量多边形配置与样式属性
-const vectorFillColor = ref('#ec4899')
-const vectorStrokeColor = ref('#333333')
+const vectorFillColor = ref('transparent')
+const vectorStrokeColor = ref('#374151')
 const vectorStrokeWidth = ref(2)
 const vectorStrokeDash = ref('none')
 const vectorOpacity = ref(1)
@@ -515,17 +893,20 @@ const isDrawingActive = computed(() => {
   return (
     drawConfig.value.mode === 'pencil' ||
     drawConfig.value.mode === 'marker' ||
-    drawConfig.value.mode === 'vector'
+    drawConfig.value.mode === 'vector' ||
+    drawConfig.value.mode === 'line'
   )
 })
 
 const onToolbarModeChange = (payload: {
-  mode: 'select' | 'pencil' | 'marker' | 'eraser' | 'vector'
+  mode: 'select' | 'pencil' | 'marker' | 'eraser' | 'vector' | 'line'
+  lineType?: 'elbow' | 'straight' | 'curve'
   color?: string
   width?: number
   opacity?: number
 }) => {
   drawConfig.value.mode = payload.mode
+  if (payload.lineType) drawConfig.value.lineType = payload.lineType
   if (payload.color) drawConfig.value.color = payload.color
   if (payload.width) drawConfig.value.width = payload.width
   if (payload.opacity !== undefined) drawConfig.value.opacity = payload.opacity
@@ -535,6 +916,10 @@ const onToolbarModeChange = (payload: {
     showSettingsPanel.value = true
     vectorPoints.value = []
     cursorPos.value = null
+  } else if (payload.mode === 'line') {
+    isLineDragging.value = false
+    lineStartPoint.value = null
+    lineEndPoint.value = null
   }
 }
 
@@ -558,6 +943,27 @@ const isDrawing = ref(false)
 const livePathD = ref('')
 const livePoints = ref<Array<{ x: number; y: number }>>([])
 const clientPoints = ref<Array<{ x: number; y: number }>>([])
+
+// 连线工具拖拽状态
+const isLineDragging = ref(false)
+const lineStartPoint = ref<{ ox: number; oy: number; clientX: number; clientY: number } | null>(null)
+const lineEndPoint = ref<{ ox: number; oy: number; clientX: number; clientY: number } | null>(null)
+
+const lineElbowPathD = computed(() => {
+  if (!lineStartPoint.value || !lineEndPoint.value) return ''
+  const p1 = lineStartPoint.value
+  const p2 = lineEndPoint.value
+  const midX = (p1.ox + p2.ox) / 2
+  return `M ${p1.ox.toFixed(1)} ${p1.oy.toFixed(1)} L ${midX.toFixed(1)} ${p1.oy.toFixed(1)} L ${midX.toFixed(1)} ${p2.oy.toFixed(1)} L ${p2.ox.toFixed(1)} ${p2.oy.toFixed(1)}`
+})
+
+const lineCurvePathD = computed(() => {
+  if (!lineStartPoint.value || !lineEndPoint.value) return ''
+  const p1 = lineStartPoint.value
+  const p2 = lineEndPoint.value
+  const dx = p2.ox - p1.ox
+  return `M ${p1.ox.toFixed(1)} ${p1.oy.toFixed(1)} C ${(p1.ox + dx / 2).toFixed(1)} ${p1.oy.toFixed(1)}, ${(p1.ox + dx / 2).toFixed(1)} ${p2.oy.toFixed(1)}, ${p2.ox.toFixed(1)} ${p2.oy.toFixed(1)}`
+})
 
 // 矢量钢笔描点序列
 const vectorPoints = ref<
@@ -597,7 +1003,7 @@ const pointsToSvgPath = (points: { x: number; y: number }[]): string => {
   return d
 }
 
-// 统一事件路由：随手画 vs 矢量钢笔描点
+// 统一事件路由：随手画 vs 矢量钢笔描点 vs 连线拖拽
 const onOverlayPointerDown = (e: PointerEvent) => {
   if (e.button !== 0 || !isDrawingActive.value) return
   const svg = overlaySvgRef.value
@@ -606,6 +1012,14 @@ const onOverlayPointerDown = (e: PointerEvent) => {
   const rect = svg.getBoundingClientRect()
   const ox = e.clientX - rect.left
   const oy = e.clientY - rect.top
+
+  // 0. 连线工具模式拖拽起点捕获
+  if (drawConfig.value.mode === 'line') {
+    lineStartPoint.value = { ox, oy, clientX: e.clientX, clientY: e.clientY }
+    lineEndPoint.value = { ox, oy, clientX: e.clientX, clientY: e.clientY }
+    isLineDragging.value = true
+    return
+  }
 
   // 1. 矢量钢笔模式描点
   if (drawConfig.value.mode === 'vector') {
@@ -640,6 +1054,60 @@ const onOverlayPointerMove = (e: PointerEvent) => {
   const ox = e.clientX - rect.left
   const oy = e.clientY - rect.top
 
+  // 连线工具模式引线跟踪（支持 0°/90°/45° 角度吸附与正交对齐）
+  if (drawConfig.value.mode === 'line') {
+    if (isLineDragging.value && lineStartPoint.value) {
+      let curOx = ox
+      let curOy = oy
+      let curClientX = e.clientX
+      let curClientY = e.clientY
+
+      const dx = ox - lineStartPoint.value.ox
+      const dy = oy - lineStartPoint.value.oy
+      const absDx = Math.abs(dx)
+      const absDy = Math.abs(dy)
+      const dist = Math.hypot(dx, dy)
+
+      // 仅在直线工具时提供强力水平/垂直/45度锁定；或在按住 Shift 键时强制约束
+      if (drawConfig.value.lineType === 'straight' || e.shiftKey) {
+        const threshold = 18 // 角度磁吸阈值（像素）
+        if (e.shiftKey) {
+          // Shift 键锁定：水平、垂直或 45° 严格约束
+          if (absDy < absDx * 0.414) {
+            curOy = lineStartPoint.value.oy
+            curClientY = lineStartPoint.value.clientY
+          } else if (absDx < absDy * 0.414) {
+            curOx = lineStartPoint.value.ox
+            curClientX = lineStartPoint.value.clientX
+          } else {
+            const size = Math.max(absDx, absDy)
+            curOx = lineStartPoint.value.ox + Math.sign(dx) * size
+            curOy = lineStartPoint.value.oy + Math.sign(dy) * size
+            curClientX = lineStartPoint.value.clientX + Math.sign(dx) * size
+            curClientY = lineStartPoint.value.clientY + Math.sign(dy) * size
+          }
+        } else if (dist > 12) {
+          // 未按 Shift 时，智能磁吸正水平（0° / 180°）和正垂直（90° / 270°）
+          if (absDy <= threshold) {
+            curOy = lineStartPoint.value.oy
+            curClientY = lineStartPoint.value.clientY
+          } else if (absDx <= threshold) {
+            curOx = lineStartPoint.value.ox
+            curClientX = lineStartPoint.value.clientX
+          }
+        }
+      }
+
+      lineEndPoint.value = {
+        ox: curOx,
+        oy: curOy,
+        clientX: curClientX,
+        clientY: curClientY,
+      }
+    }
+    return
+  }
+
   // 矢量钢笔引线跟踪与起点磁吸判断
   if (drawConfig.value.mode === 'vector') {
     cursorPos.value = { ox, oy }
@@ -670,6 +1138,42 @@ const onOverlayPointerMove = (e: PointerEvent) => {
 }
 
 const onOverlayPointerUp = (e: PointerEvent) => {
+  // 连线工具拖拽完成并建线
+  if (drawConfig.value.mode === 'line') {
+    if (isLineDragging.value && lineStartPoint.value && lineEndPoint.value && boardInstance.value) {
+      const p1 = lineStartPoint.value
+      const p2 = lineEndPoint.value
+      const dist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY)
+      if (dist > 10) {
+        const graph = boardInstance.value.graph
+        const localStart = graph.clientToLocal(p1.clientX, p1.clientY)
+        const localEnd = graph.clientToLocal(p2.clientX, p2.clientY)
+
+        // 智能吸附：若起点/终点落在图形节点上，直接建立端口关联
+        const startNodes = graph.getNodesFromPoint(localStart.x, localStart.y)
+        const endNodes = graph.getNodesFromPoint(localEnd.x, localEnd.y)
+        const startCell = startNodes && startNodes.length > 0 ? startNodes[startNodes.length - 1] : null
+        const endCell = endNodes && endNodes.length > 0 ? endNodes[endNodes.length - 1] : null
+
+        const source = startCell ? { cell: startCell.id } : localStart
+        const target = endCell ? { cell: endCell.id } : localEnd
+
+        boardInstance.value.addLine({
+          type: drawConfig.value.lineType || 'elbow',
+          source,
+          target,
+          stroke: '#374151',
+          strokeWidth: 2,
+        })
+      }
+    }
+    isLineDragging.value = false
+    lineStartPoint.value = null
+    lineEndPoint.value = null
+    drawConfig.value.mode = 'select'
+    return
+  }
+
   if (drawConfig.value.mode === 'vector') {
     // 矢量描点由 pointerdown 逐点采集，不在此结束
     return
@@ -804,7 +1308,8 @@ onUnmounted(() => {
   touch-action: none;
   cursor: crosshair;
 
-  &.is-vector-mode {
+  &.is-vector-mode,
+  &.is-line-mode {
     cursor: crosshair;
   }
 }
@@ -877,5 +1382,80 @@ onUnmounted(() => {
   user-select: text;
   cursor: text;
   box-shadow: none;
+}
+
+// 语雀白板 1:1 图元 4 连接桩点（Ports）手柄与延伸补线交互
+.shape-anchor-ports-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 80;
+
+  .shape-anchor-btn {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+    z-index: 85;
+
+    .anchor-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: #badaf9;
+      border: 1.5px solid #93c5fd;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+    }
+
+    .anchor-arrow {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #374151;
+      opacity: 0;
+      transform: scale(0.6);
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+    }
+
+    &:hover {
+      .anchor-dot {
+        opacity: 0;
+        transform: scale(0);
+      }
+
+      .anchor-arrow {
+        opacity: 1;
+        transform: scale(1);
+        color: #1f2937;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+      }
+    }
+
+    &.port-top:hover .anchor-arrow {
+      transform: scale(1) translateY(-2px);
+    }
+    &.port-right:hover .anchor-arrow {
+      transform: scale(1) translateX(2px);
+    }
+    &.port-bottom:hover .anchor-arrow {
+      transform: scale(1) translateY(2px);
+    }
+    &.port-left:hover .anchor-arrow {
+      transform: scale(1) translateX(-2px);
+    }
+  }
 }
 </style>
