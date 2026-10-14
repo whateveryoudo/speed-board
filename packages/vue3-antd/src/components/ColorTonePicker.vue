@@ -352,12 +352,12 @@ const onNativeColorChange = (e: Event) => {
     }
 
     &.is-white {
-      border: 1.5px solid #d1d5db;
+      border: 1.5px solid var(--speed-board-border-strong, var(--ant-color-border, #d1d5db));
     }
 
     &.is-transparent {
-      background: #ffffff;
-      border: 1.5px solid #e5e7eb;
+      background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
+      border: 1.5px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
       overflow: hidden;
 
       .transparent-slash {
@@ -366,14 +366,14 @@ const onNativeColorChange = (e: Event) => {
         left: -20%;
         width: 140%;
         height: 2px;
-        background: #ef4444;
+        background: var(--ant-color-error, #ef4444);
         transform: rotate(-45deg);
         transform-origin: center;
       }
     }
 
     &.is-active {
-      box-shadow: 0 0 0 2px #ffffff, 0 0 0 3.5px #3b82f6;
+      box-shadow: 0 0 0 2px var(--speed-board-bg, #ffffff), 0 0 0 3.5px var(--speed-board-selection, var(--ant-color-primary, #3b82f6));
     }
   }
 }
@@ -385,7 +385,7 @@ const onNativeColorChange = (e: Event) => {
   .section-title {
     font-size: 13px;
     font-weight: 500;
-    color: #374151;
+    color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     margin-bottom: 8px;
   }
 
@@ -410,7 +410,7 @@ const onNativeColorChange = (e: Event) => {
       }
 
       &.is-active {
-        box-shadow: 0 0 0 2px #ffffff, 0 0 0 3.5px #3b82f6;
+        box-shadow: 0 0 0 2px var(--speed-board-bg, #ffffff), 0 0 0 3.5px var(--speed-board-selection, var(--ant-color-primary, #3b82f6));
       }
     }
   }
@@ -421,7 +421,7 @@ const onNativeColorChange = (e: Event) => {
   .section-title {
     font-size: 13px;
     font-weight: 500;
-    color: #374151;
+    color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     margin-bottom: 8px;
   }
 

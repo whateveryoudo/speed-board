@@ -263,12 +263,13 @@ Graph.registerNode(
             circle: {
               r: 4.5,
               magnet: true,
-              stroke: '#60a5fa',
+              stroke: '#3b82f6',
               strokeWidth: 1.5,
-              fill: '#dbeafe',
+              fill: '#ffffff',
+              opacity: 0,
               style: {
-                visibility: 'hidden',
                 cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
               },
             },
           },
@@ -279,12 +280,13 @@ Graph.registerNode(
             circle: {
               r: 4.5,
               magnet: true,
-              stroke: '#60a5fa',
+              stroke: '#3b82f6',
               strokeWidth: 1.5,
-              fill: '#dbeafe',
+              fill: '#ffffff',
+              opacity: 0,
               style: {
-                visibility: 'hidden',
                 cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
               },
             },
           },
@@ -295,12 +297,13 @@ Graph.registerNode(
             circle: {
               r: 4.5,
               magnet: true,
-              stroke: '#60a5fa',
+              stroke: '#3b82f6',
               strokeWidth: 1.5,
-              fill: '#dbeafe',
+              fill: '#ffffff',
+              opacity: 0,
               style: {
-                visibility: 'hidden',
                 cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
               },
             },
           },
@@ -311,12 +314,13 @@ Graph.registerNode(
             circle: {
               r: 4.5,
               magnet: true,
-              stroke: '#60a5fa',
+              stroke: '#3b82f6',
               strokeWidth: 1.5,
-              fill: '#dbeafe',
+              fill: '#ffffff',
+              opacity: 0,
               style: {
-                visibility: 'hidden',
                 cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
               },
             },
           },
@@ -334,6 +338,10 @@ Graph.registerNode(
 )
 
 export class Board {
+  // 全局活跃画板调度器：保证一页多实例或文档内嵌时，快捷键精准分发给当前活跃画板，不抢占外部按键
+  public static activeBoard: Board | null = null
+  private static globalActiveListenerInitialized = false
+
   public container: HTMLElement
   public graph!: Graph
   public ydoc: Y.Doc
@@ -347,6 +355,9 @@ export class Board {
   private scrollerPlugin?: Scroller
   private selectionPlugin?: Selection
   private transformPlugin?: Transform
+  private keyboardPlugin?: Keyboard
+  private clipboardPlugin?: Clipboard
+  private historyPlugin?: History
 
   // 手绘状态
   private drawingMode: DrawingMode = 'select'
@@ -365,6 +376,10 @@ export class Board {
     this.ydoc = options.ydoc || new Y.Doc()
     this.yCells = this.ydoc.getMap('cells')
 
+    // 默认激活当前实例
+    Board.activeBoard = this
+
+    this.initActiveBoardListener()
     this.initGraph(options)
     this.initPlugins()
     this.initEvents()
@@ -374,6 +389,44 @@ export class Board {
       for (const ext of options.extensions) {
         this.registerExtension(ext)
       }
+    }
+  }
+
+  private initActiveBoardListener() {
+    // 鼠标在当前画板内点击或交互时，立即设为当前活跃画板
+    const activate = () => {
+      Board.activeBoard = this
+    }
+    this.container.addEventListener('pointerdown', activate, true)
+    this.container.addEventListener('focusin', activate, true)
+
+    this.drawingCleanupFns.push(() => {
+      this.container.removeEventListener('pointerdown', activate, true)
+      this.container.removeEventListener('focusin', activate, true)
+    })
+
+    // 全局点击监听器（全局仅初始化一次）：当点击落在画板外部（如外部富文本段落/外部表单）时，清空活跃画板释放全局按键
+    if (!Board.globalActiveListenerInitialized && typeof document !== 'undefined') {
+      Board.globalActiveListenerInitialized = true
+      document.addEventListener(
+        'pointerdown',
+        (e: PointerEvent) => {
+          const target = e.target as HTMLElement | null
+          // 如果点击落在任何 speed-board 画板或其弹层/菜单/气泡内部，保持活跃状态
+          if (
+            target?.closest('.speed-board') ||
+            target?.closest('.speed-board-canvas-wrapper') ||
+            target?.closest('.ant-popover') ||
+            target?.closest('.ant-dropdown') ||
+            target?.closest('.ant-modal') ||
+            target?.closest('.ant-tooltip')
+          ) {
+            return
+          }
+          Board.activeBoard = null
+        },
+        true
+      )
     }
   }
 
@@ -403,51 +456,47 @@ export class Board {
         maxScale: 5,
       },
       connecting: {
-        snap: true,
+        snap: {
+          radius: 35,
+          anchor: 'bbox',
+        },
         allowBlank: true,
         allowLoop: false,
-        allowNode: false,
-        highlight: true,
+        allowNode: true,
+        allowPort: true,
+        allowEdge: false,
+        highlight: false,
+        anchor: 'midSide',
+        connectionPoint: 'anchor',
         createEdge() {
           return this.createEdge({
             shape: 'edge',
             attrs: {
               line: {
-                stroke: '#93c5fd',
+                stroke: '#374151',
                 strokeWidth: 2,
                 targetMarker: {
-                  name: 'classic',
-                  size: 7,
+                  name: 'block',
+                  width: 9,
+                  height: 6,
+                  offset: 0,
                 },
               },
             },
             router: {
-              name: 'manhattan',
-              args: {
-                padding: 10,
-              },
+              name: 'normal',
             },
             connector: {
-              name: 'rounded',
-              args: {
-                radius: 8,
-              },
+              name: 'normal',
             },
           })
         },
         router: {
-          name: 'manhattan',
-          args: {
-            padding: 10,
-          },
+          name: 'normal',
         },
         connector: {
-          name: 'rounded',
-          args: {
-            radius: 8,
-          },
+          name: 'normal',
         },
-        connectionPoint: 'boundary',
       },
       interacting: {
         nodeMovable: !options.readonly,
@@ -460,7 +509,7 @@ export class Board {
     // 1. 无限滚动与抓手平移画布 (Scroller)
     this.scrollerPlugin = new Scroller({
       enabled: true,
-      pannable: true,
+      pannable: false, // 默认在 select 模式下禁用普通左键拖拽平移，交由 Selection 框选；按住 Space 或切换抓手模式时触发平移
       pageVisible: false,
       pageBreak: false,
       autoResize: false, // 禁用添加节点时自动强制重算原点与居中，避免画第一笔时视口被强行跳变居中
@@ -482,7 +531,7 @@ export class Board {
       multiple: true,
       rubberband: true,
       movable: true,
-      showNodeSelectionBox: false, // 禁用独立选框，由 Transform 变换插件统一提供单一控制框，避免旋转时出现双重框
+      showNodeSelectionBox: true, // 启用选框，在多选时展示各图元蓝色外框
     })
     this.graph.use(this.selectionPlugin)
 
@@ -500,24 +549,60 @@ export class Board {
     })
     this.graph.use(this.transformPlugin)
 
-    // 5. 快捷键系统
-    this.graph.use(new Keyboard({ enabled: true }))
+    // 5. 快捷键系统 (启用 global: true 全局捕获白板快捷键，并结合 activeBoard guard 守卫精准分发，多实例互不干扰)
+    this.keyboardPlugin = new Keyboard({
+      enabled: true,
+      global: true,
+      guard: () => {
+        return Board.activeBoard === this
+      },
+    })
+    this.graph.use(this.keyboardPlugin)
 
     // 6. 剪贴板
-    this.graph.use(new Clipboard({ enabled: true }))
+    this.clipboardPlugin = new Clipboard({ enabled: true })
+    this.graph.use(this.clipboardPlugin)
 
     // 7. 撤销重做历史记录 (History)
-    this.graph.use(new History({ enabled: true }))
+    this.historyPlugin = new History({ enabled: true })
+    this.graph.use(this.historyPlugin)
+    this.historyPlugin.on('change', () => {
+      this.graph.trigger('history:change')
+    })
   }
 
   private initEvents() {
-    // 选中图元时同步激活 Transform 单一控制框，取消选中时清除，保证仅有单一控制框
-    this.graph.on('node:selected', ({ node }) => {
-      this.transformPlugin?.createWidget(node)
+    this.graph.on('cell:click', () => {
+      Board.activeBoard = this
     })
-    this.graph.on('node:unselected', () => {
-      this.transformPlugin?.clearWidgets()
+    this.graph.on('blank:click', () => {
+      Board.activeBoard = this
     })
+
+    // 选中图元时同步激活 Transform 单一控制框与多选边框：单选展示带手柄控制框；多选展示纯线选框并隐藏手柄
+    this.graph.on('selection:changed', ({ selected }: any) => {
+      Board.activeBoard = this
+      const selectedNodes = (selected || []).filter((cell: any) => cell.isNode())
+      const root = this.container.closest('.speed-board') || this.container
+      if (selectedNodes.length === 1) {
+        this.container.classList.add('is-single-selected')
+        root.classList.add('is-single-selected')
+        this.transformPlugin?.clearWidgets()
+        this.transformPlugin?.createWidget(selectedNodes[0])
+      } else {
+        this.container.classList.remove('is-single-selected')
+        root.classList.remove('is-single-selected')
+        this.transformPlugin?.clearWidgets()
+        this.syncSelectionBoxesTransform()
+      }
+    })
+
+    this.graph.on('node:change:angle', () => {
+      this.syncSelectionBoxesTransform()
+    })
+
+    // 监听 Space 空格键全局平移画布 (松开后恢复框选)
+    this.initSpacePanning()
 
     // 选中连线时挂载端点拉伸与折点控制手柄 (1:1 语雀白板 Edge Tools)
     this.graph.on('edge:selected', ({ edge }) => {
@@ -566,6 +651,52 @@ export class Board {
       edge.removeTools()
     })
 
+    // 撤销快捷键 Ctrl+Z / Cmd+Z
+    this.graph.bindKey(['ctrl+z', 'meta+z'], () => {
+      this.undo()
+      return false
+    })
+
+    // 重做快捷键 Ctrl+Y / Cmd+Y / Ctrl+Shift+Z / Cmd+Shift+Z
+    this.graph.bindKey(['ctrl+y', 'meta+y', 'ctrl+shift+z', 'meta+shift+z'], () => {
+      this.redo()
+      return false
+    })
+
+    // 复制快捷键 Ctrl+C / Cmd+C
+    this.graph.bindKey(['ctrl+c', 'meta+c'], () => {
+      this.copy()
+      return false
+    })
+
+    // 剪切快捷键 Ctrl+X / Cmd+X
+    this.graph.bindKey(['ctrl+x', 'meta+x'], () => {
+      this.cut()
+      return false
+    })
+
+    // 粘贴快捷键 Ctrl+V / Cmd+V
+    this.graph.bindKey(['ctrl+v', 'meta+v'], () => {
+      this.paste()
+      return false
+    })
+
+    // 画布缩放快捷键
+    this.graph.bindKey(['ctrl+=', 'meta+=', 'ctrl++', 'meta++'], () => {
+      this.zoom(0.1)
+      return false
+    })
+
+    this.graph.bindKey(['ctrl+-', 'meta+-'], () => {
+      this.zoom(-0.1)
+      return false
+    })
+
+    this.graph.bindKey(['ctrl+0', 'meta+0'], () => {
+      this.zoomTo(1)
+      return false
+    })
+
     // 绑定删除快捷键 Delete / Backspace
     this.graph.bindKey(['backspace', 'delete'], () => {
       this.deleteSelected()
@@ -576,6 +707,54 @@ export class Board {
     this.graph.bindKey(['ctrl+a', 'meta+a'], () => {
       const nodes = this.graph.getNodes()
       this.graph.select(nodes)
+      return false
+    })
+
+    // 复制副本快捷键 Ctrl+D / Cmd+D
+    this.graph.bindKey(['ctrl+d', 'meta+d'], () => {
+      this.duplicateSelected()
+      return false
+    })
+
+    // 置于顶层快捷键 Ctrl+] / Cmd+]
+    this.graph.bindKey(['ctrl+]', 'meta+]'], () => {
+      this.bringSelectedToFront()
+      return false
+    })
+
+    // 置于底层快捷键 Ctrl+[ / Cmd+[
+    this.graph.bindKey(['ctrl+[', 'meta+['], () => {
+      this.sendSelectedToBack()
+      return false
+    })
+
+    // 上移一层快捷键 Alt+] / Option+]
+    this.graph.bindKey(['alt+]', 'option+]'], () => {
+      this.bringSelectedForward()
+      return false
+    })
+
+    // 下移一层快捷键 Alt+[ / Option+[
+    this.graph.bindKey(['alt+[', 'option+['], () => {
+      this.sendSelectedBackward()
+      return false
+    })
+
+    // 成组快捷键 Ctrl+G / Cmd+G
+    this.graph.bindKey(['ctrl+g', 'meta+g'], () => {
+      this.groupSelected()
+      return false
+    })
+
+    // 解散成组快捷键 Ctrl+Shift+G / Cmd+Shift+G
+    this.graph.bindKey(['ctrl+shift+g', 'meta+shift+g'], () => {
+      this.ungroupSelected()
+      return false
+    })
+
+    // 锁定/解锁快捷键 Ctrl+L / Cmd+L
+    this.graph.bindKey(['ctrl+l', 'meta+l'], () => {
+      this.toggleLockSelected()
       return false
     })
 
@@ -925,19 +1104,45 @@ export class Board {
   }
 
   public undo() {
-    ;(this.graph as any).undo?.()
+    this.historyPlugin?.undo()
+    this.graph.trigger('history:change')
   }
 
   public redo() {
-    ;(this.graph as any).redo?.()
+    this.historyPlugin?.redo()
+    this.graph.trigger('history:change')
   }
 
   public canUndo(): boolean {
-    return !!(this.graph as any).canUndo?.()
+    return this.historyPlugin?.canUndo() ?? false
   }
 
   public canRedo(): boolean {
-    return !!(this.graph as any).canRedo?.()
+    return this.historyPlugin?.canRedo() ?? false
+  }
+
+  public copy() {
+    const cells = this.graph.getSelectedCells()
+    if (cells.length > 0) {
+      this.clipboardPlugin?.copy(cells, { offset: 30 })
+    }
+  }
+
+  public cut() {
+    const cells = this.graph.getSelectedCells()
+    if (cells.length > 0) {
+      this.clipboardPlugin?.cut(cells, { offset: 30 })
+    }
+  }
+
+  public paste() {
+    if (this.clipboardPlugin && !this.clipboardPlugin.isEmpty()) {
+      const cells = this.clipboardPlugin.paste({ offset: 30 }, this.graph)
+      if (cells && cells.length > 0) {
+        this.graph.cleanSelection()
+        this.graph.select(cells)
+      }
+    }
   }
 
   public registerExtension(extension: Extension) {
@@ -1336,7 +1541,11 @@ export class Board {
     if (!cell || !cell.isNode()) return false
     return (
       cell.shape === 'speed-shape-node' ||
-      cell.getData()?.type === 'shape'
+      cell.getData()?.type === 'shape' ||
+      cell.shape === 'rect' ||
+      cell.shape === 'circle' ||
+      cell.shape === 'polygon' ||
+      cell.shape === 'speed-sticky-node'
     )
   }
 
@@ -1491,6 +1700,87 @@ export class Board {
   }
 
   /**
+   * 显示或隐藏指定图形节点的连接桩（Ports），并呈现柔和浅蓝触碰高亮与桩点高亮 (1:1 语雀交互)
+   */
+  public showNodePorts(node: Node | string | null, visible: boolean, activePortId?: string) {
+    if (!node) return
+    const cell = typeof node === 'string' ? this.graph.getCellById(node) : node
+    if (!cell || !cell.isNode() || !this.isShapeNode(cell)) return
+    const view = this.graph.findViewByCell(cell)
+    if (view && view.container) {
+      // 1. 柔和浅蓝色高亮底色与浅蓝描边 (1:1 语雀触碰状态，非粗重外边框)
+      const bgEl = (view.container.querySelector('[data-selector="bg"]') || view.container.querySelector('.x6-node-bg')) as SVGRectElement | null
+      if (bgEl) {
+        if (visible) {
+          bgEl.setAttribute('fill', 'rgba(59, 130, 246, 0.08)')
+          bgEl.setAttribute('stroke', '#3b82f6')
+          bgEl.setAttribute('stroke-width', '1.5')
+          bgEl.setAttribute('rx', '4')
+          bgEl.setAttribute('ry', '4')
+        } else {
+          bgEl.setAttribute('fill', 'transparent')
+          bgEl.setAttribute('stroke', 'transparent')
+          bgEl.setAttribute('stroke-width', '0')
+        }
+      }
+
+      // 2. 候选桩点显隐与高亮控制
+      const ports = view.container.querySelectorAll<SVGGElement>('.x6-port')
+      ports.forEach((p) => {
+        const circle = p.querySelector<SVGCircleElement>('circle')
+        if (!circle) return
+        if (!visible) {
+          circle.style.opacity = '0'
+        } else {
+          circle.style.opacity = '1'
+          const portId = p.getAttribute('data-port')
+          if (activePortId && portId === activePortId) {
+            // 吸附目标桩点：实心深蓝点 (1:1 语雀)
+            circle.setAttribute('r', '5')
+            circle.setAttribute('fill', '#2563eb')
+            circle.setAttribute('stroke', '#2563eb')
+            circle.setAttribute('stroke-width', '1')
+          } else {
+            // 普通候选桩点：白色圆点 + 浅蓝细边 (1:1 语雀)
+            circle.setAttribute('r', '3.5')
+            circle.setAttribute('fill', '#ffffff')
+            circle.setAttribute('stroke', '#3b82f6')
+            circle.setAttribute('stroke-width', '1.5')
+          }
+        }
+      })
+    }
+  }
+
+  /**
+   * 隐藏画布上所有图形节点的连接桩
+   */
+  public hideAllPorts() {
+    const nodes = this.graph.getNodes()
+    nodes.forEach((node) => {
+      if (this.isShapeNode(node)) {
+        this.showNodePorts(node, false)
+      }
+    })
+  }
+
+  /**
+   * 批量切换所有图形节点的真实连接桩（Ports）显示状态
+   */
+  public toggleAllPortsVisibility(visible: boolean) {
+    if (!visible) {
+      this.hideAllPorts()
+    } else {
+      const nodes = this.graph.getNodes()
+      nodes.forEach((node) => {
+        if (this.isShapeNode(node)) {
+          this.showNodePorts(node, true)
+        }
+      })
+    }
+  }
+
+  /**
    * 自动连接两个节点端口 (支持曼哈顿正交折线 + 箭头)
    */
   public connectNodes(options: {
@@ -1516,8 +1806,10 @@ export class Board {
           stroke: options.stroke || '#93c5fd',
           strokeWidth: options.strokeWidth || 2,
           targetMarker: {
-            name: 'classic',
-            size: 7,
+            name: 'block',
+            width: 9,
+            height: 6,
+            offset: 0,
           },
         },
       },
@@ -1542,8 +1834,8 @@ export class Board {
    */
   public addLine(options: {
     type?: 'arrow' | 'straight' | 'elbow' | 'curve'
-    source?: { x: number; y: number } | { cell: string; port?: string }
-    target?: { x: number; y: number } | { cell: string; port?: string }
+    source?: { x: number; y: number } | { cell: string; port?: string; anchor?: any; connectionPoint?: any }
+    target?: { x: number; y: number } | { cell: string; port?: string; anchor?: any; connectionPoint?: any }
     stroke?: string
     strokeWidth?: number
     strokeDasharray?: string
@@ -1551,21 +1843,20 @@ export class Board {
     const center = this.getViewportCenter()
     const source = options.source || { x: Math.round(center.x - 70), y: Math.round(center.y) }
     const target = options.target || { x: Math.round(center.x + 70), y: Math.round(center.y) }
-    const type = options.type || 'arrow'
+    const type = options.type || 'straight'
 
     const attrs: any = {
       line: {
         stroke: options.stroke || '#374151',
         strokeWidth: options.strokeWidth || 2,
         strokeDasharray: options.strokeDasharray && options.strokeDasharray !== 'none' ? options.strokeDasharray : undefined,
+        targetMarker: {
+          name: 'block',
+          width: 9,
+          height: 6,
+          offset: 0,
+        },
       },
-    }
-
-    if (type !== 'straight') {
-      attrs.line.targetMarker = {
-        name: 'classic',
-        size: 8,
-      }
     }
 
     const edgeConfig: any = {
@@ -1573,6 +1864,7 @@ export class Board {
       source,
       target,
       attrs,
+      connectionPoint: 'anchor',
     }
 
     if (type === 'elbow') {
@@ -1585,10 +1877,17 @@ export class Board {
         args: { radius: 8 },
       }
     } else if (type === 'curve') {
+      edgeConfig.router = {
+        name: 'normal',
+      }
       edgeConfig.connector = {
         name: 'smooth',
       }
     } else {
+      // 直线 (straight): 严格保持两点之间的直线连接，绝不添加正交折点
+      edgeConfig.router = {
+        name: 'normal',
+      }
       edgeConfig.connector = {
         name: 'normal',
       }
@@ -1847,9 +2146,307 @@ export class Board {
     } else {
       // 'select'
       this.selectionPlugin?.enableRubberband()
-      this.scrollerPlugin?.enablePanning()
+      this.scrollerPlugin?.disablePanning()
       this.container.style.cursor = 'default'
     }
+  }
+
+  private isSpaceDown = false
+
+  private initSpacePanning() {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !this.isSpaceDown) {
+        const tag = (e.target as HTMLElement)?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return
+        this.isSpaceDown = true
+        if (this.drawingMode === 'select') {
+          this.selectionPlugin?.disableRubberband()
+          this.scrollerPlugin?.enablePanning()
+          this.container.style.cursor = 'grab'
+        }
+      }
+    }
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && this.isSpaceDown) {
+        this.isSpaceDown = false
+        if (this.drawingMode === 'select') {
+          this.scrollerPlugin?.disablePanning()
+          this.selectionPlugin?.enableRubberband()
+          this.container.style.cursor = 'default'
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    this.drawingCleanupFns.push(() => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    })
+  }
+
+  public setHandMode(enabled: boolean) {
+    if (enabled) {
+      this.setDrawingMode('hand')
+    } else {
+      this.setDrawingMode('select')
+    }
+  }
+
+  /**
+   * 对齐选中的图形节点 (1:1 语雀白板多选对齐)
+   */
+  public alignSelectedNodes(type: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') {
+    const selectedNodes = this.graph.getSelectedCells().filter((c) => c.isNode())
+    if (selectedNodes.length < 2) return
+
+    const bboxes = selectedNodes.map((node) => ({
+      node,
+      bbox: node.getBBox(),
+    }))
+
+    if (type === 'left') {
+      const minX = Math.min(...bboxes.map((b) => b.bbox.x))
+      bboxes.forEach(({ node, bbox }) => {
+        node.setPosition(minX, bbox.y)
+      })
+    } else if (type === 'center') {
+      const minX = Math.min(...bboxes.map((b) => b.bbox.x))
+      const maxRight = Math.max(...bboxes.map((b) => b.bbox.right))
+      const targetCenter = (minX + maxRight) / 2
+      bboxes.forEach(({ node, bbox }) => {
+        node.setPosition(targetCenter - bbox.width / 2, bbox.y)
+      })
+    } else if (type === 'right') {
+      const maxRight = Math.max(...bboxes.map((b) => b.bbox.right))
+      bboxes.forEach(({ node, bbox }) => {
+        node.setPosition(maxRight - bbox.width, bbox.y)
+      })
+    } else if (type === 'top') {
+      const minY = Math.min(...bboxes.map((b) => b.bbox.y))
+      bboxes.forEach(({ node, bbox }) => {
+        node.setPosition(bbox.x, minY)
+      })
+    } else if (type === 'middle') {
+      const minY = Math.min(...bboxes.map((b) => b.bbox.y))
+      const maxBottom = Math.max(...bboxes.map((b) => b.bbox.bottom))
+      const targetMiddle = (minY + maxBottom) / 2
+      bboxes.forEach(({ node, bbox }) => {
+        node.setPosition(bbox.x, targetMiddle - bbox.height / 2)
+      })
+    } else if (type === 'bottom') {
+      const maxBottom = Math.max(...bboxes.map((b) => b.bbox.bottom))
+      bboxes.forEach(({ node, bbox }) => {
+        node.setPosition(bbox.x, maxBottom - bbox.height)
+      })
+    }
+  }
+
+  /**
+   * 水平/垂直均分分布选中的图形节点
+   */
+  public distributeSelectedNodes(type: 'horizontal' | 'vertical') {
+    const selectedNodes = this.graph.getSelectedCells().filter((c) => c.isNode())
+    if (selectedNodes.length < 3) return
+
+    if (type === 'horizontal') {
+      const sorted = selectedNodes
+        .map((node) => ({ node, bbox: node.getBBox() }))
+        .sort((a, b) => a.bbox.x - b.bbox.x)
+
+      const first = sorted[0].bbox
+      const last = sorted[sorted.length - 1].bbox
+      const totalElementsWidth = sorted.slice(1, -1).reduce((acc, curr) => acc + curr.bbox.width, 0)
+      const totalSpan = last.x - first.right
+      const gap = (totalSpan - totalElementsWidth) / (sorted.length - 1)
+
+      let currentX = first.right + gap
+      for (let i = 1; i < sorted.length - 1; i++) {
+        sorted[i].node.setPosition(currentX, sorted[i].bbox.y)
+        currentX += sorted[i].bbox.width + gap
+      }
+    } else if (type === 'vertical') {
+      const sorted = selectedNodes
+        .map((node) => ({ node, bbox: node.getBBox() }))
+        .sort((a, b) => a.bbox.y - b.bbox.y)
+
+      const first = sorted[0].bbox
+      const last = sorted[sorted.length - 1].bbox
+      const totalElementsHeight = sorted.slice(1, -1).reduce((acc, curr) => acc + curr.bbox.height, 0)
+      const totalSpan = last.y - first.bottom
+      const gap = (totalSpan - totalElementsHeight) / (sorted.length - 1)
+
+      let currentY = first.bottom + gap
+      for (let i = 1; i < sorted.length - 1; i++) {
+        sorted[i].node.setPosition(sorted[i].bbox.x, currentY)
+        currentY += sorted[i].bbox.height + gap
+      }
+    }
+  }
+
+  /**
+   * 置于顶层
+   */
+  public bringSelectedToFront() {
+    this.graph.getSelectedCells().forEach((cell) => cell.toFront())
+  }
+
+  /**
+   * 置于底层
+   */
+  public sendSelectedToBack() {
+    this.graph.getSelectedCells().forEach((cell) => cell.toBack())
+  }
+
+  /**
+   * 上移一层
+   */
+  public bringSelectedForward() {
+    this.graph.getSelectedCells().forEach((cell) => {
+      const z = cell.getZIndex() || 1
+      cell.setZIndex(z + 1)
+    })
+  }
+
+  /**
+   * 下移一层
+   */
+  public sendSelectedBackward() {
+    this.graph.getSelectedCells().forEach((cell) => {
+      const z = cell.getZIndex() || 1
+      cell.setZIndex(Math.max(1, z - 1))
+    })
+  }
+
+  /**
+   * 快速克隆/复制选中的图元 (Ctrl+D / Cmd+D)
+   */
+  public duplicateSelected(offset = 24) {
+    const selected = this.graph.getSelectedCells()
+    if (!selected.length) return []
+    const cloned = this.graph.cloneCells(selected)
+    cloned.forEach((cell) => {
+      if (cell.isNode()) {
+        const pos = cell.getPosition()
+        cell.setPosition(pos.x + offset, pos.y + offset)
+      }
+    })
+    this.graph.addCells(cloned)
+    this.graph.cleanSelection()
+    this.graph.select(cloned)
+    return cloned
+  }
+
+  /**
+   * 将选中的多个图形打包成组 (Ctrl+G / Cmd+G)
+   */
+  public groupSelected() {
+    const selectedNodes = this.graph.getSelectedCells().filter((c) => c.isNode())
+    if (selectedNodes.length < 2) return null
+
+    const bboxes = selectedNodes.map((n) => n.getBBox())
+    const minX = Math.min(...bboxes.map((b) => b.x))
+    const minY = Math.min(...bboxes.map((b) => b.y))
+    const maxRight = Math.max(...bboxes.map((b) => b.right))
+    const maxBottom = Math.max(...bboxes.map((b) => b.bottom))
+    const pad = 6
+
+    const groupNode = this.graph.addNode({
+      shape: 'rect',
+      x: minX - pad,
+      y: minY - pad,
+      width: maxRight - minX + pad * 2,
+      height: maxBottom - minY + pad * 2,
+      zIndex: Math.max(1, Math.min(...selectedNodes.map((n) => n.getZIndex() || 1)) - 1),
+      attrs: {
+        body: {
+          fill: 'transparent',
+          stroke: 'transparent',
+          strokeWidth: 0,
+          pointerEvents: 'visiblePainted',
+        },
+      },
+      data: {
+        type: 'group',
+        isGroup: true,
+      },
+    })
+
+    selectedNodes.forEach((node) => {
+      groupNode.addChild(node)
+    })
+
+    this.graph.cleanSelection()
+    this.graph.select(groupNode)
+    return groupNode
+  }
+
+  /**
+   * 解散选中节点的分组 (Ctrl+Shift+G / Cmd+Shift+G)
+   */
+  public ungroupSelected() {
+    const selected = this.graph.getSelectedCells().filter((c) => c.isNode())
+    if (!selected.length) return
+
+    const childrenToSelect: any[] = []
+    selected.forEach((node) => {
+      const children = node.getChildren()
+      if (children && children.length > 0) {
+        children.forEach((child) => {
+          node.removeChild(child)
+          childrenToSelect.push(child)
+        })
+        this.graph.removeNode(node)
+      }
+    })
+
+    if (childrenToSelect.length > 0) {
+      this.graph.cleanSelection()
+      this.graph.select(childrenToSelect)
+    }
+  }
+
+  /**
+   * 锁定/解锁选中的图元 (Ctrl+L / Cmd+L)
+   */
+  public toggleLockSelected(): boolean {
+    const selected = this.graph.getSelectedCells()
+    if (!selected.length) return false
+    const anyUnlocked = selected.some((c) => !c.getData()?.locked)
+    const newLocked = anyUnlocked
+
+    selected.forEach((cell) => {
+      const data = cell.getData() || {}
+      cell.setData({ ...data, locked: newLocked })
+      if (cell.isNode()) {
+        cell.prop('movable', !newLocked)
+      }
+    })
+    return newLocked
+  }
+
+  public syncSelectionBoxesTransform() {
+    requestAnimationFrame(() => {
+      const container = this.container.querySelector('.x6-widget-selection')
+      if (!container) return
+      const boxes = container.querySelectorAll('.x6-widget-selection-box')
+      boxes.forEach((box) => {
+        const id = box.getAttribute('data-cell-id')
+        if (id) {
+          const cell = this.graph.getCellById(id)
+          if (cell && cell.isNode()) {
+            const angle = cell.getAngle() || 0
+            if (angle) {
+              ;(box as HTMLElement).style.transform = `rotate(${angle}deg)`
+              ;(box as HTMLElement).style.transformOrigin = 'center center'
+            } else {
+              ;(box as HTMLElement).style.transform = ''
+            }
+          }
+        }
+      })
+    })
   }
 
   public getDrawingMode(): DrawingMode {
@@ -1875,6 +2472,9 @@ export class Board {
     this.drawingCleanupFns = []
     if (this.tempSvgPath && this.tempSvgPath.parentNode) {
       this.tempSvgPath.parentNode.removeChild(this.tempSvgPath)
+    }
+    if (Board.activeBoard === this) {
+      Board.activeBoard = null
     }
     this.graph.dispose()
   }

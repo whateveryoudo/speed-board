@@ -11,29 +11,36 @@
 
       <!-- 2. 一级分类选项卡 (样式 / 文本 / 排列 - 1:1 语雀白板) -->
       <div class="panel-tabs">
-        <div
-          v-if="!isTextOnlyNodeSelected"
-          class="tab-item"
-          :class="{ 'is-active': activeTab === 'style' }"
-          @click="activeTab = 'style'"
-        >
-          样式
-        </div>
-        <div
-          v-if="hasTextCapability"
-          class="tab-item"
-          :class="{ 'is-active': activeTab === 'text' }"
-          @click="activeTab = 'text'"
-        >
-          文本
-        </div>
-        <div
-          class="tab-item"
-          :class="{ 'is-active': activeTab === 'arrange' }"
-          @click="activeTab = 'arrange'"
-        >
-          排列
-        </div>
+        <template v-if="selectedCellsCount <= 1">
+          <div
+            v-if="!isTextOnlyNodeSelected"
+            class="tab-item"
+            :class="{ 'is-active': activeTab === 'style' }"
+            @click="activeTab = 'style'"
+          >
+            样式
+          </div>
+          <div
+            v-if="hasTextCapability"
+            class="tab-item"
+            :class="{ 'is-active': activeTab === 'text' }"
+            @click="activeTab = 'text'"
+          >
+            文本
+          </div>
+          <div
+            class="tab-item"
+            :class="{ 'is-active': activeTab === 'arrange' }"
+            @click="activeTab = 'arrange'"
+          >
+            排列
+          </div>
+        </template>
+        <template v-else>
+          <div class="tab-item is-active">
+            排列
+          </div>
+        </template>
       </div>
 
       <!-- 3.1 文本专用配置面板 (1:1 语雀白板风格) -->
@@ -392,27 +399,233 @@
           </div>
         </div>
 
-      <!-- 4. 排列图层控制内容 -->
-      <div v-else-if="activeTab === 'arrange'" class="panel-content">
-        <div class="setting-group">
-          <div class="group-header">
-            <CaretDownOutlined class="group-arrow" />
-            <span>图层层叠顺序</span>
-          </div>
+      <!-- 4. 排列图层控制内容 (1:1 语雀白板多选看板) -->
+      <div v-else-if="activeTab === 'arrange'" class="panel-content arrange-content">
+        <!-- 4.1 对齐方式 (6个对齐按钮) -->
+        <div class="arrange-section">
+          <div class="align-group">
+            <a-tooltip title="左对齐">
+              <button
+                class="arrange-icon-btn"
+                :disabled="selectedNodesCount < 2"
+                @click="onAlign('left')"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="4" y1="21" x2="4" y2="3" />
+                  <rect x="8" y="6" width="12" height="4" rx="1" />
+                  <rect x="8" y="14" width="8" height="4" rx="1" />
+                </svg>
+              </button>
+            </a-tooltip>
 
-          <div class="arrange-action-list">
-            <a-button class="arrange-btn" block @click="bringToFront">
-              置于顶层
-            </a-button>
-            <a-button class="arrange-btn" block @click="sendToBack">
-              置于底层
-            </a-button>
-            <a-button class="arrange-btn" block @click="bringForward">
-              上移一层
-            </a-button>
-            <a-button class="arrange-btn" block @click="sendBackward">
-              下移一层
-            </a-button>
+            <a-tooltip title="水平居中">
+              <button
+                class="arrange-icon-btn"
+                :disabled="selectedNodesCount < 2"
+                @click="onAlign('center')"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="21" x2="12" y2="3" />
+                  <rect x="6" y="6" width="12" height="4" rx="1" />
+                  <rect x="8" y="14" width="8" height="4" rx="1" />
+                </svg>
+              </button>
+            </a-tooltip>
+
+            <a-tooltip title="右对齐">
+              <button
+                class="arrange-icon-btn"
+                :disabled="selectedNodesCount < 2"
+                @click="onAlign('right')"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="20" y1="21" x2="20" y2="3" />
+                  <rect x="4" y="6" width="12" height="4" rx="1" />
+                  <rect x="8" y="14" width="8" height="4" rx="1" />
+                </svg>
+              </button>
+            </a-tooltip>
+
+            <a-tooltip title="顶对齐">
+              <button
+                class="arrange-icon-btn"
+                :disabled="selectedNodesCount < 2"
+                @click="onAlign('top')"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="3" y1="4" x2="21" y2="4" />
+                  <rect x="6" y="8" width="4" height="12" rx="1" />
+                  <rect x="14" y="8" width="4" height="8" rx="1" />
+                </svg>
+              </button>
+            </a-tooltip>
+
+            <a-tooltip title="垂直居中">
+              <button
+                class="arrange-icon-btn"
+                :disabled="selectedNodesCount < 2"
+                @click="onAlign('middle')"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <rect x="6" y="6" width="4" height="12" rx="1" />
+                  <rect x="14" y="8" width="4" height="8" rx="1" />
+                </svg>
+              </button>
+            </a-tooltip>
+
+            <a-tooltip title="底对齐">
+              <button
+                class="arrange-icon-btn"
+                :disabled="selectedNodesCount < 2"
+                @click="onAlign('bottom')"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="3" y1="20" x2="21" y2="20" />
+                  <rect x="6" y="4" width="4" height="12" rx="1" />
+                  <rect x="14" y="8" width="4" height="8" rx="1" />
+                </svg>
+              </button>
+            </a-tooltip>
+          </div>
+        </div>
+
+        <!-- 4.2 均分分布 (水平均分 / 垂直均分) -->
+        <div class="arrange-section">
+          <div class="distribute-btn-group">
+            <button
+              class="distribute-btn"
+              :disabled="selectedNodesCount < 3"
+              @click="onDistribute('horizontal')"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="5" width="3" height="14" rx="1" />
+                <rect x="10.5" y="7" width="3" height="10" rx="1" />
+                <rect x="17" y="5" width="3" height="14" rx="1" />
+              </svg>
+              <span class="distribute-label">水平均分</span>
+            </button>
+
+            <button
+              class="distribute-btn"
+              :disabled="selectedNodesCount < 3"
+              @click="onDistribute('vertical')"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="4" width="14" height="3" rx="1" />
+                <rect x="7" y="10.5" width="10" height="3" rx="1" />
+                <rect x="5" y="17" width="14" height="3" rx="1" />
+              </svg>
+              <span class="distribute-label">垂直均分</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4.3 图层层叠顺序 (置于顶层 / 置于底层 / 上移一层 / 下移一层) -->
+        <div class="arrange-section layer-section">
+          <div class="layer-btn-row">
+            <div class="layer-sub-group">
+              <a-tooltip title="置于顶层">
+                <button class="arrange-icon-btn" @click="bringToFront">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="8" y="8" width="12" height="12" rx="2" fill="currentColor" fill-opacity="0.1" />
+                    <rect x="4" y="4" width="12" height="12" rx="2" stroke-dasharray="3,3" />
+                  </svg>
+                </button>
+              </a-tooltip>
+              <a-tooltip title="置于底层">
+                <button class="arrange-icon-btn" @click="sendToBack">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="4" width="12" height="12" rx="2" fill="currentColor" fill-opacity="0.1" />
+                    <rect x="8" y="8" width="12" height="12" rx="2" />
+                  </svg>
+                </button>
+              </a-tooltip>
+            </div>
+
+            <div class="layer-sub-group">
+              <a-tooltip title="上移一层">
+                <button class="arrange-icon-btn" @click="bringForward">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="8" width="12" height="12" rx="2" />
+                    <path d="M16 14l4-4 4 4" />
+                    <path d="M20 10v10" />
+                  </svg>
+                </button>
+              </a-tooltip>
+              <a-tooltip title="下移一层">
+                <button class="arrange-icon-btn" @click="sendBackward">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="8" width="12" height="12" rx="2" />
+                    <path d="M16 16l4 4 4-4" />
+                    <path d="M20 10v10" />
+                  </svg>
+                </button>
+              </a-tooltip>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4.4 组织与管理 (成组 / 解散成组 / 锁定 / 复制副本) -->
+        <div class="arrange-section organize-section">
+          <div class="organize-btn-row">
+            <a-tooltip title="成组 (Cmd/Ctrl+G)">
+              <button
+                class="organize-btn"
+                :disabled="selectedNodesCount < 2"
+                @click="onGroup"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                </svg>
+                <span>成组</span>
+              </button>
+            </a-tooltip>
+
+            <a-tooltip title="解组 (Cmd/Ctrl+Shift+G)">
+              <button
+                class="organize-btn"
+                :disabled="selectedNodesCount < 1"
+                @click="onUngroup"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-dasharray="2,2" />
+                  <rect x="3" y="11" width="18" height="10" rx="2" />
+                </svg>
+                <span>解组</span>
+              </button>
+            </a-tooltip>
+
+            <a-tooltip title="锁定/解锁 (Cmd/Ctrl+L)">
+              <button
+                class="organize-btn"
+                :disabled="selectedNodesCount < 1"
+                @click="onToggleLock"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span>锁定</span>
+              </button>
+            </a-tooltip>
+
+            <a-tooltip title="复制副本 (Cmd/Ctrl+D)">
+              <button
+                class="organize-btn"
+                :disabled="selectedNodesCount < 1"
+                @click="onDuplicate"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                <span>副本</span>
+              </button>
+            </a-tooltip>
           </div>
         </div>
       </div>
@@ -431,6 +644,7 @@ import {
   Slider as ASlider,
   Button as AButton,
   Select as ASelect,
+  Tooltip as ATooltip,
 } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import ColorTonePicker from './ColorTonePicker.vue'
@@ -476,6 +690,8 @@ const emit = defineEmits<{
 }>()
 
 const activeTab = ref<'style' | 'text' | 'arrange'>('style')
+const selectedCellsCount = ref(0)
+const selectedNodesCount = ref(0)
 const isTextNodeSelected = ref(false)
 const isShapeNodeSelected = ref(false)
 const currentShapeId = ref('rect')
@@ -659,31 +875,47 @@ const applyStyle = (styleObj: {
   })
 }
 
+// 对齐与分布操作 (1:1 语雀白板多选操作)
+const onAlign = (type: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
+  props.board?.alignSelectedNodes(type)
+}
+
+const onDistribute = (type: 'horizontal' | 'vertical') => {
+  props.board?.distributeSelectedNodes(type)
+}
+
 // 图层操作
 const bringToFront = () => {
-  const selected = props.board?.graph.getSelectedCells()
-  selected?.forEach((cell) => cell.toFront())
+  props.board?.bringSelectedToFront()
 }
 
 const sendToBack = () => {
-  const selected = props.board?.graph.getSelectedCells()
-  selected?.forEach((cell) => cell.toBack())
+  props.board?.sendSelectedToBack()
 }
 
 const bringForward = () => {
-  const selected = props.board?.graph.getSelectedCells()
-  selected?.forEach((cell) => {
-    const z = cell.getZIndex() || 1
-    cell.setZIndex(z + 1)
-  })
+  props.board?.bringSelectedForward()
 }
 
 const sendBackward = () => {
-  const selected = props.board?.graph.getSelectedCells()
-  selected?.forEach((cell) => {
-    const z = cell.getZIndex() || 1
-    cell.setZIndex(Math.max(1, z - 1))
-  })
+  props.board?.sendSelectedBackward()
+}
+
+// 组织与管理操作
+const onGroup = () => {
+  props.board?.groupSelected()
+}
+
+const onUngroup = () => {
+  props.board?.ungroupSelected()
+}
+
+const onToggleLock = () => {
+  props.board?.toggleLockSelected()
+}
+
+const onDuplicate = () => {
+  props.board?.duplicateSelected()
 }
 
 // 选中单元格同步回显
@@ -725,23 +957,46 @@ const syncSelectionStyle = () => {
       if (style.strokeDasharray) strokeDasharray.value = style.strokeDasharray
       if (style.opacity !== undefined) opacityPercent.value = Math.round(style.opacity * 100)
     }
-    activeTab.value = 'style'
+    if (activeTab.value !== 'arrange') {
+      activeTab.value = 'style'
+    }
   }
-  emit('update:visible', true)
 }
 
-// 监听 X6 图形选择变化
+// 监听 X6 图形选择变化 (单选回显对应设置看板，多选切换到排列看板，未选中自动收起)
 const bindGraphSelectionEvents = (board: Board | null) => {
   if (!board) return
 
-  const onCellSelected = () => {
-    syncSelectionStyle()
+  const handleSelectionChange = () => {
+    const selectedCells = board.graph.getSelectedCells()
+    selectedCellsCount.value = selectedCells.length
+    selectedNodesCount.value = selectedCells.filter((c) => c.isNode()).length
+
+    if (selectedCells.length === 0) {
+      emit('update:visible', false)
+      return
+    }
+
+    if (selectedCells.length === 1) {
+      syncSelectionStyle()
+      emit('update:visible', true)
+    } else {
+      activeTab.value = 'arrange'
+      emit('update:visible', true)
+    }
   }
 
-  board.graph.on('cell:selected', onCellSelected)
+  board.graph.on('selection:changed', handleSelectionChange)
+  board.graph.on('cell:selected', handleSelectionChange)
+  board.graph.on('cell:unselected', handleSelectionChange)
+
+  // 初始化检查
+  handleSelectionChange()
 
   return () => {
-    board.graph.off('cell:selected', onCellSelected)
+    board.graph.off('selection:changed', handleSelectionChange)
+    board.graph.off('cell:selected', handleSelectionChange)
+    board.graph.off('cell:unselected', handleSelectionChange)
   }
 }
 
@@ -770,10 +1025,10 @@ onUnmounted(() => {
   right: 16px;
   width: 290px;
   max-height: calc(100vh - 124px);
-  background: #ffffff;
-  border-radius: 12px;
+  background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
+  border-radius: var(--speed-board-radius-lg, 12px);
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.12), 0 2px 8px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, rgba(0, 0, 0, 0.06)));
   z-index: 60;
   display: flex;
   flex-direction: column;
@@ -791,7 +1046,7 @@ onUnmounted(() => {
   .panel-title {
     font-size: 14px;
     font-weight: 600;
-    color: #111827;
+    color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
   }
 
   .close-btn {
@@ -799,41 +1054,41 @@ onUnmounted(() => {
     background: transparent;
     cursor: pointer;
     font-size: 13px;
-    color: #9ca3af;
+    color: var(--speed-board-text-tertiary, var(--ant-color-text-tertiary, #9ca3af));
     padding: 4px;
-    border-radius: 4px;
+    border-radius: var(--speed-board-radius, 4px);
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.15s ease;
 
     &:hover {
-      background: #f3f4f6;
-      color: #374151;
+      background: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+      color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     }
   }
 }
 
 .panel-tabs {
   display: flex;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #f0f0f0));
   padding: 0 16px;
 
   .tab-item {
     font-size: 13px;
     padding: 8px 12px;
-    color: #6b7280;
+    color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
     cursor: pointer;
     position: relative;
     font-weight: 500;
     transition: color 0.15s ease;
 
     &:hover {
-      color: #111827;
+      color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     }
 
     &.is-active {
-      color: #111827;
+      color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
       font-weight: 600;
 
       &::after {
@@ -843,7 +1098,7 @@ onUnmounted(() => {
         left: 12px;
         right: 12px;
         height: 2px;
-        background: #111827;
+        background: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
         border-radius: 2px;
       }
     }
@@ -864,10 +1119,10 @@ onUnmounted(() => {
   .fmt-btn {
     flex: 1;
     height: 32px;
-    border-radius: 6px;
-    border: 1px solid #e5e7eb;
-    background: #ffffff;
-    color: #374151;
+    border-radius: var(--speed-board-radius, 6px);
+    border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+    background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
+    color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -892,14 +1147,14 @@ onUnmounted(() => {
     }
 
     &:hover {
-      background: #f9fafb;
-      color: #111827;
+      background: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+      color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     }
 
     &.is-active {
-      background: #f3f4f6;
-      border-color: #d1d5db;
-      color: #111827;
+      background: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, #f3f4f6));
+      border-color: var(--speed-board-border-strong, var(--ant-color-border, #d1d5db));
+      color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
       box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
     }
   }
@@ -911,9 +1166,9 @@ onUnmounted(() => {
 
 .align-btn-group {
   display: flex;
-  background: #ffffff;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
+  border-radius: var(--speed-board-radius, 6px);
+  border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
   overflow: hidden;
 
   .align-btn {
@@ -921,11 +1176,11 @@ onUnmounted(() => {
     height: 30px;
     background: transparent;
     border: none;
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #4b5563;
+    color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
     cursor: pointer;
     transition: all 0.15s ease;
 
@@ -934,13 +1189,13 @@ onUnmounted(() => {
     }
 
     &:hover {
-      background-color: #f9fafb;
-      color: #111827;
+      background-color: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+      color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     }
 
     &.is-active {
-      border: 1.5px solid #10b981 !important; // 语雀 1:1 经典绿色高亮边框
-      color: #10b981 !important;
+      border: 1.5px solid var(--speed-board-accent, var(--ant-color-primary, #10b981)) !important;
+      color: var(--speed-board-accent, var(--ant-color-primary, #10b981)) !important;
       position: relative;
       z-index: 1;
       border-radius: 4px;
@@ -957,14 +1212,14 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: #f9fafb;
+  background: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
   padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border-radius: var(--speed-board-radius, 6px);
+  border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
 
   .link-anchor {
     font-size: 12px;
-    color: #10b981;
+    color: var(--speed-board-accent, var(--ant-color-primary, #10b981));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -978,8 +1233,8 @@ onUnmounted(() => {
 
 .add-link-btn {
   font-size: 13px;
-  border-radius: 6px;
-  color: #374151;
+  border-radius: var(--speed-board-radius, 6px);
+  color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
 }
 
 .setting-group {
@@ -993,11 +1248,11 @@ onUnmounted(() => {
     gap: 6px;
     font-size: 12px;
     font-weight: 600;
-    color: #374151;
+    color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
 
     .group-arrow {
       font-size: 9px;
-      color: #9ca3af;
+      color: var(--speed-board-text-tertiary, var(--ant-color-text-tertiary, #9ca3af));
     }
   }
 }
@@ -1010,15 +1265,15 @@ onUnmounted(() => {
 
   .row-label {
     font-size: 13px;
-    color: #4b5563;
+    color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
   }
 }
 
 .color-preview-box {
   width: 72px;
   height: 28px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: var(--speed-board-radius, 6px);
+  border: 1px solid var(--speed-board-border-strong, var(--ant-color-border, rgba(0, 0, 0, 0.12)));
   cursor: pointer;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
   position: relative;
@@ -1027,11 +1282,11 @@ onUnmounted(() => {
 
   &:hover {
     transform: scale(1.02);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 0 2px var(--speed-board-primary-bg, var(--ant-color-primary-bg, rgba(22, 119, 255, 0.2)));
   }
 
   &.is-transparent {
-    background: #ffffff;
+    background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
 
     .transparent-slash {
       position: absolute;
@@ -1039,7 +1294,7 @@ onUnmounted(() => {
       left: -20%;
       width: 140%;
       height: 2px;
-      background: #ef4444;
+      background: var(--ant-color-error, #ef4444);
       transform: rotate(-30deg);
       transform-origin: center;
     }
@@ -1049,8 +1304,8 @@ onUnmounted(() => {
 .width-segmented-group,
 .dash-segmented-group {
   display: flex;
-  background: #f3f4f6;
-  border-radius: 6px;
+  background: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+  border-radius: var(--speed-board-radius, 6px);
   padding: 2px;
   gap: 2px;
 
@@ -1058,7 +1313,7 @@ onUnmounted(() => {
   .dash-option-pill {
     padding: 3px 8px;
     font-size: 12px;
-    color: #4b5563;
+    color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
     cursor: pointer;
     border-radius: 4px;
     display: flex;
@@ -1067,12 +1322,12 @@ onUnmounted(() => {
     transition: all 0.15s ease;
 
     &:hover {
-      color: #111827;
+      color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     }
 
     &.is-active {
-      background: #ffffff;
-      color: #111827;
+      background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
+      color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
       font-weight: 600;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
     }
@@ -1089,17 +1344,17 @@ onUnmounted(() => {
     margin: 6px 0;
 
     :deep(.ant-slider-track) {
-      background-color: #34d399 !important; // 语雀白板经典绿色滑轨
+      background-color: var(--speed-board-accent, var(--ant-color-primary, #10b981)) !important;
     }
 
     :deep(.ant-slider-handle) {
-      border-color: #10b981 !important;
+      border-color: var(--speed-board-accent, var(--ant-color-primary, #10b981)) !important;
     }
   }
 
   .opacity-value-label {
     font-size: 12px;
-    color: #4b5563;
+    color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
     font-variant-numeric: tabular-nums;
     min-width: 32px;
     text-align: right;
@@ -1109,13 +1364,13 @@ onUnmounted(() => {
 .shape-type-preview-box {
   width: 44px;
   height: 28px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--speed-board-border-strong, var(--ant-color-border, #d9d9d9));
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fafafa;
-  color: #595959;
+  background-color: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, #fafafa));
+  color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
 
   .shape-type-svg {
     display: flex;
@@ -1132,19 +1387,193 @@ onUnmounted(() => {
 
 .panel-divider {
   height: 1px;
-  background: #f3f4f6;
+  background: var(--speed-board-border, var(--ant-color-border-secondary, #f0f0f0));
   margin: 2px 0;
 }
 
-.arrange-action-list {
+.arrange-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
+  padding: 16px;
+}
 
-  .arrange-btn {
-    font-size: 13px;
-    border-radius: 6px;
-    text-align: center;
+.arrange-section {
+  width: 100%;
+}
+
+// 对齐按钮组 (6个图标横向并排在一个圆角外边框容器中，各按钮之间细边框分割 - 1:1 语雀)
+.align-group {
+  display: flex;
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+  border-radius: var(--speed-board-radius, 6px);
+  overflow: hidden;
+  background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
+
+  .arrange-icon-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    border: none;
+    border-right: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+    background: transparent;
+    color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:last-child {
+      border-right: none;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+      color: var(--speed-board-primary, var(--ant-color-primary, #1677ff));
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      color: var(--speed-board-text-quaternary, var(--ant-color-text-quaternary, rgba(0, 0, 0, 0.25)));
+      background-color: var(--speed-board-hover-bg, var(--ant-color-fill-quaternary, rgba(0, 0, 0, 0.02)));
+    }
+  }
+}
+
+// 均分分布按钮组 (左右两列分栏卡片：图标 + 文字 - 1:1 语雀)
+.distribute-btn-group {
+  display: flex;
+  width: 100%;
+  border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+  border-radius: var(--speed-board-radius, 6px);
+  overflow: hidden;
+  background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
+
+  .distribute-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    gap: 4px;
+    border: none;
+    border-right: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+    background: transparent;
+    color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:last-child {
+      border-right: none;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+      color: var(--speed-board-primary, var(--ant-color-primary, #1677ff));
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      color: var(--speed-board-text-quaternary, var(--ant-color-text-quaternary, rgba(0, 0, 0, 0.25)));
+      background-color: var(--speed-board-hover-bg, var(--ant-color-fill-quaternary, rgba(0, 0, 0, 0.02)));
+    }
+
+    .distribute-label {
+      font-size: 12px;
+      color: inherit;
+    }
+  }
+}
+
+// 图层操作按钮行 (左右两组，每组2个按钮 - 1:1 语雀)
+.layer-btn-row {
+  display: flex;
+  width: 100%;
+  gap: 12px;
+
+  .layer-sub-group {
+    flex: 1;
+    display: flex;
+    height: 36px;
+    border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+    border-radius: var(--speed-board-radius, 6px);
+    overflow: hidden;
+    background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
+
+    .arrange-icon-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      border: none;
+      border-right: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+      background: transparent;
+      color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:last-child {
+        border-right: none;
+      }
+
+      &:hover {
+        background-color: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+        color: var(--speed-board-primary, var(--ant-color-primary, #1677ff));
+      }
+    }
+  }
+}
+
+// 组织与管理操作 (成组/解组/锁定/复制)
+.organize-section {
+  .organize-btn-row {
+    display: flex;
+    width: 100%;
+    border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+    border-radius: var(--speed-board-radius, 6px);
+    overflow: hidden;
+    background: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
+
+    .organize-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 2px;
+      gap: 3px;
+      border: none;
+      border-right: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+      background: transparent;
+      color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:last-child {
+        border-right: none;
+      }
+
+      &:hover:not(:disabled) {
+        background-color: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+        color: var(--speed-board-primary, var(--ant-color-primary, #1677ff));
+      }
+
+      &:disabled {
+        cursor: not-allowed;
+        color: var(--speed-board-text-quaternary, var(--ant-color-text-quaternary, rgba(0, 0, 0, 0.25)));
+        background-color: var(--speed-board-hover-bg, var(--ant-color-fill-quaternary, rgba(0, 0, 0, 0.02)));
+      }
+
+      span {
+        font-size: 11px;
+        color: inherit;
+        line-height: 1;
+      }
+    }
   }
 }
 

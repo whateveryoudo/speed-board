@@ -253,7 +253,7 @@ onMounted(() => {
 
   &.active {
     background: var(--ant-color-primary, #1677ff);
-    color: #ffffff;
+    color: var(--ant-color-text-light-solid, #ffffff);
   }
 }
 

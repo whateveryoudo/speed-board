@@ -120,11 +120,11 @@ const onSelect = (shape: ShapeDefinition) => {
   position: absolute;
   z-index: 1000;
   width: 250px;
-  background-color: #ffffff;
-  border-radius: 8px;
+  background-color: var(--speed-board-bg, var(--ant-color-bg-elevated, #ffffff));
+  border-radius: var(--speed-board-radius-lg, 8px);
   padding: 10px 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
   user-select: none;
   animation: fadeIn 0.15s ease-out;
 
@@ -148,7 +148,7 @@ const onSelect = (shape: ShapeDefinition) => {
 
     .quick-title {
       font-size: 12px;
-      color: #6b7280;
+      color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
       margin-bottom: 6px;
       font-weight: 500;
     }
@@ -177,13 +177,13 @@ const onSelect = (shape: ShapeDefinition) => {
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: #4b5563;
+        color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
         transition: all 0.15s ease;
 
         &:hover {
-          background-color: #f3f4f6;
-          color: #111827;
-          border-color: #e5e7eb;
+          background-color: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+          color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
+          border-color: var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
           transform: scale(1.08);
         }
 

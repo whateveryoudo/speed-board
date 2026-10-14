@@ -148,9 +148,9 @@ const onClose = () => {
 .text-overlay-editor {
   position: absolute;
   width: 270px;
-  background: #ffffff;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--speed-board-bg, var(--ant-color-bg-elevated, #ffffff));
+  border-radius: var(--speed-board-radius-lg, 10px);
+  border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, rgba(0, 0, 0, 0.08)));
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.06);
   padding: 14px 16px 12px;
   z-index: 120;
@@ -165,25 +165,25 @@ const onClose = () => {
   .field-label {
     font-size: 13px;
     font-weight: 500;
-    color: #374151;
+    color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     margin-bottom: 6px;
   }
 
   .field-input {
-    border-radius: 6px;
-    border-color: #d1d5db;
+    border-radius: var(--speed-board-radius, 6px);
+    border-color: var(--speed-board-border-strong, var(--ant-color-border, #d1d5db));
     font-size: 13px;
     padding: 5px 10px;
     transition: all 0.2s ease;
 
     &:hover {
-      border-color: #9ca3af;
+      border-color: var(--speed-board-border-strong, var(--ant-color-border, #9ca3af));
     }
 
     &:focus,
     &.ant-input-focused {
-      border-color: #10b981 !important; // 语雀 1:1 经典聚焦绿色
-      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
+      border-color: var(--speed-board-accent, var(--ant-color-primary, #10b981)) !important;
+      box-shadow: 0 0 0 2px var(--speed-board-primary-bg, rgba(16, 185, 129, 0.15)) !important;
     }
   }
 }
@@ -193,18 +193,18 @@ const onClose = () => {
   justify-content: flex-start;
 
   .confirm-btn {
-    border-radius: 6px;
+    border-radius: var(--speed-board-radius, 6px);
     font-size: 13px;
     padding: 0 16px;
     height: 28px;
-    color: #374151;
-    border-color: #d1d5db;
-    background-color: #ffffff;
+    color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
+    border-color: var(--speed-board-border-strong, var(--ant-color-border, #d1d5db));
+    background-color: var(--speed-board-bg, var(--ant-color-bg-container, #ffffff));
 
     &:hover {
-      background-color: #f9fafb;
-      border-color: #9ca3af;
-      color: #111827;
+      background-color: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
+      border-color: var(--speed-board-border-strong, var(--ant-color-border, #9ca3af));
+      color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
     }
   }
 }
