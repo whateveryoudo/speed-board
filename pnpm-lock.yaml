@@ -101,6 +101,9 @@ importers:
       '@ant-design/icons-vue':
         specifier: ^7.0.1
         version: 7.0.1(vue@3.5.43(typescript@5.9.3))
+      '@floating-ui/dom':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@speed-board/core':
         specifier: workspace:*
         version: link:../core
@@ -110,10 +113,16 @@ importers:
       ant-design-vue:
         specifier: ^4.2.0
         version: 4.2.6(vue@3.5.43(typescript@5.9.3))
+      lodash-es:
+        specifier: ^4.18.1
+        version: 4.18.1
       speed-components-ui:
         specifier: ^1.1.5
         version: 1.1.5(@algolia/client-search@5.59.0)(@types/node@22.20.5)(async-validator@4.2.5)(less@4.9.1)(postcss@8.5.29)(search-insights@2.17.3)(typescript@5.9.3)(vue@3.5.43(typescript@5.9.3))
     devDependencies:
+      '@types/lodash-es':
+        specifier: ^4.17.12
+        version: 4.17.12
       less:
         specifier: ^4.9.1
         version: 4.9.1
@@ -451,6 +460,15 @@ packages:
     engines: {node: '>=12'}
     cpu: [x64]
     os: [win32]
+
+  '@floating-ui/core@1.8.0':
+    resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
+
+  '@floating-ui/dom@1.8.0':
+    resolution: {integrity: sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg==}
+
+  '@floating-ui/utils@0.2.12':
+    resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
   '@highlightjs/vue-plugin@2.1.2':
     resolution: {integrity: sha512-P7s9DLBGpBsbltk3ZKuYUu9lwDCEfpttjJ5ErI6Wco6GQWIsjcSCJzCoMHgXhRUNkFDtZo7ZgeF8M10POPbDLw==}
@@ -1918,6 +1936,17 @@ snapshots:
 
   '@esbuild/win32-x64@0.21.5':
     optional: true
+
+  '@floating-ui/core@1.8.0':
+    dependencies:
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/dom@1.8.0':
+    dependencies:
+      '@floating-ui/core': 1.8.0
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/utils@0.2.12': {}
 
   '@highlightjs/vue-plugin@2.1.2(highlight.js@11.12.0)(vue@3.5.43(typescript@5.9.3))':
     dependencies:

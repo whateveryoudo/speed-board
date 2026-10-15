@@ -210,3 +210,18 @@
     }
   }
 }
+
+// 图片图元就地上传中 Loading 旋转动画
+@keyframes speed-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.speed-image-spinner {
+  animation: speed-spin 1s linear infinite;
+  transform-origin: center;
+}

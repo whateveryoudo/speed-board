@@ -1,0 +1,151 @@
+export type QuickToolbarItem =
+  | 'shape-switch' // 图形切换 (19个基础图形)
+  | 'fill'         // 填充颜色
+  | 'stroke'       // 边框/描边 (粗细、颜色、虚实)
+  | 'text'         // 文本排版 (B/I/S/U、字号、颜色、对齐)
+  | 'link'         // 链接
+  | 'opacity'      // 不透明度
+  | 'line-type'    // 折线 / 直线 / 曲线
+  | 'line-reverse' // 线条反转方向
+  | 'arrow-head'   // 端点箭头 (起始 / 结束)
+  | 'line-text'    // 线条文字插入
+  | 'font-size'    // 独立字号 (纯文本节点)
+  | 'text-color'   // 独立文本颜色 (纯文本节点)
+  | 'align-h'      // 水平对齐 (纯文本节点)
+  | 'align-v'      // 垂直对齐 (纯文本节点)
+  | 'bold'         // 粗体切换 (纯文本节点)
+  | 'align'        // 多选对齐
+  | 'distribute'   // 多选分布
+  | 'group'        // 成组 / 解组
+  | 'open-panel'   // 打开/聚焦右侧深度设置面板 (🎛)
+
+export type PanelTabKey = 'style' | 'text' | 'arrange'
+
+export type PanelSectionKey =
+  | 'shape-preview'   // 形状类型预览
+  | 'fill'            // 填充颜色
+  | 'stroke'          // 边框 / 描边
+  | 'opacity'         // 不透明度滑块
+  | 'line-style'      // 线条专用样式 (路由、线型、箭头)
+  | 'typography'      // 字体样式 (B/I/S/U, 字号, 颜色)
+  | 'align'           // 文本水平垂直对齐
+  | 'link'            // 链接
+  | 'arrange-align'   // 图元多选对齐与分布
+  | 'arrange-layer'   // 图层上下层叠
+  | 'arrange-group'   // 成组、锁定、副本
+
+export interface NodeSchema {
+  type: string
+  label: string
+  /** 节点上方的浮动快捷条配置 (1:1 语雀就近快捷栏) */
+  quickToolbar: QuickToolbarItem[]
+  /** 右侧深度设置面板配置 (Schema 驱动) */
+  panel: {
+    tabs: PanelTabKey[]
+    sections: {
+      style?: PanelSectionKey[]
+      text?: PanelSectionKey[]
+      arrange?: PanelSectionKey[]
+    }
+  }
+}
+
+/** 1. 基础几何图形 (Shape) */
+export const shapeSchema: NodeSchema = {
+  type: 'shape',
+  label: '图形',
+  quickToolbar: ['shape-switch', 'fill', 'stroke', 'text', 'link', 'open-panel'],
+  panel: {
+    tabs: ['style', 'text', 'arrange'],
+    sections: {
+      style: ['shape-preview', 'fill', 'stroke', 'opacity'],
+      text: ['typography', 'align', 'link'],
+      arrange: ['arrange-align', 'arrange-layer', 'arrange-group'],
+    },
+  },
+}
+
+/** 2. 图片图元 (Image) —— 1:1 对齐语雀：样式 Tab 仅有【不透明度】 */
+export const imageSchema: NodeSchema = {
+  type: 'image',
+  label: '图片',
+  quickToolbar: ['opacity', 'link', 'open-panel'],
+  panel: {
+    tabs: ['style', 'text', 'arrange'],
+    sections: {
+      style: ['opacity'], // 🌟 仅不透明度！
+      text: ['typography', 'link'],
+      arrange: ['arrange-align', 'arrange-layer', 'arrange-group'],
+    },
+  },
+}
+
+/** 3. 自由连线 / 线条 (Line / Edge) —— 支持头尾箭头、线型、线条文字 */
+export const lineSchema: NodeSchema = {
+  type: 'line',
+  label: '线条',
+  quickToolbar: ['line-type', 'stroke', 'line-reverse', 'arrow-head', 'line-text', 'open-panel'],
+  panel: {
+    tabs: ['style', 'text', 'arrange'],
+    sections: {
+      style: ['line-style', 'stroke', 'opacity'],
+      text: ['typography', 'link'],
+      arrange: ['arrange-layer'],
+    },
+  },
+}
+
+/** 4. 闭合矢量图形 (Vector Polygon) */
+export const vectorSchema: NodeSchema = {
+  type: 'vector',
+  label: '矢量图',
+  quickToolbar: ['fill', 'stroke', 'open-panel'],
+  panel: {
+    tabs: ['style', 'arrange'],
+    sections: {
+      style: ['fill', 'stroke', 'opacity'],
+      arrange: ['arrange-align', 'arrange-layer', 'arrange-group'],
+    },
+  },
+}
+
+/** 5. 纯文本节点 (Text) */
+export const textSchema: NodeSchema = {
+  type: 'text',
+  label: '文本',
+  quickToolbar: ['font-size', 'text-color', 'align-h', 'align-v', 'bold', 'link', 'open-panel'],
+  panel: {
+    tabs: ['text', 'arrange'],
+    sections: {
+      text: ['typography', 'align', 'link'],
+      arrange: ['arrange-align', 'arrange-layer', 'arrange-group'],
+    },
+  },
+}
+
+/** 6. 多选组合状态 (Multiple Selection) */
+export const multipleSchema: NodeSchema = {
+  type: 'multiple',
+  label: '多选',
+  quickToolbar: ['align', 'distribute', 'group', 'open-panel'],
+  panel: {
+    tabs: ['arrange'],
+    sections: {
+      arrange: ['arrange-align', 'arrange-layer', 'arrange-group'],
+    },
+  },
+}
+
+export const schemaRegistry: Record<string, NodeSchema> = {
+  shape: shapeSchema,
+  image: imageSchema,
+  line: lineSchema,
+  vector: vectorSchema,
+  text: textSchema,
+  multiple: multipleSchema,
+}
+
+/** 获取指定元素对应的 Schema */
+export function getNodeSchema(type: string): NodeSchema {
+  return schemaRegistry[type] || shapeSchema
+}

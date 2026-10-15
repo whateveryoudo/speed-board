@@ -11,10 +11,11 @@
       @save="onSave"
     />
 
-    <!-- 左侧悬浮胶囊工具栏 (画笔、矢量钢笔、基础图形、文本、连线、思维导图、素材库) -->
+    <!-- 左侧悬浮胶囊工具栏 (画笔、矢量钢笔、基础图形、文本、连线、思维导图、图片、素材库) -->
     <LeftToolbar
       :board="boardInstance"
       :icon-provider="props.iconProvider"
+      :upload-config="props.uploadConfig"
       :visible="showLeftToolbar"
       :active-mode="drawConfig.mode"
       :active-placement-type="pendingPlacement ? pendingPlacement.type : null"
@@ -24,22 +25,25 @@
       @cancel-placement="cancelPlacement"
     />
 
-    <!-- 右侧属性设置面板 (1:1 语雀白板风格：填充颜色+5阶梯度、边框颜色/粗细/样式、不透明度、图层排列) -->
+    <!-- 右侧属性设置面板 (Schema 驱动) -->
     <StyleSettingsPanel
       v-model:visible="showSettingsPanel"
       :board="boardInstance"
-      :default-fill="vectorFillColor"
-      :default-stroke="vectorStrokeColor"
-      :default-stroke-width="vectorStrokeWidth"
-      :default-stroke-dash="vectorStrokeDash"
-      :default-opacity="vectorOpacity"
-      @style-change="onStyleSettingsChange"
       @open-link-overlay="onOpenLinkOverlay"
     />
 
     <!-- 主画布承载容器 -->
     <div ref="canvasWrapperRef" class="speed-board-canvas-wrapper">
       <BoardCanvas :options="props.options" @created="onBoardCreated" />
+
+      <!-- 画布图元浮动快捷工具栏 (1:1 语雀白板 Bubble Toolbar) -->
+      <FloatingToolbarHost
+        v-show="!isInlineEditing && !pendingPlacement && !isLineDragging && drawConfig.mode === 'select'"
+        :board="boardInstance"
+        :container-el="canvasWrapperRef"
+        @open-panel="showSettingsPanel = true"
+        @open-link-overlay="onOpenLinkOverlay"
+      />
 
       <!-- 语雀白板 1:1 文本悬浮链接 Overlay 面板 (仅在点击“添加链接”/“编辑”时弹出) -->
       <TextOverlayEditor
@@ -419,11 +423,12 @@ import { ref, shallowRef, computed, nextTick, onMounted, onUnmounted } from 'vue
 import { BoardCanvas, type BoardOptions } from '@speed-board/vue3'
 import { Board } from '@speed-board/core'
 import { useAntdCssVars } from 'speed-components-ui/hooks'
-import LeftToolbar, { type PendingPlacementItem } from './LeftToolbar.vue'
+import LeftToolbar, { type PendingPlacementItem, type BoardUploadConfig } from './LeftToolbar.vue'
 import TopToolbar from './TopToolbar.vue'
 import StyleSettingsPanel from './StyleSettingsPanel.vue'
 import TextOverlayEditor from './TextOverlayEditor.vue'
 import QuickShapeConnectPopover from './QuickShapeConnectPopover.vue'
+import FloatingToolbarHost from './floatingToolbar/FloatingToolbarHost.vue'
 import { renderShapeCanvasSvg, getShapeTightViewBox, type ShapeDefinition } from '../data/shapeLibrary'
 import type { IconProvider } from '../data/defaultIcons'
 import '../style/index.less'
@@ -436,6 +441,7 @@ const props = withDefaults(
   defineProps<{
     options?: Omit<BoardOptions, 'container'>
     iconProvider?: IconProvider
+    uploadConfig?: BoardUploadConfig
     title?: string
   }>(),
   {
@@ -888,7 +894,7 @@ const onQuickConnectShapeSelect = (shape: ShapeDefinition) => {
     targetPort = 'bottom'
   }
 
-  const fill = sourceData.fill !== undefined ? sourceData.fill : 'transparent'
+  const fill = sourceData.fill !== undefined ? sourceData.fill : '#ffffff'
   const stroke = sourceData.stroke || '#374151'
   const strokeWidth = sourceData.strokeWidth || 2
 
@@ -1012,7 +1018,7 @@ const drawConfig = ref<{
 })
 
 // 矢量多边形配置与样式属性
-const vectorFillColor = ref('transparent')
+const vectorFillColor = ref('#ffffff')
 const vectorStrokeColor = ref('#374151')
 const vectorStrokeWidth = ref(2)
 const vectorStrokeDash = ref('none')
@@ -1105,7 +1111,7 @@ const onPlacementPointerDown = (e: PointerEvent) => {
     return
   }
 
-  // 仅在左键且已在画板移动显现虚影后响应放置
+  // 仅在左键且已在画板移动显现虚影后响应放置 (避免在工具栏点击时误触立即放置)
   if (e.button !== 0 || !isPlacementHovering.value || !placementMousePos.value) return
 
   e.preventDefault()
@@ -1150,7 +1156,7 @@ const onPlacementPointerDown = (e: PointerEvent) => {
       y: targetY,
       width: item.width,
       height: item.height,
-      ...item.basicConfig,
+      ...(item.basicConfig as any),
     })
   }
 
@@ -1159,6 +1165,7 @@ const onPlacementPointerDown = (e: PointerEvent) => {
   if (node) {
     graph.cleanSelection()
     graph.select(node)
+    graph.trigger('selection:changed', { selected: [node] })
 
     // 文本放置后立即在选框内就地进入编辑打字 (1:1 语雀白板交互)
     if (item.type === 'text') {
@@ -1751,7 +1758,9 @@ const onOverlayPointerUp = (e: PointerEvent) => {
     hoverBorderSlidePoint.value = null
     hoveredPortNode.value = null
     boardInstance.value?.hideAllPorts()
-    // 保持 line 模式，支持连续绘制连线（与画笔/手绘交互保持一致，按 Esc 或点击选择指针退出）
+    // 绘制完成后立即切回 select 选择模式 (1:1 语雀白板交互：建线后自动选中新线并切回指针，支持立即拖拽端点手柄调整头部/尾部)
+    drawConfig.value.mode = 'select'
+    boardInstance.value?.setDrawingMode('select')
     return
   }
 

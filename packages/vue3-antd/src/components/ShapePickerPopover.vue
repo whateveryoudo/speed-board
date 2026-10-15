@@ -66,6 +66,7 @@
           >
             <button
               class="shape-item-btn"
+              :class="{ 'is-active': props.activeShapeId === shape.id }"
               @click="onSelectShape(shape)"
             >
               <div
@@ -83,15 +84,24 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import {
+  Dropdown as ADropdown,
+  Menu as AMenu,
+  MenuItem as AMenuItem,
+  Tooltip as ATooltip,
+} from 'ant-design-vue'
+import {
   SHAPE_GROUPS,
   getShapeIconSvg,
   type ShapeDefinition,
 } from '../data/shapeLibrary'
 
+const props = defineProps<{
+  activeShapeId?: string
+}>()
+
 const emit = defineEmits<{
   (e: 'select', shape: ShapeDefinition): void
 }>()
-
 
 // 顶部常驻 Tab: 基础图形 | 流程图 | Smart (1:1 语雀白板)
 const visibleTabs = [
@@ -100,11 +110,10 @@ const visibleTabs = [
   { key: 'DSL', title: 'Smart' },
 ]
 
-// 更多下拉 Tab: Smart | UML | ER (1:1 语雀白板截图)
+// 更多下拉 Tab: UML | ER 图 (1:1 语雀白板下拉菜单两项)
 const moreTabs = [
-  { key: 'DSL', title: 'Smart' },
   { key: 'UML', title: 'UML' },
-  { key: 'ER', title: 'ER' },
+  { key: 'ER', title: 'ER 图' },
 ]
 
 // 当前高亮的分组 key
@@ -155,8 +164,8 @@ const scrollToGroup = (groupKey: string) => {
 }
 
 // 点击更多下拉菜单项
-const onMoreMenuClick = ({ key }: { key: string }) => {
-  scrollToGroup(key)
+const onMoreMenuClick = ({ key }: any) => {
+  scrollToGroup(String(key))
 }
 
 // 滚动监听联动（Scroll Spy）
@@ -310,8 +319,8 @@ const onSelectShape = (shape: ShapeDefinition) => {
         gap: 2px;
 
         .shape-item-btn {
-          width: 36px;
-          height: 36px;
+          width: 30px;
+          height: 30px;
           border: 1px solid transparent;
           background: transparent;
           border-radius: 4px;
@@ -334,6 +343,12 @@ const onSelectShape = (shape: ShapeDefinition) => {
             transform: scale(0.96);
           }
 
+          &.is-active {
+            background-color: var(--speed-board-primary-bg, #eff6ff);
+            border-color: var(--speed-board-primary, #3b82f6);
+            color: var(--speed-board-primary, #3b82f6);
+          }
+
           .shape-svg-wrapper {
             display: flex;
             align-items: center;
@@ -341,8 +356,8 @@ const onSelectShape = (shape: ShapeDefinition) => {
             pointer-events: none;
 
             svg {
-              width: 22px;
-              height: 22px;
+              width: 30px;
+              height: 30px;
             }
           }
         }
@@ -352,20 +367,24 @@ const onSelectShape = (shape: ShapeDefinition) => {
 }
 
 .shape-picker-more-menu {
-  min-width: 90px;
+  min-width: 96px;
   border-radius: 6px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  z-index: 1060 !important;
 
-  .ant-dropdown-menu-item {
+  .ant-dropdown-menu-item,
+  .ant-menu-item {
     font-size: 13px;
     padding: 6px 14px;
     color: #262626;
+    cursor: pointer;
 
     &:hover {
       background-color: #f5f5f5;
     }
 
-    &.is-active {
+    &.is-active,
+    &.ant-menu-item-selected {
       font-weight: 500;
       color: #1677ff;
       background-color: #e6f4ff;

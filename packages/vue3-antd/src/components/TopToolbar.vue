@@ -194,29 +194,12 @@ const emit = defineEmits<{
   (e: 'toggle-settings'): void
 }>()
 
+import { useBoardHistory } from '../composables/useBoardHistory'
+
 const currentZoom = ref(1)
 const isPanningActive = ref(false)
-const historyTick = ref(0)
 
-const canUndo = computed(() => {
-  void historyTick.value
-  return props.board?.canUndo() ?? false
-})
-
-const canRedo = computed(() => {
-  void historyTick.value
-  return props.board?.canRedo() ?? false
-})
-
-const undo = () => {
-  props.board?.undo()
-  historyTick.value++
-}
-
-const redo = () => {
-  props.board?.redo()
-  historyTick.value++
-}
+const { canUndo, canRedo, undo, redo } = useBoardHistory(() => props.board)
 
 const onSave = () => {
   emit('save')
@@ -273,64 +256,28 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
-const onHistoryChange = () => {
-  historyTick.value++
-}
-
 watch(
   () => props.board,
   (newBoard, oldBoard) => {
     if (oldBoard?.graph) {
-      oldBoard.graph.off('history:change', onHistoryChange)
-      oldBoard.graph.off('history:undo', onHistoryChange)
-      oldBoard.graph.off('history:redo', onHistoryChange)
-      oldBoard.graph.off('cell:added', onHistoryChange)
-      oldBoard.graph.off('cell:removed', onHistoryChange)
-      oldBoard.graph.off('cell:change:*', onHistoryChange)
-      oldBoard.graph.off('node:moved', onHistoryChange)
-      oldBoard.graph.off('node:resized', onHistoryChange)
-      oldBoard.graph.off('node:rotated', onHistoryChange)
+      oldBoard.graph.off('scale', updateZoom)
     }
     if (newBoard?.graph) {
-      newBoard.graph.on('history:change', onHistoryChange)
-      newBoard.graph.on('history:undo', onHistoryChange)
-      newBoard.graph.on('history:redo', onHistoryChange)
-      newBoard.graph.on('cell:added', onHistoryChange)
-      newBoard.graph.on('cell:removed', onHistoryChange)
-      newBoard.graph.on('cell:change:*', onHistoryChange)
-      newBoard.graph.on('node:moved', onHistoryChange)
-      newBoard.graph.on('node:resized', onHistoryChange)
-      newBoard.graph.on('node:rotated', onHistoryChange)
+      newBoard.graph.on('scale', updateZoom)
     }
-    historyTick.value++
     updateZoom()
   },
   { immediate: true }
 )
 
-let timer: ReturnType<typeof setInterval> | null = null
-
 onMounted(() => {
-  timer = setInterval(() => {
-    updateZoom()
-    historyTick.value++
-  }, 300)
   window.addEventListener('keydown', handleKeydown)
 })
 
 onBeforeUnmount(() => {
-  if (timer) clearInterval(timer)
   window.removeEventListener('keydown', handleKeydown)
   if (props.board?.graph) {
-    props.board.graph.off('history:change', onHistoryChange)
-    props.board.graph.off('history:undo', onHistoryChange)
-    props.board.graph.off('history:redo', onHistoryChange)
-    props.board.graph.off('cell:added', onHistoryChange)
-    props.board.graph.off('cell:removed', onHistoryChange)
-    props.board.graph.off('cell:change:*', onHistoryChange)
-    props.board.graph.off('node:moved', onHistoryChange)
-    props.board.graph.off('node:resized', onHistoryChange)
-    props.board.graph.off('node:rotated', onHistoryChange)
+    props.board.graph.off('scale', updateZoom)
   }
 })
 </script>

@@ -719,7 +719,7 @@ export function getShapeById(id: string): ShapeDefinition | undefined {
  */
 export function getShapeIconSvg(shape: ShapeDefinition): string {
   const body = shape.svgBody.replace(/#595959/g, 'currentColor');
-  return `<svg viewBox="0 0 32 32" width="22" height="22" style="overflow:visible;display:block;"><g stroke="currentColor" stroke-width="1.5" fill="none">${body}</g></svg>`;
+  return `<svg viewBox="0 0 32 32" width="30" height="30" style="overflow:visible;display:block;"><g stroke="currentColor" stroke-width="1" fill="none">${body}</g></svg>`;
 }
 
 /**
@@ -731,7 +731,7 @@ export function renderShapeCanvasSvg(shape: ShapeDefinition, options: {
   strokeWidth?: number
   strokeDasharray?: string
 } = {}): string {
-  const fill = options.fill ?? 'transparent';
+  const fill = options.fill ?? '#ffffff';
   const stroke = options.stroke ?? '#374151';
   const strokeWidth = options.strokeWidth ?? 2;
   const dash = options.strokeDasharray && options.strokeDasharray !== 'none' ? options.strokeDasharray : '';
@@ -755,35 +755,66 @@ export function getShapeTightViewBox(svgHtml: string, shapeId?: string): string 
     return viewBoxCache.get(shapeId)!;
   }
 
-  if (typeof document === 'undefined') return '6 6 20 20';
+  if (typeof document !== 'undefined') {
+    try {
+      let measurer = document.getElementById('speed-svg-measurer') as SVGSVGElement | null;
+      if (!measurer) {
+        measurer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        measurer.id = 'speed-svg-measurer';
+        measurer.setAttribute(
+          'style',
+          'position:fixed;top:-9999px;left:-9999px;width:1000px;height:1000px;visibility:hidden;pointer-events:none;'
+        );
+        document.body.appendChild(measurer);
+      }
 
-  try {
-    let measurer = document.getElementById('speed-svg-measurer') as SVGSVGElement | null;
-    if (!measurer) {
-      measurer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      measurer.id = 'speed-svg-measurer';
-      measurer.setAttribute(
-        'style',
-        'position:fixed;top:-9999px;left:-9999px;width:0;height:0;visibility:hidden;pointer-events:none;'
-      );
-      document.body.appendChild(measurer);
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.innerHTML = svgHtml;
+      measurer.appendChild(g);
+      const bbox = g.getBBox();
+      measurer.removeChild(g);
+
+      if (bbox.width > 0 && bbox.height > 0) {
+        const pad = 0.5;
+        const vx = Math.round((bbox.x - pad) * 10) / 10;
+        const vy = Math.round((bbox.y - pad) * 10) / 10;
+        const vw = Math.round((bbox.width + pad * 2) * 10) / 10;
+        const vh = Math.round((bbox.height + pad * 2) * 10) / 10;
+        const viewBoxStr = `${vx} ${vy} ${vw} ${vh}`;
+        if (shapeId) viewBoxCache.set(shapeId, viewBoxStr);
+        return viewBoxStr;
+      }
+    } catch {
+      // fallback to path parsing
     }
+  }
 
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.innerHTML = svgHtml;
-    measurer.appendChild(g);
-    const bbox = g.getBBox();
-    measurer.removeChild(g);
-
-    if (bbox.width > 0 && bbox.height > 0) {
-      const pad = 0.5;
-      const vx = Math.round((bbox.x - pad) * 10) / 10;
-      const vy = Math.round((bbox.y - pad) * 10) / 10;
-      const vw = Math.round((bbox.width + pad * 2) * 10) / 10;
-      const vh = Math.round((bbox.height + pad * 2) * 10) / 10;
-      const viewBoxStr = `${vx} ${vy} ${vw} ${vh}`;
-      if (shapeId) viewBoxCache.set(shapeId, viewBoxStr);
-      return viewBoxStr;
+  // 兜底：从 SVG 路径坐标解析最小外包围盒 (准确适配 comment-2、cloud 等全部形状)
+  try {
+    const nums = svgHtml.match(/-?[0-9]+(?:\.[0-9]+)?/g)?.map(Number);
+    if (nums && nums.length >= 4) {
+      const xs: number[] = [];
+      const ys: number[] = [];
+      for (let i = 0; i < nums.length; i += 2) {
+        xs.push(nums[i]);
+        if (i + 1 < nums.length) ys.push(nums[i + 1]);
+      }
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const w = maxX - minX;
+      const h = maxY - minY;
+      if (w > 0 && h > 0) {
+        const pad = 0.5;
+        const vx = Math.round((minX - pad) * 10) / 10;
+        const vy = Math.round((minY - pad) * 10) / 10;
+        const vw = Math.round((w + pad * 2) * 10) / 10;
+        const vh = Math.round((h + pad * 2) * 10) / 10;
+        const viewBoxStr = `${vx} ${vy} ${vw} ${vh}`;
+        if (shapeId) viewBoxCache.set(shapeId, viewBoxStr);
+        return viewBoxStr;
+      }
     }
   } catch {
     // fallback

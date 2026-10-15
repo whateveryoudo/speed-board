@@ -1,4 +1,5 @@
-import { Graph, Node } from '@antv/x6'
+import { Graph, Node, Cell, Edge } from '@antv/x6'
+export { Graph, Node, Cell, Edge }
 import { Scroller } from '@antv/x6-plugin-scroller'
 import { Snapline } from '@antv/x6-plugin-snapline'
 import { Selection } from '@antv/x6-plugin-selection'
@@ -41,6 +42,8 @@ export interface AddShapeOptions {
   iconName?: string
   [key: string]: any
 }
+
+export const IMAGE_ERROR_PLACEHOLDER = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240" fill="none"><rect width="320" height="240" fill="%23f9fafb" stroke="%23fca5a5" stroke-width="2" stroke-dasharray="6,6" rx="8"/><path d="M160 85v40M160 145h.01" stroke="%23ef4444" stroke-width="3" stroke-linecap="round"/><circle cx="160" cy="115" r="45" stroke="%23fee2e2" stroke-width="4"/><text x="160" y="172" fill="%23ef4444" font-size="14" font-weight="600" text-anchor="middle" font-family="sans-serif">图片上传失败</text><text x="160" y="195" fill="%239ca3af" font-size="12" text-anchor="middle" font-family="sans-serif">请点击重试或删除图元</text></svg>`
 
 // 注册自定义闭合矢量多边形节点 (Vector Polygon)
 Graph.registerNode(
@@ -137,6 +140,10 @@ Graph.registerNode(
     markup: [
       {
         tagName: 'rect',
+        selector: 'bg',
+      },
+      {
+        tagName: 'rect',
         selector: 'body',
       },
       {
@@ -149,6 +156,14 @@ Graph.registerNode(
       },
     ],
     attrs: {
+      bg: {
+        refWidth: '100%',
+        refHeight: '100%',
+        fill: 'transparent',
+        stroke: 'transparent',
+        strokeWidth: 0,
+        pointerEvents: 'all',
+      },
       body: {
         fill: 'transparent',
         stroke: 'transparent',
@@ -166,6 +181,84 @@ Graph.registerNode(
         refX: '50%',
         refY: '80%',
       },
+    },
+    ports: {
+      groups: {
+        top: {
+          position: 'top',
+          attrs: {
+            circle: {
+              r: 4.5,
+              magnet: true,
+              stroke: '#3b82f6',
+              strokeWidth: 1.5,
+              fill: '#ffffff',
+              opacity: 0,
+              style: {
+                cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+              },
+            },
+          },
+        },
+        right: {
+          position: 'right',
+          attrs: {
+            circle: {
+              r: 4.5,
+              magnet: true,
+              stroke: '#3b82f6',
+              strokeWidth: 1.5,
+              fill: '#ffffff',
+              opacity: 0,
+              style: {
+                cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+              },
+            },
+          },
+        },
+        bottom: {
+          position: 'bottom',
+          attrs: {
+            circle: {
+              r: 4.5,
+              magnet: true,
+              stroke: '#3b82f6',
+              strokeWidth: 1.5,
+              fill: '#ffffff',
+              opacity: 0,
+              style: {
+                cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+              },
+            },
+          },
+        },
+        left: {
+          position: 'left',
+          attrs: {
+            circle: {
+              r: 4.5,
+              magnet: true,
+              stroke: '#3b82f6',
+              strokeWidth: 1.5,
+              fill: '#ffffff',
+              opacity: 0,
+              style: {
+                cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+              },
+            },
+          },
+        },
+      },
+      items: [
+        { group: 'top', id: 'port-top' },
+        { group: 'right', id: 'port-right' },
+        { group: 'bottom', id: 'port-bottom' },
+        { group: 'left', id: 'port-left' },
+      ],
     },
   },
   true
@@ -203,6 +296,194 @@ Graph.registerNode(
         refX: '50%',
         refY: '50%',
       },
+    },
+  },
+  true
+)
+
+export function renderImageProgressHtml(progress: number, isError: boolean): string {
+  const percent = Math.min(100, Math.max(0, Math.round(progress)))
+  return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;user-select:none;box-sizing:border-box;">` +
+    `<div style="position:absolute;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.38);border-radius:4px;"></div>` +
+    `<div style="position:relative;z-index:10;display:inline-flex;align-items:center;background:#ffffff;padding:4px 12px;border-radius:16px;box-shadow:0 4px 14px rgba(0,0,0,0.22);gap:8px;border:1px solid rgba(0,0,0,0.06);height:32px;box-sizing:border-box;">` +
+      `<svg width="16" height="16" viewBox="0 0 20 20" fill="#6b7280" style="flex-shrink:0;display:block;"><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"/></svg>` +
+      `<div style="width:96px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;flex-shrink:0;position:relative;">` +
+        `<div style="width:${isError ? 100 : percent}%;height:100%;background:${isError ? '#ef4444' : '#2563eb'};border-radius:3px;transition:width 0.25s cubic-bezier(0.4,0,0.2,1),background 0.2s ease;"></div>` +
+      `</div>` +
+      (isError
+        ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="#ef4444" style="flex-shrink:0;display:block;"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.5 10.086l-1.414 1.414L8 9.414l-2.086 2.086-1.414-1.414L6.586 8 4.5 5.914l1.414-1.414L8 6.586l2.086-2.086 1.414 1.414L9.414 8l2.086 2.086z"/></svg>`
+        : `<span style="font-size:11px;font-weight:500;color:#4b5563;min-width:26px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1;">${percent}%</span>`
+      ) +
+    `</div>` +
+  `</div>`
+}
+
+// 注册自定义图片图元节点 (Speed Image Node - 支持缩放、4个连接桩点、自然比例)
+Graph.registerNode(
+  'speed-image-node',
+  {
+    markup: [
+      {
+        tagName: 'rect',
+        selector: 'bg',
+      },
+      {
+        tagName: 'image',
+        selector: 'image',
+      },
+      {
+        tagName: 'foreignObject',
+        selector: 'progressFo',
+        children: [
+          {
+            ns: 'http://www.w3.org/1999/xhtml',
+            tagName: 'body',
+            selector: 'progressBody',
+            attrs: {
+              xmlns: 'http://www.w3.org/1999/xhtml',
+            },
+            style: {
+              width: '100%',
+              height: '100%',
+              background: 'transparent',
+              margin: '0',
+              padding: '0',
+              overflow: 'hidden',
+            },
+            children: [
+              {
+                tagName: 'div',
+                selector: 'progressContent',
+                style: {
+                  width: '100%',
+                  height: '100%',
+                  margin: '0',
+                  padding: '0',
+                },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        tagName: 'text',
+        selector: 'label',
+      },
+    ],
+    attrs: {
+      bg: {
+        refWidth: '100%',
+        refHeight: '100%',
+        fill: 'transparent',
+        stroke: 'transparent',
+        strokeWidth: 0,
+        pointerEvents: 'all',
+      },
+      image: {
+        refWidth: '100%',
+        refHeight: '100%',
+        preserveAspectRatio: 'none',
+        pointerEvents: 'none',
+      },
+      progressFo: {
+        refWidth: '100%',
+        refHeight: '100%',
+        x: 0,
+        y: 0,
+        style: {
+          display: 'none',
+          pointerEvents: 'none',
+        },
+      },
+      label: {
+        text: '',
+        fontSize: 12,
+        fill: '#1f2937',
+        textAnchor: 'middle',
+        textVerticalAnchor: 'top',
+        refX: '50%',
+        refY: '100%',
+        refY2: 6,
+        pointerEvents: 'none',
+      },
+    },
+    ports: {
+      groups: {
+        top: {
+          position: 'top',
+          attrs: {
+            circle: {
+              r: 4.5,
+              magnet: true,
+              stroke: '#3b82f6',
+              strokeWidth: 1.5,
+              fill: '#ffffff',
+              opacity: 0,
+              style: {
+                cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+              },
+            },
+          },
+        },
+        right: {
+          position: 'right',
+          attrs: {
+            circle: {
+              r: 4.5,
+              magnet: true,
+              stroke: '#3b82f6',
+              strokeWidth: 1.5,
+              fill: '#ffffff',
+              opacity: 0,
+              style: {
+                cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+              },
+            },
+          },
+        },
+        bottom: {
+          position: 'bottom',
+          attrs: {
+            circle: {
+              r: 4.5,
+              magnet: true,
+              stroke: '#3b82f6',
+              strokeWidth: 1.5,
+              fill: '#ffffff',
+              opacity: 0,
+              style: {
+                cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+              },
+            },
+          },
+        },
+        left: {
+          position: 'left',
+          attrs: {
+            circle: {
+              r: 4.5,
+              magnet: true,
+              stroke: '#3b82f6',
+              strokeWidth: 1.5,
+              fill: '#ffffff',
+              opacity: 0,
+              style: {
+                cursor: 'crosshair',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+              },
+            },
+          },
+        },
+      },
+      items: [
+        { group: 'top', id: 'port-top' },
+        { group: 'right', id: 'port-right' },
+        { group: 'bottom', id: 'port-bottom' },
+        { group: 'left', id: 'port-left' },
+      ],
     },
   },
   true
@@ -525,10 +806,11 @@ export class Board {
       })
     )
 
-    // 3. 多选框选 (Selection)
+    // 3. 多选框选 (Selection - 支持 Shift / Ctrl / Cmd 加选与点击反选取消)
     this.selectionPlugin = new Selection({
       enabled: true,
       multiple: true,
+      multipleSelectionModifiers: ['shift', 'ctrl', 'meta'],
       rubberband: true,
       movable: true,
       showNodeSelectionBox: true, // 启用选框，在多选时展示各图元蓝色外框
@@ -566,9 +848,14 @@ export class Board {
     // 7. 撤销重做历史记录 (History)
     this.historyPlugin = new History({ enabled: true })
     this.graph.use(this.historyPlugin)
-    this.historyPlugin.on('change', () => {
+    const triggerHistory = () => {
       this.graph.trigger('history:change')
-    })
+    }
+    this.historyPlugin.on('change', triggerHistory)
+    this.historyPlugin.on('undo', triggerHistory)
+    this.historyPlugin.on('redo', triggerHistory)
+    this.historyPlugin.on('add', triggerHistory)
+    this.historyPlugin.on('clean', triggerHistory)
   }
 
   private initEvents() {
@@ -612,9 +899,9 @@ export class Board {
           args: {
             attrs: {
               fill: '#ffffff',
-              stroke: '#374151',
-              'stroke-width': 1.5,
-              r: 5,
+              stroke: '#2563eb',
+              'stroke-width': 2,
+              r: 6,
               cursor: 'move',
             },
           },
@@ -624,9 +911,9 @@ export class Board {
           args: {
             attrs: {
               fill: '#ffffff',
-              stroke: '#374151',
-              'stroke-width': 1.5,
-              r: 5,
+              stroke: '#2563eb',
+              'stroke-width': 2,
+              r: 6,
               cursor: 'move',
             },
           },
@@ -864,7 +1151,7 @@ export class Board {
           height: options.height ?? 80,
           attrs: {
             body: {
-              fill: options.fill ?? 'transparent',
+              fill: options.fill ?? '#ffffff',
               stroke: options.stroke ?? '#374151',
               strokeWidth: 2,
             },
@@ -887,7 +1174,7 @@ export class Board {
           points: '0,40 50,0 100,40 50,80',
           attrs: {
             body: {
-              fill: options.fill ?? 'transparent',
+              fill: options.fill ?? '#ffffff',
               stroke: options.stroke ?? '#374151',
               strokeWidth: 2,
             },
@@ -997,7 +1284,7 @@ export class Board {
             shapeName: options.shapeName || options.shapeId || '矩形',
             svgContent: options.svgContent || options.svg || '',
             viewBox: options.viewBox || '6 6 20 20',
-            fill: options.fill ?? 'transparent',
+            fill: options.fill ?? '#ffffff',
             stroke: options.stroke ?? '#374151',
             strokeWidth: options.strokeWidth ?? 2,
             strokeDasharray: options.strokeDasharray ?? 'none',
@@ -1025,7 +1312,7 @@ export class Board {
           height: options.height ?? 60,
           attrs: {
             body: {
-              fill: options.fill ?? 'transparent',
+              fill: options.fill ?? '#ffffff',
               stroke: options.stroke ?? '#374151',
               strokeWidth: 2,
               rx: 6,
@@ -1057,21 +1344,172 @@ export class Board {
     const x = options.x ?? (center.x - width / 2)
     const y = options.y ?? (center.y - height / 2)
 
-    // 构建内嵌 SVG
-    const svgHtml = `<div style="width:${width}px;height:${height}px;display:flex;align-items:center;justify-content:center;pointer-events:none;">${options.svg}</div>`
+    // 解析 SVG，提取 viewBox 和 innerHTML
+    const viewBoxMatch = options.svg.match(/viewBox="([^"]+)"/i)
+    const viewBox = viewBoxMatch ? viewBoxMatch[1] : '0 0 24 24'
+    const bodyMatch = options.svg.match(/<svg[^>]*>([\s\S]*?)<\/svg>/i)
+    const svgBody = bodyMatch ? bodyMatch[1] : options.svg
 
     const node = this.graph.addNode({
-      shape: 'html',
+      shape: 'speed-shape-node',
       x,
       y,
       width,
       height,
-      html: () => svgHtml,
+      attrs: {
+        bg: {
+          fill: 'transparent',
+          stroke: 'transparent',
+          strokeWidth: 0,
+        },
+        shapeBody: {
+          html: svgBody,
+          viewBox,
+          fill: '#333333',
+          color: '#333333',
+          preserveAspectRatio: 'xMidYMid meet',
+        },
+        label: {
+          text: '',
+        },
+      },
+      data: {
+        type: 'icon',
+        iconName: options.name || '',
+        svg: options.svg,
+        viewBox,
+      },
     })
 
     this.graph.cleanSelection()
     this.graph.select(node)
     return node
+  }
+
+  /**
+   * 插入图片图元 (居中放置于当前画布视口)
+   */
+  public addImage(options: {
+    url: string
+    id?: string
+    name?: string
+    width?: number
+    height?: number
+    x?: number
+    y?: number
+    status?: 'uploading' | 'success' | 'error'
+    progress?: number
+  }): Node {
+    const width = options.width ?? 320
+    const height = options.height ?? 240
+    const center = this.getViewportCenter()
+    const x = options.x ?? Math.round(center.x - width / 2)
+    const y = options.y ?? Math.round(center.y - height / 2)
+    const status = options.status || 'success'
+    const progress = options.progress ?? 0
+    const isUploading = status === 'uploading'
+    const isError = status === 'error'
+
+    const node = this.graph.addNode({
+      shape: 'speed-image-node',
+      x,
+      y,
+      width,
+      height,
+      attrs: {
+        bg: {
+          fill: 'transparent',
+          stroke: 'transparent',
+          strokeWidth: 0,
+        },
+        image: {
+          'xlink:href': options.url,
+          href: options.url,
+          preserveAspectRatio: 'none',
+        },
+        progressFo: {
+          style: {
+            display: isUploading || isError ? 'block' : 'none',
+            pointerEvents: 'none',
+          },
+        },
+        progressContent: {
+          html: isUploading
+            ? renderImageProgressHtml(progress, false)
+            : isError
+              ? renderImageProgressHtml(100, true)
+              : '',
+        },
+        label: {
+          text: '',
+        },
+      },
+      data: {
+        type: 'image',
+        fileId: options.id,
+        fileName: options.name || 'image',
+        url: options.url,
+        status,
+        progress,
+      },
+    })
+
+    this.graph.cleanSelection()
+    this.graph.select(node)
+    return node
+  }
+
+  /**
+   * 更新图片节点的上传状态 (uploading / success / error)
+   */
+  public updateImageStatus(
+    nodeOrId: Node | string,
+    status: 'uploading' | 'success' | 'error',
+    options?: {
+      url?: string
+      id?: string
+      progress?: number
+      errorMessage?: string
+      retry?: () => void
+    }
+  ) {
+    const node = typeof nodeOrId === 'string' ? (this.graph.getCellById(nodeOrId) as Node) : nodeOrId
+    if (!node || !node.isNode()) return
+
+    const currentData = node.getData() || {}
+    const progress = Math.min(100, Math.max(0, options?.progress ?? (status === 'success' ? 100 : currentData.progress ?? 0)))
+    const newData = {
+      ...currentData,
+      status,
+      progress,
+      ...(options?.url ? { url: options.url } : {}),
+      ...(options?.id ? { fileId: options.id } : {}),
+      ...(options?.retry ? { retry: options.retry } : {}),
+      ...(options?.errorMessage ? { errorMessage: options.errorMessage } : {}),
+    }
+    node.setData(newData)
+
+    if (options?.url) {
+      node.setAttrByPath('image/xlink:href', options.url)
+      node.setAttrByPath('image/href', options.url)
+    }
+
+    if (status === 'uploading') {
+      node.setAttrByPath('progressFo/style/display', 'block')
+      node.setAttrByPath('progressContent/html', renderImageProgressHtml(progress, false))
+    } else if (status === 'success') {
+      // 成功：直接隐藏进度层，纯净展示图片
+      node.setAttrByPath('progressFo/style/display', 'none')
+      node.setAttrByPath('progressContent/html', '')
+    } else if (status === 'error') {
+      // 失败：进度变红，右侧显示失败图标，左侧为占位 logo
+      node.setAttrByPath('progressFo/style/display', 'block')
+      node.setAttrByPath('progressContent/html', renderImageProgressHtml(100, true))
+      if (!options?.url) {
+        node.setAttrByPath('image/xlink:href', IMAGE_ERROR_PLACEHOLDER)
+        node.setAttrByPath('image/href', IMAGE_ERROR_PLACEHOLDER)
+      }
+    }
   }
 
   /**
@@ -1124,14 +1562,14 @@ export class Board {
   public copy() {
     const cells = this.graph.getSelectedCells()
     if (cells.length > 0) {
-      this.clipboardPlugin?.copy(cells, { offset: 30 })
+      this.clipboardPlugin?.copy(cells)
     }
   }
 
   public cut() {
     const cells = this.graph.getSelectedCells()
     if (cells.length > 0) {
-      this.clipboardPlugin?.cut(cells, { offset: 30 })
+      this.clipboardPlugin?.cut(cells)
     }
   }
 
@@ -1545,7 +1983,11 @@ export class Board {
       cell.shape === 'rect' ||
       cell.shape === 'circle' ||
       cell.shape === 'polygon' ||
-      cell.shape === 'speed-sticky-node'
+      cell.shape === 'speed-sticky-node' ||
+      cell.shape === 'speed-image-node' ||
+      cell.getData()?.type === 'image' ||
+      cell.shape === 'speed-icon-node' ||
+      cell.getData()?.type === 'icon'
     )
   }
 
@@ -1578,7 +2020,7 @@ export class Board {
       y: options.y,
       width: options.width ?? 100,
       height: options.height ?? 80,
-      fill: options.fill ?? 'transparent',
+      fill: options.fill ?? '#ffffff',
       stroke: options.stroke ?? '#374151',
       strokeWidth: options.strokeWidth ?? 2,
       strokeDasharray: options.strokeDasharray ?? 'none',
@@ -1595,6 +2037,7 @@ export class Board {
     options: {
       svgContent?: string
       viewBox?: string
+      tightViewBox?: string
       shapeId?: string
       shapeName?: string
       fill?: string
@@ -1613,19 +2056,78 @@ export class Board {
       verticalAlign?: 'top' | 'middle' | 'bottom'
     }
   ) {
-    const node = typeof nodeOrId === 'string' ? (this.graph.getCellById(nodeOrId) as Node) : nodeOrId
+    let node = typeof nodeOrId === 'string' ? (this.graph.getCellById(nodeOrId) as Node) : nodeOrId
     if (!node || !node.isNode()) return
 
+    const viewBox = options.viewBox || options.tightViewBox
     const data = node.getData() || {}
     const newData = { ...data, ...options }
+    if (viewBox) {
+      newData.viewBox = viewBox
+    }
+
+    // 若当前节点不是 speed-shape-node (例如原为基础 rect/circle/polygon)，平滑升级为 speed-shape-node
+    if (node.shape !== 'speed-shape-node' && options.svgContent) {
+      const pos = node.getPosition()
+      const size = node.getSize()
+      const zIndex = node.getZIndex()
+      const isSelected = this.graph.isSelected(node)
+      const incomingEdges = this.graph.getIncomingEdges(node) || []
+      const outgoingEdges = this.graph.getOutgoingEdges(node) || []
+
+      const newNode = this.graph.addNode({
+        shape: 'speed-shape-node',
+        x: pos.x,
+        y: pos.y,
+        width: size.width,
+        height: size.height,
+        zIndex,
+        attrs: {
+          shapeBody: {
+            html: options.svgContent,
+            viewBox: viewBox || '6 6 20 20',
+            preserveAspectRatio: 'none',
+          },
+          label: {
+            text: options.text ?? data.text ?? '',
+            fontSize: options.fontSize ?? data.fontSize ?? 14,
+            fill: options.textColor ?? data.textColor ?? '#1f2937',
+            textAnchor: 'middle',
+            textVerticalAnchor: 'middle',
+            refX: '50%',
+            refY: '50%',
+          },
+        },
+        data: {
+          type: 'shape',
+          ...newData,
+        },
+      })
+
+      for (const edge of incomingEdges) {
+        edge.setTarget(newNode)
+      }
+      for (const edge of outgoingEdges) {
+        edge.setSource(newNode)
+      }
+
+      this.graph.removeCell(node)
+      if (isSelected) {
+        this.graph.select(newNode)
+      }
+      this.graph.trigger('cell:change:data', { cell: newNode, current: newData, previous: data })
+      this.graph.trigger('node:change:data', { cell: newNode, node: newNode, current: newData, previous: data })
+      return newNode
+    }
+
     node.setData(newData)
 
     if (options.svgContent !== undefined) {
       node.setAttrByPath('shapeBody/html', options.svgContent)
       node.setAttrByPath('shapeBody/preserveAspectRatio', 'none')
     }
-    if (options.viewBox !== undefined) {
-      node.setAttrByPath('shapeBody/viewBox', options.viewBox)
+    if (viewBox !== undefined) {
+      node.setAttrByPath('shapeBody/viewBox', viewBox)
       node.setAttrByPath('shapeBody/preserveAspectRatio', 'none')
     }
     if (options.opacity !== undefined) {
@@ -1684,6 +2186,14 @@ export class Board {
         node.setAttrByPath('label/refY', '50%')
       }
     }
+
+    // 重新渲染节点视图，确保选框与 SVG 紧贴无溢出
+    const view = this.graph.findViewByCell(node)
+    if (view) {
+      view.render()
+    }
+    this.graph.trigger('cell:change:data', { cell: node, current: newData, previous: data })
+    this.graph.trigger('node:change:data', { cell: node, node, current: newData, previous: data })
   }
 
   /**
@@ -2325,14 +2835,15 @@ export class Board {
   public duplicateSelected(offset = 24) {
     const selected = this.graph.getSelectedCells()
     if (!selected.length) return []
-    const cloned = this.graph.cloneCells(selected)
+    const clonedMap = this.graph.cloneCells(selected)
+    const cloned = Object.values(clonedMap)
     cloned.forEach((cell) => {
       if (cell.isNode()) {
         const pos = cell.getPosition()
         cell.setPosition(pos.x + offset, pos.y + offset)
       }
     })
-    this.graph.addCells(cloned)
+    this.graph.addCell(cloned)
     this.graph.cleanSelection()
     this.graph.select(cloned)
     return cloned

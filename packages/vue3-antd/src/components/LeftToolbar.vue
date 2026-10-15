@@ -2,33 +2,41 @@
   <transition name="slide-fade">
     <div v-show="props.visible !== false" class="left-toolbar-wrapper">
       <!-- 1. 主工具条悬浮胶囊 -->
-      <div class="board-floating-capsule left-toolbar-capsule">
+      <div class="board-floating-capsule left-toolbar-capsule" @pointerdown.stop @click.stop>
+        <!-- 图标 -->
+        <a-popover :align="{ offset: [10, 0] }" :arrow="false" v-model:open="iconPickerOpen" trigger="click"
+          placement="rightTop" :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"
+          @update:open="onIconPickerOpenChange">
+          <template #content>
+            <IconfontPopover :provider="props.iconProvider" @select="onSelectIcon" />
+          </template>
+          <a-tooltip title="图标" placement="right">
+            <a-button type="text" class="shadow-btn-wrapper iconfont-entry-btn"
+              :class="{ 'is-active': props.activePlacementType === 'icon' || iconPickerOpen }">
+              <SIconFont type="icon-kl-a-iconfonticon" :size="19" />
+            </a-button>
+          </a-tooltip>
+        </a-popover>
+        <div class="tool-divider" />
         <!-- 1.1 选择指针 (Select - 'V') -->
         <a-tooltip title="选择指针 (V)" placement="right">
-          <a-button type="text" class="shadow-btn-wrapper" :class="{ 'is-active': currentTool === 'select' && !props.activePlacementType }"
-            @click="setTool('select')">
+          <a-button type="text" class="shadow-btn-wrapper"
+            :class="{ 'is-active': currentTool === 'select' && !props.activePlacementType }" @click="setTool('select')">
             <SIconFont type="icon-kl-board-select-cursor" :size="20" />
           </a-button>
         </a-tooltip>
 
         <!-- 1.2 画笔/随手画 (Popover 二级面板) -->
-        <a-popover
-          v-model:open="brushPopoverOpen"
-          trigger="click"
-          placement="rightTop"
-          :align="{ offset: [10, 0] }"
-          overlay-class-name="tool-sub-capsule-popover"
-          :arrow="false"
-          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
-          @update:open="onBrushOpenChange"
-        >
+        <a-popover v-model:open="brushPopoverOpen" trigger="click" placement="rightTop" :align="{ offset: [10, 0] }"
+          overlay-class-name="tool-sub-capsule-popover" :arrow="false"
+          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }" @update:open="onBrushOpenChange">
           <template #content>
             <div class="brush-sub-picker">
               <!-- 2.1 普通铅笔 -->
               <a-tooltip title="铅笔" placement="right">
                 <a-button type="text" class="shadow-btn-wrapper sub-capsule-btn"
                   :class="{ 'is-active': currentBrush === 'pencil' }" @click="selectBrush('pencil')">
-                  <SIconFont type="icon-kl-board-pencil" :size="19" />
+                  <SIconFont type="icon-kl-board-pencil" :size="30" />
                 </a-button>
               </a-tooltip>
 
@@ -36,7 +44,7 @@
               <a-tooltip title="马克笔" placement="right">
                 <a-button type="text" class="shadow-btn-wrapper sub-capsule-btn"
                   :class="{ 'is-active': currentBrush === 'marker' }" @click="selectBrush('marker')">
-                  <SIconFont type="icon-kl-board-marker-pen" :size="19" />
+                  <SIconFont type="icon-kl-board-marker-pen" :size="30" />
                 </a-button>
               </a-tooltip>
 
@@ -44,14 +52,13 @@
               <a-tooltip title="橡皮擦" placement="right">
                 <a-button type="text" class="shadow-btn-wrapper sub-capsule-btn"
                   :class="{ 'is-active': currentBrush === 'eraser' }" @click="selectBrush('eraser')">
-                  <SIconFont type="icon-kl-board-eraser" :size="19" />
+                  <SIconFont type="icon-kl-board-eraser" :size="30" />
                 </a-button>
               </a-tooltip>
 
               <!-- 2.4 线条粗细 (波浪线图标 + 粗细弹窗) -->
-              <a-popover v-model:open="widthPopoverOpen" trigger="click" placement="right" :destroy-tooltip-on-hide="true"
-                :arrow="false"
-                :align="{ offset: [8, 0] }"
+              <a-popover v-model:open="widthPopoverOpen" trigger="click" placement="right"
+                :destroy-tooltip-on-hide="true" :arrow="false" :align="{ offset: [8, 0] }"
                 :overlay-inner-style="{ padding: '8px', borderRadius: '8px' }" @update:open="onWidthOpenChange">
                 <template #content>
                   <div class="width-picker-panel">
@@ -75,9 +82,8 @@
               </a-popover>
 
               <!-- 2.5 颜色选择器 (圆点色块 + 调色板弹窗) -->
-              <a-popover v-model:open="colorPopoverOpen" trigger="click" placement="right" :destroy-tooltip-on-hide="true"
-                :arrow="false"
-                :align="{ offset: [8, 0] }"
+              <a-popover v-model:open="colorPopoverOpen" trigger="click" placement="right"
+                :destroy-tooltip-on-hide="true" :arrow="false" :align="{ offset: [8, 0] }"
                 :overlay-inner-style="{ padding: '8px', borderRadius: '8px' }" @update:open="onColorOpenChange">
                 <template #content>
                   <div class="color-picker-palette">
@@ -97,8 +103,10 @@
             </div>
           </template>
 
-          <a-tooltip :title="brushPopoverOpen ? '' : '画笔/随手画'" :open="brushPopoverOpen ? false : undefined" placement="right">
-            <a-button type="text" class="shadow-btn-wrapper" :class="{ 'is-active': currentTool === 'brush' && !props.activePlacementType }">
+          <a-tooltip :title="brushPopoverOpen ? '' : '画笔/随手画'" :open="brushPopoverOpen ? false : undefined"
+            placement="right">
+            <a-button type="text" class="shadow-btn-wrapper"
+              :class="{ 'is-active': currentTool === 'brush' && !props.activePlacementType }">
               <SIconFont type="icon-kl-board-brush" :size="20" />
             </a-button>
           </a-tooltip>
@@ -106,94 +114,69 @@
 
         <!-- 1.3 矢量钢笔绘图 -->
         <a-tooltip title="矢量钢笔" placement="right">
-          <a-button type="text" class="shadow-btn-wrapper" :class="{ 'is-active': currentTool === 'vector' && !props.activePlacementType }"
-            @click="setTool('vector')">
+          <a-button type="text" class="shadow-btn-wrapper"
+            :class="{ 'is-active': currentTool === 'vector' && !props.activePlacementType }" @click="setTool('vector')">
             <SIconFont type="icon-kl-board-vector-drawing" :size="20" />
           </a-button>
         </a-tooltip>
 
         <!-- 1.4 插入文本 (Text - 'T') -->
         <a-tooltip title="插入文本 (T)" placement="right">
-          <a-button type="text" class="shadow-btn-wrapper" :class="{ 'is-active': props.activePlacementType === 'text' }" @click="onTextButtonClick">
+          <a-button type="text" class="shadow-btn-wrapper"
+            :class="{ 'is-active': props.activePlacementType === 'text' }" @click="onTextButtonClick">
             <SIconFont type="icon-kl-text1" :size="20" />
           </a-button>
         </a-tooltip>
 
         <!-- 1.5 全量图形库选择器 (1:1 语雀白板风格 Popover) -->
         <a-popover v-model:open="shapePickerOpen" trigger="click" placement="rightTop"
-          overlay-class-name="shape-picker-popover-overlay" :arrow="false"
-          :align="{ offset: [10, 0] }"
-          :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"
-          @update:open="onShapeOpenChange">
+          overlay-class-name="shape-picker-popover-overlay" :arrow="false" :align="{ offset: [10, 0] }"
+          :overlay-inner-style="{ padding: '0', borderRadius: '8px' }" @update:open="onShapeOpenChange">
           <template #content>
-            <ShapePickerPopover @select="onShapeLibrarySelect" />
+            <ShapePickerPopover :active-shape-id="currentSelectedShapeId" @select="onShapeLibrarySelect" />
           </template>
           <a-tooltip :title="shapePickerOpen ? '' : '图形库'" :open="shapePickerOpen ? false : undefined"
             placement="right">
-            <a-button type="text" class="shadow-btn-wrapper" :class="{ 'is-active': props.activePlacementType === 'shape' || shapePickerOpen }">
+            <a-button type="text" class="shadow-btn-wrapper"
+              :class="{ 'is-active': props.activePlacementType === 'shape' || shapePickerOpen }">
               <SIconFont type="icon-kl-board-shape-circle" :size="20" />
             </a-button>
           </a-tooltip>
         </a-popover>
 
         <!-- 1.6 连线工具 (直线 / 曲线 / 折线) -->
-        <a-popover
-          v-model:open="linePopoverOpen"
-          trigger="click"
-          placement="rightTop"
-          :align="{ offset: [10, 0] }"
-          overlay-class-name="tool-sub-capsule-popover"
-          :arrow="false"
-          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
-          @update:open="onLineOpenChange"
-        >
+        <a-popover v-model:open="linePopoverOpen" trigger="click" placement="rightTop" :align="{ offset: [10, 0] }"
+          overlay-class-name="tool-sub-capsule-popover" :arrow="false"
+          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }" @update:open="onLineOpenChange">
           <template #content>
             <div class="line-sub-picker">
               <a-tooltip title="直线" placement="right">
-                <a-button
-                  type="text"
-                  class="shadow-btn-wrapper sub-capsule-btn"
-                  :class="{ 'is-active': currentLineType === 'straight' }"
-                  @click="selectLineType('straight')"
-                >
+                <a-button type="text" class="shadow-btn-wrapper sub-capsule-btn"
+                  :class="{ 'is-active': currentLineType === 'straight' }" @click="selectLineType('straight')">
                   <SIconFont type="icon-kl-line2" :size="18" />
                 </a-button>
               </a-tooltip>
 
               <a-tooltip title="曲线" placement="right">
-                <a-button
-                  type="text"
-                  class="shadow-btn-wrapper sub-capsule-btn"
-                  :class="{ 'is-active': currentLineType === 'curve' }"
-                  @click="selectLineType('curve')"
-                >
+                <a-button type="text" class="shadow-btn-wrapper sub-capsule-btn"
+                  :class="{ 'is-active': currentLineType === 'curve' }" @click="selectLineType('curve')">
                   <SIconFont type="icon-kl-line21" :size="18" />
                 </a-button>
               </a-tooltip>
 
               <a-tooltip title="折线" placement="right">
-                <a-button
-                  type="text"
-                  class="shadow-btn-wrapper sub-capsule-btn"
-                  :class="{ 'is-active': currentLineType === 'elbow' }"
-                  @click="selectLineType('elbow')"
-                >
+                <a-button type="text" class="shadow-btn-wrapper sub-capsule-btn"
+                  :class="{ 'is-active': currentLineType === 'elbow' }" @click="selectLineType('elbow')">
                   <SIconFont type="icon-kl-line11" :size="18" />
                 </a-button>
               </a-tooltip>
             </div>
           </template>
 
-          <a-tooltip
-            :title="linePopoverOpen ? '' : '连线工具'"
-            :open="linePopoverOpen ? false : undefined"
-            placement="right"
-          >
-            <a-button
-              type="text"
-              class="shadow-btn-wrapper"
-              :class="{ 'is-active': currentTool === 'line' && !props.activePlacementType }"
-            >
+          <a-tooltip :title="linePopoverOpen ? '' : '连线工具'" :open="linePopoverOpen ? false : undefined"
+            placement="right">
+            <a-button type="text" class="shadow-btn-wrapper"
+              :class="{ 'is-active': currentTool === 'line' && !props.activePlacementType }">
               <SIconFont type="icon-kl-line2" :size="20" />
             </a-button>
           </a-tooltip>
@@ -202,51 +185,50 @@
         <!-- 1.7 思维导图 (Mindmap) -->
         <a-tooltip title="思维导图" placement="right">
           <a-button type="text" class="shadow-btn-wrapper"
-            :class="{ 'is-active': props.activePlacementType === 'basic' }"
-            @click="onMindmapButtonClick">
+            :class="{ 'is-active': props.activePlacementType === 'basic' }" @click="onMindmapButtonClick">
             <SIconFont type="icon-kl-board-mindmap" :size="20" />
           </a-button>
         </a-tooltip>
-
         <div class="tool-divider" />
+        <!-- 1.8 图片插入 (配置了上传接口才开放此入口) -->
+        <a-tooltip v-if="hasUploadConfig" title="图片" placement="right">
+          <a-button type="text" class="shadow-btn-wrapper" :loading="imageUploading" @click="triggerImageUpload">
+            <SIconFont type="icon-kl-image" :size="20" />
+          </a-button>
+        </a-tooltip>
 
-        <!-- 1.8 Iconfont 矢量素材库 (Popover) -->
-        <a-popover v-model:open="iconPickerOpen" trigger="click" placement="rightTop" :align="{ offset: [10, 0] }"
-          :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"
-          @update:open="onIconPickerOpenChange">
-          <template #content>
-            <IconfontPopover :provider="props.iconProvider" @select="onSelectIcon" />
-          </template>
-          <a-tooltip title="素材库" placement="right">
-            <a-button
-              type="text"
-              class="shadow-btn-wrapper iconfont-entry-btn"
-              :class="{ 'is-active': props.activePlacementType === 'icon' || iconPickerOpen }"
-            >
-              <AppstoreOutlined style="font-size: 20px" />
-              <span class="icon-sub-tag">素材</span>
-            </a-button>
-          </a-tooltip>
-        </a-popover>
+        <input ref="fileInputRef" type="file" accept="image/*" style="display: none" @change="onFileInputChange" />
       </div>
     </div>
   </transition>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed, inject } from 'vue'
 import {
   Popover as APopover,
   Tooltip as ATooltip,
   Button as AButton,
+  message,
 } from 'ant-design-vue'
-import { AppstoreOutlined } from '@ant-design/icons-vue'
-import { IconFont as SIconFont } from 'speed-components-ui/components'
+import { AppstoreOutlined, PictureOutlined } from '@ant-design/icons-vue'
+import { IconFont as SIconFont, SPEED_COMPONENTS_CONFIG_TOKEN } from 'speed-components-ui/components'
 import type { Board, ShapeType } from '@speed-board/core'
+import { useCellAttributes } from '../composables/useCellAttributes'
+import { useBoardEvent } from '../composables/useBoardEvent'
 import IconfontPopover from './IconfontPopover.vue'
 import ShapePickerPopover from './ShapePickerPopover.vue'
 import { renderShapeCanvasSvg, getShapeTightViewBox, type ShapeDefinition } from '../data/shapeLibrary'
 import type { BoardIconItem, IconProvider } from '../data/defaultIcons'
+
+export interface BoardUploadConfig {
+  /** 单文件上传方法 (FormData)，返回 Promise<any> */
+  fileUploadSingle?: (formData: FormData) => Promise<any>
+  /** 获取附件预览 URL */
+  getPreviewUrl?: (fileId: string) => string
+  /** 自定义整套图片上传方法 */
+  uploadImage?: (file: File) => Promise<{ id?: string; url: string; width?: number; height?: number; name?: string }>
+}
 
 export interface PendingPlacementItem {
   type: 'text' | 'shape' | 'icon' | 'basic'
@@ -281,6 +263,7 @@ const props = withDefaults(
   defineProps<{
     board: Board | null
     iconProvider?: IconProvider
+    uploadConfig?: BoardUploadConfig
     visible?: boolean
     activeMode?: string
     activePlacementType?: 'text' | 'shape' | 'icon' | 'basic' | null
@@ -512,7 +495,7 @@ const setStrokeColor = (c: string) => {
   applyDrawingMode()
 }
 
-// 监听画板实例就绪
+// 监听画板实例就绪与绘图模式
 watch(
   () => props.board,
   (b) => {
@@ -523,6 +506,23 @@ watch(
   { immediate: true }
 )
 
+// 响应式图元 shapeId 追踪（对齐 editor useAttributes）
+const currentSelectedShapeId = useCellAttributes(
+  () => props.board,
+  'shapeId',
+  ''
+)
+
+// 当选中有元素时，左侧自动切回 select 指针工具
+useBoardEvent(() => props.board, ['cell:selected', 'selection:changed'], () => {
+  if (props.board && props.board.graph.getSelectedCells().length > 0) {
+    if (currentTool.value !== 'select' && !props.activePlacementType) {
+      currentTool.value = 'select'
+      props.board.setDrawingMode('select')
+    }
+  }
+})
+
 const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) => {
   if (!props.board) return
   shapePickerOpen.value = false
@@ -531,7 +531,7 @@ const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) =>
   emit('mode-change', { mode: 'select' })
   const node = props.board.addShape({
     shape: shape as ShapeType,
-    fill: 'transparent',
+    fill: '#ffffff',
     stroke: '#374151',
     ...extra,
   })
@@ -592,8 +592,8 @@ const onShapeLibrarySelect = (shape: ShapeDefinition) => {
   props.board?.setDrawingMode('select')
   emit('mode-change', { mode: 'select' })
 
-  // 默认无背景色，经典深灰边框
-  const fill = 'transparent'
+  // 默认纯白底色填充，经典深灰边框 (1:1 语雀白板规范)
+  const fill = '#ffffff'
   const stroke = '#374151'
   const strokeWidth = 2
   const svgContent = renderShapeCanvasSvg(shape, {
@@ -661,6 +661,146 @@ const onSelectIcon = (icon: BoardIconItem) => {
       name: icon.name,
     },
   })
+}
+
+// --- 1.8 图片上传与插入 (1:1 语雀交互：视口中心自适应插入) ---
+const speedComsConfig = inject<any>(SPEED_COMPONENTS_CONFIG_TOKEN, null)
+
+const hasUploadConfig = computed(() => {
+  return Boolean(
+    props.uploadConfig?.uploadImage ||
+    props.uploadConfig?.fileUploadSingle ||
+    speedComsConfig?.value?.apis?.fileUploadSingle
+  )
+})
+
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const imageUploading = ref(false)
+
+const triggerImageUpload = () => {
+  if (imageUploading.value) return
+  fileInputRef.value?.click()
+}
+
+const onFileInputChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  input.value = '' // 清除以支持重复选择同名文件
+
+  imageUploading.value = true
+
+  // 1. 本地立即创建临时 Blob 预览并测量自然尺寸 (耗时 < 5ms)
+  const tempUrl = URL.createObjectURL(file)
+  let naturalWidth = 400
+  let naturalHeight = 300
+
+  try {
+    const img = new Image()
+    img.src = tempUrl
+    await new Promise((resolve) => {
+      img.onload = resolve
+      img.onerror = resolve
+    })
+    naturalWidth = img.naturalWidth || 400
+    naturalHeight = img.naturalHeight || 300
+  } catch { }
+
+  const maxWidth = 480
+  const maxHeight = 360
+  let targetWidth = naturalWidth
+  let targetHeight = naturalHeight
+  if (targetWidth > maxWidth || targetHeight > maxHeight) {
+    const scale = Math.min(maxWidth / targetWidth, maxHeight / targetHeight)
+    targetWidth = Math.round(targetWidth * scale)
+    targetHeight = Math.round(targetHeight * scale)
+  }
+
+  // 2. 核心交互升级：不再用全局 message 弹窗打扰！立即在画板视口中心落盘图片图元，并在图元本身呈现上传遮罩
+  let imageNode: any = null
+  if (props.board) {
+    imageNode = props.board.addImage({
+      url: tempUrl,
+      name: file.name,
+      width: targetWidth,
+      height: targetHeight,
+      status: 'uploading',
+    })
+    props.board.setDrawingMode('select')
+    emit('mode-change', { mode: 'select' })
+  }
+
+  // 后台上传执行与重试闭包
+  const executeUpload = async () => {
+    try {
+      if (imageNode && props.board) {
+        props.board.updateImageStatus(imageNode, 'uploading', { progress: 30, url: tempUrl })
+      }
+
+      let imageUrl = ''
+      let imageId = ''
+
+      if (props.uploadConfig?.uploadImage) {
+        const res = await props.uploadConfig.uploadImage(file)
+        imageUrl = res.url
+        imageId = res.id || ''
+      } else {
+        const uploader =
+          props.uploadConfig?.fileUploadSingle ||
+          speedComsConfig?.value?.apis?.fileUploadSingle
+
+        if (!uploader) {
+          throw new Error('未配置图片上传接口')
+        }
+
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const res = await uploader(formData)
+        const data = res?.data || res
+        imageId = data?.id || ''
+
+        const getPreviewUrl =
+          props.uploadConfig?.getPreviewUrl ||
+          speedComsConfig?.value?.apis?.getPreviewUrl
+
+        if (getPreviewUrl && imageId) {
+          imageUrl = getPreviewUrl(imageId)
+        } else if (data?.url) {
+          imageUrl = data.url
+        } else if (imageId) {
+          imageUrl = `/api/v1/attachment/public/preview/${imageId}`
+        } else {
+          throw new Error('上传返回数据缺少有效图片地址')
+        }
+      }
+
+      // 上传成功：图元就地无缝切换至远端真实图片地址，并自动撤除上传遮罩与进度条，直接显示最终图片
+      if (imageNode && props.board) {
+        props.board.updateImageStatus(imageNode, 'success', {
+          url: imageUrl,
+          id: imageId,
+          progress: 100,
+        })
+      }
+      try {
+        URL.revokeObjectURL(tempUrl)
+      } catch {}
+    } catch (err: any) {
+      console.error('Failed to upload image:', err)
+      // 失败：进度变红，右侧显示失败图标，左侧保留占位 logo
+      if (imageNode && props.board) {
+        props.board.updateImageStatus(imageNode, 'error', {
+          errorMessage: err?.message || '图片上传失败',
+          retry: executeUpload,
+        })
+      }
+    } finally {
+      imageUploading.value = false
+    }
+  }
+
+  executeUpload()
 }
 </script>
 
