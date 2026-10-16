@@ -68,7 +68,25 @@
               @update:model-value="(op) => updateStyle({ opacity: op })"
             />
 
-            <div v-if="section !== 'opacity'" class="panel-divider" />
+            <!-- 思维导图结构布局 -->
+            <MindmapLayoutSetter
+              v-else-if="section === 'mindmap-layout'"
+              :board="props.board"
+            />
+
+            <!-- 思维导图节点形状与外观 -->
+            <MindmapNodeSetter
+              v-else-if="section === 'mindmap-node'"
+              :board="props.board"
+            />
+
+            <!-- 思维导图分支与彩虹色 -->
+            <MindmapBranchSetter
+              v-else-if="section === 'mindmap-branch'"
+              :board="props.board"
+            />
+
+            <div v-if="section !== 'opacity' && section !== 'mindmap-branch'" class="panel-divider" />
           </div>
         </template>
 
@@ -140,6 +158,9 @@ import ShapePreviewSetter from './setters/ShapePreviewSetter.vue'
 import LineStyleSetter from './setters/LineStyleSetter.vue'
 import LinkSetter from './setters/LinkSetter.vue'
 import ArrangeSection from './setters/ArrangeSection.vue'
+import MindmapLayoutSetter from './setters/MindmapLayoutSetter.vue'
+import MindmapNodeSetter from './setters/MindmapNodeSetter.vue'
+import MindmapBranchSetter from './setters/MindmapBranchSetter.vue'
 
 const props = withDefaults(
   defineProps<{

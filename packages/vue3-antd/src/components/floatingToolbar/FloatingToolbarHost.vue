@@ -150,9 +150,13 @@ import AlignItem from './items/AlignItem.vue'
 import BoldItem from './items/BoldItem.vue'
 import OpenPanelItem from './items/OpenPanelItem.vue'
 
+import { useBubbleMenu, type BubbleMenuContext } from '@speed-board/vue3'
+
 const props = defineProps<{
   board: Board | null
   containerEl?: HTMLElement | null
+  isTyping?: boolean
+  shouldShow?: (context: BubbleMenuContext) => boolean
 }>()
 
 const emit = defineEmits<{
@@ -160,19 +164,25 @@ const emit = defineEmits<{
   (e: 'open-link-overlay'): void
 }>()
 
-const toolbarRef = ref<HTMLElement | null>(null)
-const visible = ref(false)
-const currentType = ref('shape')
-const selectedCellData = ref<any>(null)
+const {
+  menuRef: toolbarRef,
+  visible,
+  currentType,
+  selectedCells,
+  updatePosition,
+} = useBubbleMenu({
+  board: () => props.board,
+  containerEl: () => props.containerEl,
+  isTyping: () => props.isTyping ?? false,
+  shouldShow: props.shouldShow,
+})
 
-const updateSelectedData = () => {
-  const cells = props.board?.graph.getSelectedCells() || []
-  if (cells.length === 1) {
-    selectedCellData.value = cells[0].getData() || {}
-  } else {
-    selectedCellData.value = null
+const selectedCellData = computed(() => {
+  if (selectedCells.value.length === 1) {
+    return selectedCells.value[0].getData() || {}
   }
-}
+  return null
+})
 
 const currentImageStatus = computed<'uploading' | 'error' | 'success' | null>(() => {
   if (currentType.value !== 'image') return null
@@ -180,9 +190,8 @@ const currentImageStatus = computed<'uploading' | 'error' | 'success' | null>(()
 })
 
 const handleImageRetry = () => {
-  const cells = props.board?.graph.getSelectedCells() || []
-  if (cells.length === 1) {
-    const data = cells[0].getData()
+  if (selectedCells.value.length === 1) {
+    const data = selectedCells.value[0].getData()
     if (typeof data?.retry === 'function') {
       data.retry()
     }
@@ -203,257 +212,6 @@ const shouldShowDivider = (item: string, idx: number) => {
   if (item === 'link' || item === 'text') return true
   return false
 }
-
-// 基于 @floating-ui/dom 构建 VirtualElement
-const virtualElement: VirtualElement = {
-  getBoundingClientRect() {
-    const cells = props.board?.graph.getSelectedCells() || []
-    if (cells.length === 0) {
-      return { x: 0, y: 0, top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }
-    }
-
-    if (cells.length === 1) {
-      const view = props.board?.graph.findViewByCell(cells[0])
-      if (view?.container) {
-        return view.container.getBoundingClientRect()
-      }
-    }
-
-    // 多选组合或兜底计算
-    const graph = props.board?.graph
-    if (!graph) return { x: 0, y: 0, top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }
-    const bbox = graph.getCellsBBox(cells)
-    if (!bbox) return { x: 0, y: 0, top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }
-
-    const p1 = graph.localToClient(bbox.x, bbox.y)
-    const p2 = graph.localToClient(bbox.x + bbox.width, bbox.y + bbox.height)
-    return {
-      x: p1.x,
-      y: p1.y,
-      top: p1.y,
-      left: p1.x,
-      width: p2.x - p1.x,
-      height: p2.y - p1.y,
-      right: p2.x,
-      bottom: p2.y,
-    }
-  },
-}
-
-let cleanupAutoUpdate: (() => void) | null = null
-const isInteracting = ref(false)
-
-const updatePosition = async () => {
-  const el = toolbarRef.value
-  if (!el || !props.board) return
-
-  if (isInteracting.value) {
-    visible.value = false
-    return
-  }
-
-  const cells = props.board.graph.getSelectedCells()
-  if (cells.length === 0) {
-    visible.value = false
-    teardownAutoUpdate()
-    return
-  }
-
-  // 1. 推断图元类型
-  if (cells.length > 1) {
-    currentType.value = 'multiple'
-  } else {
-    const cell = cells[0]
-    if (cell.isEdge()) {
-      currentType.value = 'line'
-    } else if (cell.shape === 'speed-image-node') {
-      currentType.value = 'image'
-      // 🌟 图片上传中或失败时，完全不展示上方悬浮条 (不在上面飞)
-      const data = cell.getData()
-      if (data?.status && data.status !== 'success') {
-        visible.value = false
-        teardownAutoUpdate()
-        return
-      }
-    } else if (cell.shape === 'speed-vector-polygon') {
-      currentType.value = 'vector'
-    } else if (props.board.isTextNode(cell)) {
-      currentType.value = 'text'
-    } else {
-      currentType.value = 'shape'
-    }
-  }
-
-  visible.value = true
-
-  // 2. 利用 floating-ui 精确计算屏幕坐标 (支持自动翻转 flip 与边界偏移 shift)
-  const boundary = props.containerEl || undefined
-  const { x, y } = await computePosition(virtualElement, el, {
-    placement: 'top',
-    strategy: 'fixed',
-    middleware: [
-      offset(12),
-      flip({
-        boundary,
-        fallbackPlacements: ['bottom', 'top'],
-      }),
-      shift({
-        boundary,
-        padding: 12,
-      }),
-    ],
-  })
-
-  el.style.left = `${Math.round(x)}px`
-  el.style.top = `${Math.round(y)}px`
-}
-
-const teardownAutoUpdate = () => {
-  if (cleanupAutoUpdate) {
-    cleanupAutoUpdate()
-    cleanupAutoUpdate = null
-  }
-}
-
-const setupAutoUpdate = () => {
-  teardownAutoUpdate()
-  if (toolbarRef.value) {
-    cleanupAutoUpdate = autoUpdate(virtualElement, toolbarRef.value, updatePosition, {
-      animationFrame: true, // 🌟 逐帧自适应跟随画布平移、滚轮缩放与节点拖拽
-    })
-  }
-}
-
-let cleanupEvents: (() => void) | null = null
-
-const bindEvents = (board: Board) => {
-  if (cleanupEvents) {
-    cleanupEvents()
-    cleanupEvents = null
-  }
-
-  const graph = board.graph
-
-  const onSelectionChange = () => {
-    updateSelectedData()
-    nextTick(() => {
-      const hasSelected = graph.getSelectedCells().length > 0
-      if (hasSelected) {
-        setupAutoUpdate()
-        updatePosition()
-      } else {
-        visible.value = false
-        teardownAutoUpdate()
-      }
-    })
-  }
-
-  const onCellChange = () => {
-    updateSelectedData()
-    if (visible.value) {
-      updatePosition()
-    }
-  }
-
-  const onDragStart = () => {
-    isInteracting.value = true
-    visible.value = false
-  }
-
-  const onDragEnd = () => {
-    if (isInteracting.value) {
-      isInteracting.value = false
-      nextTick(() => {
-        updatePosition()
-      })
-    }
-  }
-
-  graph.on('cell:selected', onSelectionChange)
-  graph.on('cell:unselected', onSelectionChange)
-  graph.on('selection:changed', onSelectionChange)
-  graph.on('node:change:position', onCellChange)
-  graph.on('node:change:size', onCellChange)
-  graph.on('node:change:data', onCellChange)
-  graph.on('cell:change:data', onCellChange)
-  graph.on('edge:change:vertices', onCellChange)
-  graph.on('edge:change:source', (args) => {
-    if (args?.options?.ui) onDragStart()
-    else onCellChange()
-  })
-  graph.on('edge:change:target', (args) => {
-    if (args?.options?.ui) onDragStart()
-    else onCellChange()
-  })
-  graph.on('edge:change:terminal', onCellChange)
-  graph.on('node:moving', onDragStart)
-  graph.on('node:moved', onDragEnd)
-  graph.on('node:resizing', onDragStart)
-  graph.on('node:resized', onDragEnd)
-  graph.on('scale', onCellChange)
-  graph.on('translate', onCellChange)
-
-  window.addEventListener('pointerup', onDragEnd)
-
-  cleanupEvents = () => {
-    window.removeEventListener('pointerup', onDragEnd)
-    graph.off('cell:selected', onSelectionChange)
-    graph.off('cell:unselected', onSelectionChange)
-    graph.off('selection:changed', onSelectionChange)
-    graph.off('node:change:position', onCellChange)
-    graph.off('node:change:size', onCellChange)
-    graph.off('node:change:data', onCellChange)
-    graph.off('cell:change:data', onCellChange)
-    graph.off('edge:change:vertices', onCellChange)
-    graph.off('edge:change:source')
-    graph.off('edge:change:target')
-    graph.off('edge:change:terminal', onCellChange)
-    graph.off('node:moving', onDragStart)
-    graph.off('node:moved', onDragEnd)
-    graph.off('node:resizing', onDragStart)
-    graph.off('node:resized', onDragEnd)
-    graph.off('scale', onCellChange)
-    graph.off('translate', onCellChange)
-  }
-}
-
-const checkInitialSelection = () => {
-  updateSelectedData()
-  if (props.board && props.board.graph.getSelectedCells().length > 0) {
-    setupAutoUpdate()
-    updatePosition()
-  }
-}
-
-onMounted(() => {
-  if (props.board) {
-    bindEvents(props.board)
-  }
-  nextTick(() => {
-    checkInitialSelection()
-  })
-})
-
-watch(
-  () => props.board,
-  (b) => {
-    if (b) {
-      bindEvents(b)
-      nextTick(() => {
-        checkInitialSelection()
-      })
-    }
-  },
-  { immediate: true }
-)
-
-onUnmounted(() => {
-  teardownAutoUpdate()
-  if (cleanupEvents) {
-    cleanupEvents()
-    cleanupEvents = null
-  }
-})
 </script>
 
 <style scoped lang="less">

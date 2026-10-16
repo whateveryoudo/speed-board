@@ -33,6 +33,9 @@ export type PanelSectionKey =
   | 'arrange-align'   // 图元多选对齐与分布
   | 'arrange-layer'   // 图层上下层叠
   | 'arrange-group'   // 成组、锁定、副本
+  | 'mindmap-layout'  // 思维导图结构布局
+  | 'mindmap-node'    // 思维导图节点形状与边框
+  | 'mindmap-branch'  // 思维导图分支与彩虹设置
 
 export interface NodeSchema {
   type: string
@@ -136,6 +139,21 @@ export const multipleSchema: NodeSchema = {
   },
 }
 
+/** 7. 思维导图 (Mindmap) —— 1:1 对齐语雀白板结构与分支设置 */
+export const mindmapSchema: NodeSchema = {
+  type: 'mindmap',
+  label: '思维导图',
+  quickToolbar: ['font-size', 'text-color', 'align-h', 'align-v', 'bold', 'link', 'open-panel'],
+  panel: {
+    tabs: ['style', 'text', 'arrange'],
+    sections: {
+      style: ['mindmap-layout', 'mindmap-node', 'mindmap-branch'],
+      text: ['typography', 'align', 'link'],
+      arrange: ['arrange-layer', 'arrange-group'],
+    },
+  },
+}
+
 export const schemaRegistry: Record<string, NodeSchema> = {
   shape: shapeSchema,
   image: imageSchema,
@@ -143,6 +161,7 @@ export const schemaRegistry: Record<string, NodeSchema> = {
   vector: vectorSchema,
   text: textSchema,
   multiple: multipleSchema,
+  mindmap: mindmapSchema,
 }
 
 /** 获取指定元素对应的 Schema */

@@ -12,6 +12,8 @@
     "@floating-ui/dom": "^1.8.0",
     "@speed-board/core": "workspace:*",
     "@speed-board/vue3": "workspace:*",
+    "@speed-board/shared": "workspace:*",
+    "@speed-board/extension-mindmap": "workspace:*",
     "ant-design-vue": "^4.2.0",
     "lodash-es": "^4.18.1",
     "speed-components-ui": "^1.1.5"

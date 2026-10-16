@@ -9,6 +9,7 @@ export type SelectedElementType =
   | 'image'
   | 'vector'
   | 'line'
+  | 'mindmap'
   | 'multiple'
 
 export interface BoardSelectionState {
@@ -62,6 +63,13 @@ export function useBoardSelection(source: BoardSource): BoardSelectionState {
 
     if (cell.isEdge()) {
       selectedType.value = 'line'
+      selectedShapeId.value = ''
+    } else if (
+      cell.shape === 'speed-mindmap-root' ||
+      cell.shape === 'speed-mindmap-node' ||
+      cell.getData()?.type === 'mindmap-node'
+    ) {
+      selectedType.value = 'mindmap'
       selectedShapeId.value = ''
     } else if (cell.shape === 'speed-image-node') {
       selectedType.value = 'image'

@@ -48,88 +48,103 @@ const yCells = ydoc.getMap('cells')
 
 ---
 
-## 三、 整体系统分层架构（延续 Tiptap / Sheet 插件化设计）
+## 三、 整体系统分层架构（对标 speed-sheet 跨框架/跨UI库标准架构）
 
 ```mermaid
-flowchart TB
-    subgraph UI_Layer ["UI 表现层 (@speed-board/vue3)"]
-        Toolbar["左侧工具栏 (Toolbar.vue)"]
-        FloatingTip["节点浮动工具条 (BubbleMenu.vue)"]
-        CanvasContainer["画布容器 (BoardCanvas.vue)"]
+flowchart TD
+    Shared["@speed-board/shared\n(93个标准图元库、图元 Schema、常量、基础几何类型)\n0 依赖，最底层数据契约"]
+
+    Core["@speed-board/core\n纯逻辑与内核底座\n(X6 宿主、TipTap/Sheet 风格 Extension/Command 系统、数据模型)\n0 框架与 DOM UI 依赖"]
+
+    View["@speed-board/view\n跨框架交互与几何运算引擎 (纯 TS，无框架依赖！)\n(手绘采样拟合、端口磁吸计算、浮动编辑器定位、虚影跟随预览)"]
+
+    subgraph Framework_Layer ["框架 Headless 适配层 (0 UI 库依赖)"]
+        Vue3["@speed-board/vue3\n1. Board.ts (TipTap Editor.ts 模式: markRaw + 响应式状态桥接)\n2. BoardCanvas.vue (主画布挂载容器)\n3. 4 大 Headless 交互层 (Drawing/Text/Ports/Placement)\n4. useBoard / useBoardState"]
+        React["@speed-board/react (规划中)\nReact useBoard Hook + 响应式适配"]
     end
 
-    subgraph Core_Layer ["内核层 (@speed-board/core) - 插件化驱动"]
-        Board["Board 核心实例 (生命周期/事件分发)"]
-        CommandManager["CommandManager (统一调度命令)"]
-        PluginSystem["Extension / Plugin 系统"]
-
-        subgraph Core_Extensions ["官方插件集"]
-            ExtShape["ShapeExtension (基础图形: 矩形/圆/菱形)"]
-            ExtEdge["EdgeExtension (曼哈顿折线/连线吸附)"]
-            ExtHistory["HistoryExtension (Yjs UndoManager)"]
-            ExtSnapline["SnaplineExtension (对齐辅助参考线)"]
-            ExtBubble["BubbleMenuExtension (浮动工具栏)"]
-            ExtSwimlane["SwimlaneExtension (后续扩展: 泳道容器)"]
-        end
+    subgraph UI_Layer ["产品 UI 套件层 (纯负责组件库组装与皮肤呈现)"]
+        Vue3Antd["@speed-board/vue3-antd\nAnt Design Vue 工具栏 + 属性面板 + 浮动栏 + 弹窗"]
+        Vue3Elem["@speed-board/vue3-elem (极易扩展)\nElement Plus 工具栏 + 属性面板"]
+        ReactAntd["@speed-board/react-antd (规划中)\nReact Ant Design 工具栏"]
     end
 
-    subgraph Engine_Layer ["底层图形引擎 (AntV X6)"]
-        X6Graph["X6 Graph 实例 (SVG / DOM / 矩阵平移缩放)"]
-        X6Events["X6 事件系统 (node:move, edge:connected)"]
-    end
-
-    subgraph Data_Layer ["数据与协同层 (Yjs CRDT)"]
-        YDoc["Y.Doc"]
-        YCells["Y.Map('cells') (所有图元实体)"]
-        Awareness["Awareness (多人鼠标光标/选中框)"]
-    end
-
-    UI_Layer -->|调度命令 / 监听状态| Board
-    Board --> PluginSystem
-    PluginSystem --> Core_Extensions
-    Core_Extensions -->|操控画布渲染| X6Graph
-    X6Events -->|捕获用户操作| Core_Extensions
-    Core_Extensions <-->|单向事务读写 / 监听变更| YCells
-    YDoc <-->|WebSocket Provider| 远程服务端
+    Shared --> Core
+    Shared --> View
+    Shared --> Vue3
+    Shared --> Vue3Antd
+    Shared --> Vue3Elem
+    Shared --> React
+    Core --> View
+    Core --> Vue3
+    View --> Vue3
+    Core --> React
+    View --> React
+    Vue3 --> Vue3Antd
+    Vue3 --> Vue3Elem
+    React --> ReactAntd
 ```
 
 ---
 
-## 四、 推荐项目目录结构（Monorepo）
+## 四、 项目目录结构（Monorepo）
 
 ```text
 speed-board/
 ├── packages/
-│   ├── core/                      # 纯 TypeScript 内核（类似 Sheet.ts / Editor.ts）
+│   ├── shared/                    # 零依赖公共数据契约与资产包 (@speed-board/shared)
 │   │   ├── src/
-│   │   │   ├── Board.ts           # 核心控制器（生命周期、X6实例、事件总线）
-│   │   │   ├── extension/         # 插件抽象与内置插件
-│   │   │   │   ├── Extension.ts   # 插件基类
-│   │   │   │   ├── core/
-│   │   │   │   │   ├── shapes/    # 矩形、椭圆、菱形、文本
-│   │   │   │   │   ├── edge/      # 连线、折线、箭头、磁吸桩
-│   │   │   │   │   ├── history/   # Yjs UndoManager 撤销重做
-│   │   │   │   │   └── snapline/  # 辅助对齐吸附线
-│   │   │   ├── commands/          # 命令集合（addShape, updateShape, deleteCells 等）
-│   │   │   ├── yjs/               # Yjs 绑定层（_initCollabSync、事务标记、origins）
+│   │   │   ├── types/             # geometry, nodes, interaction 基础契约
+│   │   │   ├── shapes/            # 93 个全量标准矢量图元库 (SHAPE_GROUPS, 纯数据)
+│   │   │   ├── constants/         # 调色盘预设、默认图形尺寸
 │   │   │   └── index.ts
 │   │   └── package.json
 │   │
-│   ├── vue3/                      # Vue3 适配层与 UI 组件
+│   ├── core/                      # 纯 TypeScript 内核（0 框架依赖）
 │   │   ├── src/
-│   │   │   ├── components/
-│   │   │   │   ├── BoardCanvas.vue     # 主画布承载组件
-│   │   │   │   ├── LeftToolbar.vue     # 左侧图元选择工具栏
-│   │   │   │   └── FloatingTip/        # 节点选中浮动工具条 (Bubble Bar)
-│   │   │   │       ├── ShapeTip.vue    # 图形专属 Tip (换颜色/形状/文字)
-│   │   │   │       ├── EdgeTip.vue     # 连线专属 Tip (改线型/箭头/文字)
-│   │   │   │       └── MultiSelectTip.vue # 多选批量对齐 Tip
-│   │   │   ├── composables/            # useBoard, useSelection, useAwareness
+│   │   │   ├── Board.ts           # 核心控制器（调度中枢，语法糖别名代理到 commands）
+│   │   │   ├── commands/          # TipTap 链式命令管理器 (CommandManager)
+│   │   │   ├── extension/         # 插件抽象与官方内置插件 (history, clipboard, selection, shape)
+│   │   │   ├── nodes/             # X6 自定义节点注册 (Shape, Text, Vector, Icon, Image)
+│   │   │   ├── operations/        # 领域操作算子 (shapeOps, textOps, imageOps, layoutOps)
 │   │   │   └── index.ts
 │   │   └── package.json
 │   │
-│   └── demos/
-│       └── vue3-demo/             # 本地开发与协同联调 Demo
+│   ├── view/                      # 跨框架视口与交互数学引擎（纯 TS，0 框架依赖）
+│   │   ├── src/
+│   │   │   ├── draw/              # 贝塞尔平滑拟合 (path-smoother.ts)
+│   │   │   ├── snapping/          # 边缘磁吸与对齐检测 (port-snapping.ts)
+│   │   │   ├── overlay/           # 浮动编辑器定位、4向连接桩坐标投影、虚影布局
+│   │   │   ├── types.ts           # 几何与交互通用类型定义
+│   │   │   └── index.ts
+│   │   └── package.json
+│   │
+│   ├── vue3/                      # Headless Vue 3 适配层（0 UI 库依赖）
+│   │   ├── src/
+│   │   │   ├── Board.ts           # TipTap Editor.ts 模式：markRaw + Vue 响应式状态桥接
+│   │   │   ├── components/        # 4 大无 UI 依赖的 Headless 核心交互图层
+│   │   │   │   ├── BoardCanvas.vue      # 画布挂载容器
+│   │   │   │   ├── DrawingOverlay.vue   # 涂鸦/钢笔/连线实时预览捕获层
+│   │   │   │   ├── InlineTextEditor.vue # 原地文本浮动输入框
+│   │   │   │   ├── ShapeAnchorPorts.vue # 4 方向磁吸桩与延伸手柄
+│   │   │   │   └── PlacementOverlay.vue # 鼠标跟随放置幽灵层
+│   │   │   ├── composables/       # useBoard 等响应式 hook
+│   │   │   └── index.ts
+│   │   └── package.json
+│   │
+│   └── vue3-antd/                 # Ant Design Vue 产品 UI 组件层
+│       ├── src/
+│       │   ├── components/
+│       │   │   ├── SpeedBoard.vue       # 开箱即用完整白板组件
+│       │   │   ├── TopToolbar.vue       # 顶部工具栏 (a-button, a-dropdown)
+│       │   │   ├── LeftToolbar.vue      # 左侧图元工具栏
+│       │   │   ├── StyleSettingsPanel.vue # 属性设置面板 (a-input-number, 颜色选择器)
+│       │   │   └── floatingToolbar/     # 节点选中浮动工具条
+│       │   └── index.ts
+│       └── package.json
+│
+├── demos/
+│   └── vue3-demo/                 # 本地开发与联调 Demo
 ├── pnpm-workspace.yaml
 └── package.json
 ```

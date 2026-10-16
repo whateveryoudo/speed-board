@@ -1,0 +1,18 @@
+{
+  "name": "@speed-board/view",
+  "version": "0.1.0",
+  "description": "Framework-agnostic board viewport and interaction engine — drawing, snapping, overlays",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "^1.8.0",
+    "@speed-board/core": "workspace:*",
+    "@speed-board/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

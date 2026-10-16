@@ -19,5 +19,5 @@ export { default as FloatingToolbarHost } from './components/floatingToolbar/Flo
 export * from './schema/nodeSchema'
 export * from './composables'
 export * from './data/defaultIcons'
-export * from './data/shapeLibrary'
 export * from '@speed-board/vue3'
+export * from '@speed-board/extension-mindmap'

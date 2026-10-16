@@ -108,6 +108,23 @@ export function useNodeStyle(getBoard: () => Board | null) {
         return
       }
 
+      if (
+        shape === 'speed-mindmap-root' ||
+        shape === 'speed-mindmap-node' ||
+        cell.getData()?.type === 'mindmap-node'
+      ) {
+        selectedType.value = 'mindmap'
+        const textData = board.getSelectedTextData()
+        if (textData) {
+          textState.value = { ...textState.value, ...textData }
+        }
+        const fill = (cell.getAttrByPath('body/fill') as string) || '#ffffff'
+        const stroke = (cell.getAttrByPath('body/stroke') as string) || '#374151'
+        const strokeWidth = (cell.getAttrByPath('body/strokeWidth') as number) || 2
+        styleState.value = { fill, stroke, strokeWidth, strokeDasharray: 'none', opacity: 1 }
+        return
+      }
+
       if (board.isTextNode(cell)) {
         selectedType.value = 'text'
         const textData = board.getSelectedTextData()

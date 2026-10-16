@@ -209,6 +209,52 @@
       background-size: 16px 16px !important;
     }
   }
+
+  // 思维导图节点选中态：仅保留右上角宽度调整手柄 (1:1 语雀白板外观)
+  &.is-mindmap-selected {
+    .x6-widget-transform {
+      border: 1.5px solid #1677ff !important;
+      border-radius: 4px !important;
+
+      // 隐藏其他所有手柄与旋转手柄
+      .x6-widget-transform-resize:not([data-position='top-right']) {
+        display: none !important;
+      }
+      .x6-widget-transform-rotate {
+        display: none !important;
+      }
+
+      // 右上角宽度缩放圆形手柄 (1:1 语雀白板外观)
+      .x6-widget-transform-resize[data-position='top-right'] {
+        display: block !important;
+        width: 10px !important;
+        height: 10px !important;
+        top: -5px !important;
+        right: -5px !important;
+        border-radius: 50% !important;
+        background-color: #ffffff !important;
+        border: 1.5px solid #6b7280 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18) !important;
+        cursor: ew-resize !important;
+        z-index: 10 !important;
+
+        &:hover {
+          border-color: #1677ff !important;
+          transform: scale(1.25) !important;
+        }
+      }
+    }
+  }
+
+  // 编辑态中：彻底隐藏思维导图与节点的 transform/selection 选框及手柄，杜绝与顶层编辑框产生双重边框与手柄重影错位
+  &.is-inline-editing {
+    .x6-widget-transform {
+      display: none !important;
+    }
+    .x6-widget-selection {
+      display: none !important;
+    }
+  }
 }
 
 // 图片图元就地上传中 Loading 旋转动画

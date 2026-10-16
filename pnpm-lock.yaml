@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@antv/hierarchy':
+        specifier: ^0.7.1
+        version: 0.7.1
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -69,6 +73,9 @@ importers:
       '@antv/x6-plugin-transform':
         specifier: ^2.1.8
         version: 2.1.8(@antv/x6@2.19.2)
+      '@speed-board/shared':
+        specifier: workspace:*
+        version: link:../shared
       y-protocols:
         specifier: ^1.0.6
         version: 1.0.7(yjs@13.6.33)
@@ -80,11 +87,61 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/extensions/extension-mindmap:
+    dependencies:
+      '@antv/hierarchy':
+        specifier: ^0.7.1
+        version: 0.7.1
+      '@antv/x6':
+        specifier: ^2.18.0
+        version: 2.19.2
+      '@speed-board/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@speed-board/shared':
+        specifier: workspace:*
+        version: link:../../shared
+      '@speed-board/view':
+        specifier: workspace:*
+        version: link:../../view
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/shared:
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/view:
+    dependencies:
+      '@floating-ui/dom':
+        specifier: ^1.8.0
+        version: 1.8.0
+      '@speed-board/core':
+        specifier: workspace:*
+        version: link:../core
+      '@speed-board/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/vue3:
     dependencies:
       '@speed-board/core':
         specifier: workspace:*
         version: link:../core
+      '@speed-board/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@speed-board/view':
+        specifier: workspace:*
+        version: link:../view
     devDependencies:
       typescript:
         specifier: ^5.6.0
@@ -107,6 +164,12 @@ importers:
       '@speed-board/core':
         specifier: workspace:*
         version: link:../core
+      '@speed-board/extension-mindmap':
+        specifier: workspace:*
+        version: link:../extensions/extension-mindmap
+      '@speed-board/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@speed-board/vue3':
         specifier: workspace:*
         version: link:../vue3
@@ -224,6 +287,9 @@ packages:
     resolution: {integrity: sha512-eCqY2unfZK6Fe02AwFlDHLfoyEFreP6rBwAZMIJ1LugmfMiVgwWDYlp1YsRugaPtICYOabV1iWxXdP12u9U43Q==}
     peerDependencies:
       vue: '>=3.0.3'
+
+  '@antv/hierarchy@0.7.1':
+    resolution: {integrity: sha512-7r22r+HxfcRZp79ZjGmsn97zgC1Iajrv0Mm9DIgx3lPfk+Kme2MG/+EKdZj1iEBsN0rJRzjWVPGL5YrBdVHchw==}
 
   '@antv/x6-common@2.0.17':
     resolution: {integrity: sha512-37g7vmRkNdYzZPdwjaMSZEGv/MMH0S4r70/Jwoab1mioycmuIBN73iyziX8m56BvJSDucZ3J/6DU07otWqzS6A==}
@@ -1779,6 +1845,8 @@ snapshots:
       '@ant-design/colors': 6.0.0
       '@ant-design/icons-svg': 4.6.0
       vue: 3.5.43(typescript@5.9.3)
+
+  '@antv/hierarchy@0.7.1': {}
 
   '@antv/x6-common@2.0.17':
     dependencies:

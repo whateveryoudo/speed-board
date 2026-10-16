@@ -1,2 +1,7 @@
 export * from './Board'
 export * from './extension/Extension'
+export * from './extension/types'
+export * from './commands/CommandManager'
+export * from './nodes'
+export * from './extension/core'
+export * from '@speed-board/shared'

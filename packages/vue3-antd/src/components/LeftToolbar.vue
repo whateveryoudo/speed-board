@@ -4,7 +4,7 @@
       <!-- 1. 主工具条悬浮胶囊 -->
       <div class="board-floating-capsule left-toolbar-capsule" @pointerdown.stop @click.stop>
         <!-- 图标 -->
-        <a-popover :align="{ offset: [10, 0] }" :arrow="false" v-model:open="iconPickerOpen" trigger="click"
+        <a-popover :align="{ offset: [10, 0] }" :arrow="false" :open="iconPickerOpen" trigger="click"
           placement="rightTop" :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"
           @update:open="onIconPickerOpenChange">
           <template #content>
@@ -27,7 +27,7 @@
         </a-tooltip>
 
         <!-- 1.2 画笔/随手画 (Popover 二级面板) -->
-        <a-popover v-model:open="brushPopoverOpen" trigger="click" placement="rightTop" :align="{ offset: [10, 0] }"
+        <a-popover :open="brushPopoverOpen" trigger="click" placement="rightTop" :align="{ offset: [10, 0] }"
           overlay-class-name="tool-sub-capsule-popover" :arrow="false"
           :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }" @update:open="onBrushOpenChange">
           <template #content>
@@ -57,7 +57,7 @@
               </a-tooltip>
 
               <!-- 2.4 线条粗细 (波浪线图标 + 粗细弹窗) -->
-              <a-popover v-model:open="widthPopoverOpen" trigger="click" placement="right"
+              <a-popover :open="widthPopoverOpen" trigger="click" placement="right"
                 :destroy-tooltip-on-hide="true" :arrow="false" :align="{ offset: [8, 0] }"
                 :overlay-inner-style="{ padding: '8px', borderRadius: '8px' }" @update:open="onWidthOpenChange">
                 <template #content>
@@ -82,7 +82,7 @@
               </a-popover>
 
               <!-- 2.5 颜色选择器 (圆点色块 + 调色板弹窗) -->
-              <a-popover v-model:open="colorPopoverOpen" trigger="click" placement="right"
+              <a-popover :open="colorPopoverOpen" trigger="click" placement="right"
                 :destroy-tooltip-on-hide="true" :arrow="false" :align="{ offset: [8, 0] }"
                 :overlay-inner-style="{ padding: '8px', borderRadius: '8px' }" @update:open="onColorOpenChange">
                 <template #content>
@@ -129,7 +129,7 @@
         </a-tooltip>
 
         <!-- 1.5 全量图形库选择器 (1:1 语雀白板风格 Popover) -->
-        <a-popover v-model:open="shapePickerOpen" trigger="click" placement="rightTop"
+        <a-popover :open="shapePickerOpen" trigger="click" placement="rightTop"
           overlay-class-name="shape-picker-popover-overlay" :arrow="false" :align="{ offset: [10, 0] }"
           :overlay-inner-style="{ padding: '0', borderRadius: '8px' }" @update:open="onShapeOpenChange">
           <template #content>
@@ -145,7 +145,7 @@
         </a-popover>
 
         <!-- 1.6 连线工具 (直线 / 曲线 / 折线) -->
-        <a-popover v-model:open="linePopoverOpen" trigger="click" placement="rightTop" :align="{ offset: [10, 0] }"
+        <a-popover :open="linePopoverOpen" trigger="click" placement="rightTop" :align="{ offset: [10, 0] }"
           overlay-class-name="tool-sub-capsule-popover" :arrow="false"
           :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }" @update:open="onLineOpenChange">
           <template #content>
@@ -185,7 +185,7 @@
         <!-- 1.7 思维导图 (Mindmap) -->
         <a-tooltip title="思维导图" placement="right">
           <a-button type="text" class="shadow-btn-wrapper"
-            :class="{ 'is-active': props.activePlacementType === 'basic' }" @click="onMindmapButtonClick">
+            :class="{ 'is-active': props.activePlacementType === 'mindmap' }" @click="onMindmapButtonClick">
             <SIconFont type="icon-kl-board-mindmap" :size="20" />
           </a-button>
         </a-tooltip>
@@ -563,7 +563,7 @@ const onTextButtonClick = () => {
 
 // 思维导图按钮点击：触发中心主题放置模式
 const onMindmapButtonClick = () => {
-  if (props.activePlacementType === 'basic') {
+  if (props.activePlacementType === 'mindmap') {
     emit('cancel-placement')
     return
   }
@@ -573,13 +573,13 @@ const onMindmapButtonClick = () => {
   linePopoverOpen.value = false
   currentTool.value = 'select'
   emit('start-placement', {
-    type: 'basic',
-    width: 120,
-    height: 60,
+    type: 'mindmap',
+    width: 110,
+    height: 42,
     basicConfig: {
       shape: 'rect',
-      text: '中心主题',
-      fill: '#ede9fe',
+      text: '思维导图',
+      fill: '#f3f4f6',
       stroke: '#8b5cf6',
     },
   })

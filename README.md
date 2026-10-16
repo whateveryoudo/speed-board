@@ -14,23 +14,40 @@
 ```text
 speed-board/
 ├── packages/
-│   ├── core/                      # 纯 TypeScript 内核 (@speed-board/core)
+│   ├── shared/                    # 零依赖公共数据契约与资产包 (@speed-board/shared)
 │   │   ├── src/
-│   │   │   ├── Board.ts           # 核心控制器 (Yjs Doc/Map, 扩展注册)
-│   │   │   ├── extension/         # 插件抽象 Extension 基类
-│   │   │   └── index.ts
+│   │   │   ├── types/             # 几何类型、图元 Schema、交互契约
+│   │   │   ├── shapes/            # 93 个全量标准矢量图元库 (SHAPE_GROUPS)
+│   │   │   └── constants/         # 调色盘预设、默认图形尺寸
+│   │   └── package.json
+│   │
+│   ├── core/                      # 纯 TypeScript 内核 (@speed-board/core, 0 框架依赖)
+│   │   ├── src/
+│   │   │   ├── Board.ts           # 调度中枢控制器 (commands 语法糖)
+│   │   │   ├── commands/          # TipTap 链式命令管理器
+│   │   │   ├── extension/         # 插件抽象与内置插件执行体 (history, clipboard, selection, shape)
+│   │   │   ├── nodes/             # X6 节点驱动定义 (shape, text, vector, icon, image)
+│   │   │   └── operations/        # 领域操作算子 (shapeOps, textOps, layoutOps)
+│   │   └── package.json
+│   │
+│   ├── view/                      # 跨框架视口与几何运算引擎 (@speed-board/view, 纯 TS 无框架依赖)
+│   │   ├── src/
+│   │   │   ├── draw/              # 贝塞尔平滑拟合 (path-smoother.ts)
+│   │   │   ├── snapping/          # 边缘磁吸与对齐检测 (port-snapping.ts)
+│   │   │   └── overlay/           # 浮动编辑器定位、4向连接桩坐标投影、虚影布局
 │   │   └── package.json
 │   │
 │   ├── vue3/                      # Headless Vue 3 适配层 (@speed-board/vue3, 0 UI库依赖)
 │   │   ├── src/
-│   │   │   ├── components/        # BoardCanvas 基础画布容器
+│   │   │   ├── Board.ts           # TipTap Editor.ts 模式：markRaw + Vue 响应式状态桥接
+│   │   │   ├── components/        # 4 大 Headless 核心交互图层 (Drawing/Text/Ports/Placement)
 │   │   │   ├── composables/       # useBoard 等响应式 Hooks
 │   │   │   └── index.ts
 │   │   └── package.json
 │   │
 │   └── vue3-antd/                 # 产品 UI 组件层 (@speed-board/vue3-antd)
 │       ├── src/
-│       │   ├── components/        # SpeedBoard 完整白板组件 (工具栏、浮动气泡菜单)
+│       │   ├── components/        # SpeedBoard 完整 Ant Design 白板 (工具栏、属性面板、浮动气泡菜单)
 │       │   └── index.ts
 │       └── package.json
 │
