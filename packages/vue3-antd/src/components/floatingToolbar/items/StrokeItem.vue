@@ -2,7 +2,7 @@
   <a-popover
     v-model:open="isOpen"
     trigger="click"
-    placement="bottom"
+    placement="top"
     :arrow="false"
     overlay-class-name="quick-bubble-popover"
     :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
@@ -52,7 +52,7 @@
           <a-popover
             v-model:open="colorOpen"
             trigger="click"
-            placement="bottom"
+            placement="top"
             :arrow="false"
             overlay-class-name="quick-bubble-popover"
             :overlay-inner-style="{ padding: '12px 14px', borderRadius: '10px' }"
@@ -79,7 +79,7 @@
       </div>
     </template>
 
-    <a-tooltip title="描边" placement="top" :open="isOpen ? false : undefined">
+    <a-tooltip title="描边" placement="bottom" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="9" />
@@ -202,9 +202,6 @@ const onColorSelect = (c: string) => {
 .dash-switch-row {
   display: flex;
   align-items: center;
-  background-color: #f3f4f6;
-  border-radius: 6px;
-  padding: 2px;
   gap: 4px;
 }
 
@@ -223,13 +220,13 @@ const onColorSelect = (c: string) => {
 }
 
 .dash-btn:hover {
+  background-color: #f3f4f6;
   color: #111827;
 }
 
 .dash-btn.is-active {
-  background-color: #ffffff;
+  background-color: #e5e7eb;
   color: #111827;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .stroke-divider {

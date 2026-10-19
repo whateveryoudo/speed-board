@@ -75,9 +75,48 @@
             fontWeight: '600',
             color: '#1f2937',
             userSelect: 'none',
+            position: 'relative',
           }"
         >
           <span>{{ props.pendingPlacement.basicConfig.text }}</span>
+
+          <!-- 思维导图拖拽放置虚影：右侧同步展示连接线与加号手柄，与放下后 1:1 视觉对齐 -->
+          <div
+            v-if="props.pendingPlacement.type === 'mindmap'"
+            class="ghost-mindmap-handle"
+            :style="{
+              position: 'absolute',
+              left: '100%',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              pointerEvents: 'none',
+            }"
+          >
+            <!-- 边缘吸附小圆点 -->
+            <div :style="{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#8b5cf6', marginLeft: '-4px' }" />
+            <!-- 向外微型分支引导线 -->
+            <div :style="{ width: '14px', height: '3px', backgroundColor: '#8b5cf6', borderRadius: '1.5px' }" />
+            <!-- 圆形加号按钮 -->
+            <div
+              :style="{
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                backgroundColor: '#8b5cf6',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+              }"
+            >
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2Z" />
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
     </transition>

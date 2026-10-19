@@ -2,7 +2,7 @@
   <a-popover
     v-model:open="isOpen"
     trigger="click"
-    placement="bottom"
+    placement="top"
     :arrow="false"
     overlay-class-name="quick-bubble-popover"
     :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
@@ -63,7 +63,7 @@
           <a-popover
             v-model:open="colorOpen"
             trigger="click"
-            placement="bottom"
+            placement="top"
             :arrow="false"
             overlay-class-name="quick-bubble-popover"
             :overlay-inner-style="{ padding: '12px 14px', borderRadius: '10px' }"
@@ -81,43 +81,150 @@
             </button>
           </a-popover>
 
-          <!-- 水平对齐切换 (循环切换: left -> center -> right) -->
-          <button class="cycle-align-btn" title="水平对齐" @click="cycleHorizontalAlign">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <template v-if="textState.align === 'center'">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="6" y1="12" x2="18" y2="12" />
-                <line x1="4" y1="18" x2="20" y2="18" />
-              </template>
-              <template v-else-if="textState.align === 'right'">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="9" y1="12" x2="21" y2="12" />
-                <line x1="6" y1="18" x2="21" y2="18" />
-              </template>
-              <template v-else>
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="15" y2="12" />
-                <line x1="3" y1="18" x2="18" y2="18" />
-              </template>
-            </svg>
-          </button>
+          <!-- 水平对齐切换 (1:1 语雀二级下拉选择: 左对齐 / 居中对齐 / 右对齐 / 两端对齐) -->
+          <a-popover
+            v-model:open="alignOpen"
+            trigger="click"
+            placement="top"
+            :arrow="false"
+            overlay-class-name="quick-bubble-popover"
+            :overlay-inner-style="{ padding: '4px', borderRadius: '8px' }"
+          >
+            <template #content>
+              <div class="align-dropdown-menu">
+                <div
+                  v-for="opt in alignOptions"
+                  :key="opt.value"
+                  class="align-dropdown-item"
+                  :class="{ 'is-selected': (textState.align || 'center') === opt.value }"
+                  @click="onSelectAlign(opt.value)"
+                >
+                  <span class="check-icon">
+                    <svg
+                      v-if="(textState.align || 'center') === opt.value"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#10b981"
+                      stroke-width="2.5"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  <span class="align-opt-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <template v-if="opt.value === 'center'">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="6" y1="12" x2="18" y2="12" />
+                        <line x1="4" y1="18" x2="20" y2="18" />
+                      </template>
+                      <template v-else-if="opt.value === 'right'">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="9" y1="12" x2="21" y2="12" />
+                        <line x1="6" y1="18" x2="21" y2="18" />
+                      </template>
+                      <template v-else-if="opt.value === 'justify'">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                      </template>
+                      <template v-else>
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="15" y2="12" />
+                        <line x1="3" y1="18" x2="18" y2="18" />
+                      </template>
+                    </svg>
+                  </span>
+                  <span class="align-opt-label">{{ opt.label }}</span>
+                </div>
+              </div>
+            </template>
+            <button class="cycle-align-btn" title="水平对齐" :class="{ 'is-active': alignOpen }">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <template v-if="textState.align === 'center'">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="6" y1="12" x2="18" y2="12" />
+                  <line x1="4" y1="18" x2="20" y2="18" />
+                </template>
+                <template v-else-if="textState.align === 'right'">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="9" y1="12" x2="21" y2="12" />
+                  <line x1="6" y1="18" x2="21" y2="18" />
+                </template>
+                <template v-else-if="textState.align === 'justify'">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </template>
+                <template v-else>
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="15" y2="12" />
+                  <line x1="3" y1="18" x2="18" y2="18" />
+                </template>
+              </svg>
+            </button>
+          </a-popover>
 
-          <!-- 垂直对齐切换 (循环切换: top -> middle -> bottom) -->
-          <button class="cycle-align-btn" title="垂直对齐" @click="cycleVerticalAlign">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5" />
-              <path v-if="textState.verticalAlign === 'top'" d="M12 7v13M8 11l4-4 4 4" />
-              <path v-else-if="textState.verticalAlign === 'bottom'" d="M12 17V4M8 13l4 4 4-4" />
-              <path v-else d="M12 5v14M8 8l4-3 4 3M8 16l4 3 4-3" />
-            </svg>
-          </button>
+          <!-- 垂直对齐切换 (1:1 语雀二级下拉选择: 顶部对齐 / 居中对齐 / 底部对齐) -->
+          <a-popover
+            v-model:open="valignOpen"
+            trigger="click"
+            placement="top"
+            :arrow="false"
+            overlay-class-name="quick-bubble-popover"
+            :overlay-inner-style="{ padding: '4px', borderRadius: '8px' }"
+          >
+            <template #content>
+              <div class="align-dropdown-menu">
+                <div
+                  v-for="opt in valignOptions"
+                  :key="opt.value"
+                  class="align-dropdown-item"
+                  :class="{ 'is-selected': (textState.verticalAlign || 'middle') === opt.value }"
+                  @click="onSelectValign(opt.value)"
+                >
+                  <span class="check-icon">
+                    <svg
+                      v-if="(textState.verticalAlign || 'middle') === opt.value"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#10b981"
+                      stroke-width="2.5"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  <span class="align-opt-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5" />
+                      <path v-if="opt.value === 'top'" d="M12 7v13M8 11l4-4 4 4" />
+                      <path v-else-if="opt.value === 'bottom'" d="M12 17V4M8 13l4 4 4-4" />
+                      <path v-else d="M12 5v14M8 8l4-3 4 3M8 16l4 3 4-3" />
+                    </svg>
+                  </span>
+                  <span class="align-opt-label">{{ opt.label }}</span>
+                </div>
+              </div>
+            </template>
+            <button class="cycle-align-btn" title="垂直对齐" :class="{ 'is-active': valignOpen }">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5" />
+                <path v-if="textState.verticalAlign === 'top'" d="M12 7v13M8 11l4-4 4 4" />
+                <path v-else-if="textState.verticalAlign === 'bottom'" d="M12 17V4M8 13l4 4 4-4" />
+                <path v-else d="M12 5v14M8 8l4-3 4 3M8 16l4 3 4-3" />
+              </svg>
+            </button>
+          </a-popover>
         </div>
       </div>
     </template>
 
     <a-tooltip title="文本" placement="top" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
-        <span class="t-icon">T</span>
+        <SIconFont type="icon-kl-text" :size="18"/>
       </button>
     </a-tooltip>
   </a-popover>
@@ -129,6 +236,8 @@ import { Popover as APopover, Tooltip as ATooltip, Select as ASelect } from 'ant
 import type { Board } from '@speed-board/core'
 import ColorTonePicker from '../../ColorTonePicker.vue'
 import { useNodeStyle } from '../../../composables/useNodeStyle'
+import { IconFont as SIconFont } from 'speed-components-ui/components'
+
 
 const props = defineProps<{
   board: Board | null
@@ -136,6 +245,8 @@ const props = defineProps<{
 
 const isOpen = ref(false)
 const colorOpen = ref(false)
+const alignOpen = ref(false)
+const valignOpen = ref(false)
 const { textState, updateTextStyle } = useNodeStyle(() => props.board)
 
 const fontSizeOptions = [
@@ -145,6 +256,19 @@ const fontSizeOptions = [
   { label: '18px', value: 18 },
   { label: '24px', value: 24 },
   { label: '32px', value: 32 },
+]
+
+const alignOptions = [
+  { label: '左对齐', value: 'left' },
+  { label: '居中对齐', value: 'center' },
+  { label: '右对齐', value: 'right' },
+  { label: '两端对齐', value: 'justify' },
+]
+
+const valignOptions = [
+  { label: '顶部对齐', value: 'top' },
+  { label: '居中对齐', value: 'middle' },
+  { label: '底部对齐', value: 'bottom' },
 ]
 
 const toggleBold = () => {
@@ -171,16 +295,14 @@ const onTextColorSelect = (color: string) => {
   updateTextStyle({ fill: color })
 }
 
-const cycleHorizontalAlign = () => {
-  const current = textState.value.align || 'left'
-  const next = current === 'left' ? 'center' : current === 'center' ? 'right' : 'left'
-  updateTextStyle({ align: next })
+const onSelectAlign = (val: string) => {
+  updateTextStyle({ align: val })
+  alignOpen.value = false
 }
 
-const cycleVerticalAlign = () => {
-  const current = textState.value.verticalAlign || 'middle'
-  const next = current === 'top' ? 'middle' : current === 'middle' ? 'bottom' : 'top'
-  updateTextStyle({ verticalAlign: next })
+const onSelectValign = (val: string) => {
+  updateTextStyle({ verticalAlign: val })
+  valignOpen.value = false
 }
 </script>
 
@@ -224,20 +346,18 @@ const cycleVerticalAlign = () => {
 .format-btn-row {
   display: flex;
   align-items: center;
-  background-color: #f3f4f6;
-  border-radius: 6px;
-  padding: 2px;
-  gap: 2px;
+  justify-content: space-between;
+  gap: 4px;
 }
 
 .fmt-btn {
   flex: 1;
-  height: 24px;
+  height: 28px;
   border: none;
   background: transparent;
   border-radius: 4px;
   font-size: 13px;
-  color: #4b5563;
+  color: #374151;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -246,14 +366,14 @@ const cycleVerticalAlign = () => {
 }
 
 .fmt-btn:hover {
+  background-color: #f3f4f6;
   color: #111827;
 }
 
 .fmt-btn.is-active {
-  background-color: #ffffff;
-  color: #10b981;
+  background-color: #e5e7eb;
+  color: #111827;
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .fmt-btn.is-bold { font-weight: bold; }
@@ -270,6 +390,7 @@ const cycleVerticalAlign = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 4px;
 }
 
 .font-select {
@@ -282,8 +403,8 @@ const cycleVerticalAlign = () => {
 }
 
 .text-color-btn {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   display: flex;
@@ -292,10 +413,15 @@ const cycleVerticalAlign = () => {
   justify-content: center;
   cursor: pointer;
   border-radius: 4px;
+  transition: all 0.15s ease;
 }
 
 .text-color-btn:hover {
   background-color: #f3f4f6;
+}
+
+.text-color-btn.is-active {
+  background-color: #e5e7eb;
 }
 
 .a-letter {
@@ -313,12 +439,12 @@ const cycleVerticalAlign = () => {
 }
 
 .cycle-align-btn {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   border-radius: 4px;
-  color: #4b5563;
+  color: #374151;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -329,5 +455,61 @@ const cycleVerticalAlign = () => {
 .cycle-align-btn:hover {
   background-color: #f3f4f6;
   color: #111827;
+}
+
+.cycle-align-btn.is-active {
+  background-color: #e5e7eb;
+  color: #111827;
+}
+
+.align-dropdown-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 116px;
+  gap: 2px;
+}
+
+.align-dropdown-item {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.align-dropdown-item:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.align-dropdown-item.is-selected {
+  font-weight: 500;
+  color: #111827;
+}
+
+.check-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+
+.align-opt-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  color: #4b5563;
+}
+
+.align-opt-label {
+  flex: 1;
 }
 </style>

@@ -116,7 +116,7 @@ export const vectorSchema: NodeSchema = {
 export const textSchema: NodeSchema = {
   type: 'text',
   label: '文本',
-  quickToolbar: ['font-size', 'text-color', 'align-h', 'align-v', 'bold', 'link', 'open-panel'],
+  quickToolbar: ['text', 'link', 'open-panel'],
   panel: {
     tabs: ['text', 'arrange'],
     sections: {
@@ -143,7 +143,7 @@ export const multipleSchema: NodeSchema = {
 export const mindmapSchema: NodeSchema = {
   type: 'mindmap',
   label: '思维导图',
-  quickToolbar: ['font-size', 'text-color', 'align-h', 'align-v', 'bold', 'link', 'open-panel'],
+  quickToolbar: ['text', 'link', 'open-panel'],
   panel: {
     tabs: ['style', 'text', 'arrange'],
     sections: {

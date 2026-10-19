@@ -2,7 +2,7 @@
   <a-popover
     v-model:open="isOpen"
     trigger="click"
-    placement="bottom"
+    placement="top"
     :arrow="false"
     overlay-class-name="quick-bubble-popover"
     :overlay-inner-style="{ padding: '10px 12px', borderRadius: '8px' }"
@@ -25,7 +25,7 @@
       </div>
     </template>
 
-    <a-tooltip title="图形" placement="top" :open="isOpen ? false : undefined">
+    <a-tooltip title="图形" placement="bottom" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
         <div class="trigger-shape-svg" v-html="currentShapeSvg" />
       </button>
@@ -160,8 +160,8 @@ const onSelect = (shape: ShapeDefinition) => {
 }
 
 .shape-item-btn.is-active {
-  background-color: #e6f4ea;
-  color: #10b981;
+  background-color: #e5e7eb;
+  color: #111827;
 }
 
 .shape-svg-icon {

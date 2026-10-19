@@ -209,7 +209,7 @@ const activeSchema = computed<NodeSchema>(() => {
 const shouldShowDivider = (item: string, idx: number) => {
   if (idx === 0) return false
   if (item === 'open-panel') return true
-  if (item === 'link' || item === 'text') return true
+  if (item === 'fill') return true
   return false
 }
 </script>

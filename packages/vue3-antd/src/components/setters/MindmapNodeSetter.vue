@@ -14,7 +14,6 @@
         <a-select-option value="none">纯文本(无边框)</a-select-option>
         <a-select-option value="capsule">胶囊</a-select-option>
         <a-select-option value="rect">矩形</a-select-option>
-        <a-select-option value="underline">下划线</a-select-option>
       </a-select>
     </div>
 
@@ -105,7 +104,9 @@ const cellData = computed(() => {
 })
 
 const currentShapeStyle = computed<MindmapShapeStyle>(() => {
-  return cellData.value.shapeStyle || 'none'
+  const style = cellData.value.shapeStyle
+  if (style === 'underline') return 'none'
+  return style || 'none'
 })
 
 const currentFill = computed(() => {

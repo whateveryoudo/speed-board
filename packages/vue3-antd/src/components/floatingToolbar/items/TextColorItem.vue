@@ -2,7 +2,7 @@
   <a-popover
     v-model:open="isOpen"
     trigger="click"
-    placement="bottom"
+    placement="top"
     :arrow="false"
     overlay-class-name="quick-bubble-popover"
     :overlay-inner-style="{ padding: '12px 14px', borderRadius: '10px' }"
@@ -15,7 +15,7 @@
       />
     </template>
 
-    <a-tooltip title="文字颜色" placement="top" :open="isOpen ? false : undefined">
+    <a-tooltip title="文字颜色" placement="bottom" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
         <span class="a-letter">A</span>
         <span class="color-underline" :style="{ backgroundColor: currentColor }" />

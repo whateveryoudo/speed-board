@@ -47,8 +47,8 @@ const toggleBold = () => {
 }
 
 .bubble-toolbar-btn.is-active {
-  background-color: #e6f4ea;
-  color: #10b981;
+  background-color: #e5e7eb;
+  color: #111827;
 }
 
 .bold-b {

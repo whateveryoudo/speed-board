@@ -242,8 +242,11 @@ export function insertMindmap(board: Board, options: InsertMindmapOptions): stri
   const rootId = `mindmap-${Date.now()}`
   const initText = options.text || '思维导图'
   const initWidth = calculateMindmapNodeWidth(initText, true)
-  const x = Math.round(options.x - initWidth / 2)
-  const y = Math.round(options.y - 21)
+  // 如果调用方已传入精确左上角坐标 (如 PlacementOverlay 计算的 targetX, targetY)，直接采用；
+  // 若未传入则默认在当前视口中心居中放置
+  const center = board.getViewportCenter()
+  const x = options.x != null ? Math.round(options.x) : Math.round(center.x - initWidth / 2)
+  const y = options.y != null ? Math.round(options.y) : Math.round(center.y - 21)
 
   // 1. 创建中心主题根节点
   const rootNode = graph.addNode({

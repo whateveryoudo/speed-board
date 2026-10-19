@@ -2,7 +2,7 @@
   <a-popover
     v-model:open="isOpen"
     trigger="click"
-    placement="bottom"
+    placement="top"
     :arrow="false"
     overlay-class-name="quick-bubble-popover"
     :overlay-inner-style="{ padding: '4px', borderRadius: '8px' }"
@@ -42,7 +42,7 @@
       </div>
     </template>
 
-    <a-tooltip title="线型" placement="top" :open="isOpen ? false : undefined">
+    <a-tooltip title="线型" placement="bottom" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
         <svg v-if="currentType === 'elbow'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="4 20 12 20 12 4 20 4" />
@@ -129,7 +129,7 @@ const selectType = (t: 'straight' | 'elbow' | 'curve') => {
 }
 
 .line-type-btn.is-active {
-  background-color: #e6f4ea;
-  color: #10b981;
+  background-color: #e5e7eb;
+  color: #111827;
 }
 </style>

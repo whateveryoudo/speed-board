@@ -185,3 +185,35 @@
 
 
 
+
+
+---
+
+## 四、思维导图与浮动工具栏交互重构（2026-10-20 迭代）
+
+### 1. 思维导图拖拽放置偏移彻底修复
+- **根因**: `PlacementOverlay.vue` 已计算好左上角目标坐标 `targetX, targetY`，但在 `mindmapCommands.ts` 的 `insertMindmap` 内部又二次减去了 `initWidth / 2` 和 `height / 2`，导致放下瞬间节点向左上方突兀漂移。
+- **修复**: 优先使用传入的准确定位坐标；在 `LeftToolbar.vue` 拖拽开始时通过 `calculateMindmapNodeWidth` 预先精确计算文字宽度；拖拽遮罩内 1:1 渲染右侧分支引线与 `+` 句柄，彻底消除放下前后的形变和位移跳变。
+
+### 2. 思维导图分支 `+` 句柄键盘移动跟随修复
+- **根因**: `MindmapBranchHandle.vue` 在组件挂载时 `props.board` 可能尚未初始化完成，且未对 `board` 变化做响应式 `watch` 监听，导致坐标监听未能生效。
+- **修复**: 补充 `watch(() => props.board)` 挂载与卸载逻辑；引入 `@floating-ui/dom` 的 `autoUpdate(..., { animationFrame: true })`，确保键盘上下左右方向键移动节点、画布拖拽平移、缩放、滚轮滚动时，`+` 句柄在每一帧均 100% 紧贴节点右侧无缝跟随。
+
+### 3. 浮动工具栏二级气泡化改造 (1:1 语雀交互)
+- 针对此前文字工具（字号、对齐、加粗）在浮动工具栏中平铺过长的问题，在 `nodeSchema.ts` 中将文本相关功能收拢归一为 `'text'`。
+- 封装全新 `TextFormatItem.vue` 二级气泡，内含 `B I S U`、字号选择、文字颜色拾取器、以及 1:1 语雀风格的对齐下拉弹层（左/中/右/两端对齐与顶/中/底下拉选择）。
+
+### 4. 二级气泡向上展开（避免遮挡节点主体）
+- 浮动工具栏本身位于选中节点上方，若二级气泡向下展开会直接压在被编辑节点与 `+` 句柄上。
+- 将 `TextFormatItem.vue` 及其内部嵌套弹层、以及全量快捷工具项（填充色、描边、图形、线型、箭头、不透明度）的 `placement` 统一调整为 `"top"`（向上展开），保证被编辑节点主体始终清晰可见。
+
+### 5. 移除思维导图「下划线」节点形状
+- 在右侧属性面板 `MindmapNodeSetter.vue` 中移除了不适用的「下划线」选项，仅保留纯文本、胶囊、矩形三种高频形态，并对历史数据自动回退为纯文本。
+
+### 6. 按钮组样式重构（对标 `speed-editor` 选中态）
+- 移除了原组件在浅灰底包裹框中「选中为白底+绿字」低对比度且突兀的样式。
+- 全面对标 `speed-editor` 的高亮交互规范：未选中透明、Hover 呈现 `#f3f4f6`、选中呈现实色浅灰填充 `#e5e7eb` 搭配加深文字 `#111827`。
+- 覆盖浮动工具栏 `B I S U`、字号与对齐按钮，以及右侧设置面板 `TypographySetter.vue`、`TextAlignSetter.vue`、`LineStyleSetter.vue`、`StrokeSetter.vue`。
+
+### 7. 右侧属性面板 Tab 升级为 Ant Design Vue 原生 `<a-tabs>`
+- 将 `StyleSettingsPanel.vue` 中原手写的 `div.panel-tabs` 和手写绿色下划线升级为 Ant Design Vue 原生 `<a-tabs>` / `<a-tab-pane>`，保留 ink bar 平滑滑动动效，与全局主题色完全统一。

@@ -134,20 +134,17 @@ const fontSizeOptions = [
 .text-format-btn-group {
   display: flex;
   align-items: center;
-  background-color: #f3f4f6;
-  border-radius: 6px;
-  padding: 3px;
   gap: 4px;
 }
 
 .fmt-btn {
   flex: 1;
-  height: 28px;
+  height: 30px;
   border: none;
   background: transparent;
   border-radius: 4px;
   font-size: 13px;
-  color: #4b5563;
+  color: #374151;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -156,15 +153,14 @@ const fontSizeOptions = [
 }
 
 .fmt-btn:hover {
-  background-color: #e5e7eb;
+  background-color: #f3f4f6;
   color: #111827;
 }
 
 .fmt-btn.is-active {
-  background-color: #ffffff;
-  color: #10b981;
+  background-color: #e5e7eb;
+  color: #111827;
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .fmt-btn.is-bold {

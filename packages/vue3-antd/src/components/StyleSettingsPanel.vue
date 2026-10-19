@@ -9,17 +9,19 @@
         </button>
       </div>
 
-      <!-- 2. 一级分类选项卡 (根据当前图元 Schema 动态计算) -->
-      <div class="panel-tabs">
-        <div
-          v-for="tab in availableTabs"
-          :key="tab.key"
-          class="tab-item"
-          :class="{ 'is-active': activeTab === tab.key }"
-          @click="activeTab = tab.key"
+      <!-- 2. 一级分类选项卡 (根据当前图元 Schema 动态计算，使用 a-tabs) -->
+      <div class="panel-tabs-wrapper">
+        <a-tabs
+          v-model:activeKey="activeTab"
+          size="small"
+          class="panel-ant-tabs"
         >
-          {{ tab.label }}
-        </div>
+          <a-tab-pane
+            v-for="tab in availableTabs"
+            :key="tab.key"
+            :tab="tab.label"
+          />
+        </a-tabs>
       </div>
 
       <!-- 3. 面板主体 (根据当前图元 Schema 动态加载对应的原子 Setter) -->
@@ -146,6 +148,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { CloseOutlined } from '@ant-design/icons-vue'
+import { Tabs as ATabs, TabPane as ATabPane } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import { getNodeSchema, type PanelTabKey, type PanelSectionKey } from '../schema/nodeSchema'
 import { useNodeStyle } from '../composables/useNodeStyle'
@@ -309,43 +312,18 @@ watch(
   background-color: #f3f4f6;
 }
 
-.panel-tabs {
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid #f3f4f6;
-  padding: 0 10px;
-  gap: 16px;
+.panel-tabs-wrapper {
+  padding: 0 14px;
   background-color: #fafafa;
+  border-bottom: 1px solid #f3f4f6;
 }
 
-.tab-item {
-  font-size: 13px;
-  font-weight: 500;
-  color: #6b7280;
-  padding: 8px 0;
-  cursor: pointer;
-  position: relative;
-  transition: color 0.15s ease;
+.panel-ant-tabs :deep(.ant-tabs-nav) {
+  margin-bottom: 0;
 }
 
-.tab-item:hover {
-  color: #111827;
-}
-
-.tab-item.is-active {
-  color: #10b981;
-  font-weight: 600;
-}
-
-.tab-item.is-active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background-color: #10b981;
-  border-radius: 2px;
+.panel-ant-tabs :deep(.ant-tabs-content-holder) {
+  display: none;
 }
 
 .panel-content {

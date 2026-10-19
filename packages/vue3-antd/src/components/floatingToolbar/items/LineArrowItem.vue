@@ -2,7 +2,7 @@
   <a-popover
     v-model:open="isOpen"
     trigger="click"
-    placement="bottom"
+    placement="top"
     :arrow="false"
     overlay-class-name="quick-bubble-popover"
     :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
@@ -43,7 +43,7 @@
       </div>
     </template>
 
-    <a-tooltip title="端点箭头" placement="top" :open="isOpen ? false : undefined">
+    <a-tooltip title="端点箭头" placement="bottom" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="5" y1="12" x2="19" y2="12" />
@@ -170,8 +170,8 @@ const onSelectMarker = (markerId: string) => {
 }
 
 .arrow-item-btn.is-active {
-  background-color: #e6f4ea;
-  color: #10b981;
+  background-color: #e5e7eb;
+  color: #111827;
 }
 
 .preset-svg {

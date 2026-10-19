@@ -124,15 +124,12 @@ const emit = defineEmits<{
 .align-btn-group {
   display: flex;
   align-items: center;
-  background-color: #f3f4f6;
-  border-radius: 6px;
-  padding: 2px;
-  gap: 2px;
+  gap: 4px;
 }
 
 .align-btn {
   width: 28px;
-  height: 24px;
+  height: 28px;
   border: none;
   background: transparent;
   border-radius: 4px;
@@ -145,13 +142,12 @@ const emit = defineEmits<{
 }
 
 .align-btn:hover {
-  background-color: #e5e7eb;
+  background-color: #f3f4f6;
   color: #111827;
 }
 
 .align-btn.is-active {
-  background-color: #ffffff;
-  color: #10b981;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  background-color: #e5e7eb;
+  color: #111827;
 }
 </style>

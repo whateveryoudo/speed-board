@@ -220,7 +220,7 @@ import IconfontPopover from './IconfontPopover.vue'
 import ShapePickerPopover from './ShapePickerPopover.vue'
 import { renderShapeCanvasSvg, getShapeTightViewBox, type ShapeDefinition } from '../data/shapeLibrary'
 import type { BoardIconItem, IconProvider } from '../data/defaultIcons'
-import { measureTextWidth } from '@speed-board/shared'
+import { measureTextWidth, calculateMindmapNodeWidth } from '@speed-board/shared'
 
 export interface BoardUploadConfig {
   /** 单文件上传方法 (FormData)，返回 Promise<any> */
@@ -575,13 +575,15 @@ const onMindmapButtonClick = () => {
   brushPopoverOpen.value = false
   linePopoverOpen.value = false
   currentTool.value = 'select'
+  const initText = '思维导图'
+  const initWidth = calculateMindmapNodeWidth(initText, true)
   emit('start-placement', {
     type: 'mindmap',
-    width: 110,
+    width: initWidth,
     height: 42,
     basicConfig: {
       shape: 'rect',
-      text: '思维导图',
+      text: initText,
       fill: '#f3f4f6',
       stroke: '#8b5cf6',
     },

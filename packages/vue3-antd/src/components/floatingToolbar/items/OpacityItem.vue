@@ -2,7 +2,7 @@
   <a-popover
     v-model:open="isOpen"
     trigger="click"
-    placement="bottom"
+    placement="top"
     :arrow="false"
     overlay-class-name="quick-bubble-popover"
     :overlay-inner-style="{ padding: '10px 14px', borderRadius: '8px' }"
@@ -22,7 +22,7 @@
       </div>
     </template>
 
-    <a-tooltip title="不透明度" placement="top" :open="isOpen ? false : undefined">
+    <a-tooltip title="不透明度" placement="bottom" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
         <!-- ◐ 半透明圆点图标 -->
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

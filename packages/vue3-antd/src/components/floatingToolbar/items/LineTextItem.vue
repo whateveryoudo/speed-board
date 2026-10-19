@@ -2,7 +2,7 @@
   <a-popover
     v-model:open="isOpen"
     trigger="click"
-    placement="bottom"
+    placement="top"
     :arrow="false"
     overlay-class-name="quick-bubble-popover"
     :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
@@ -27,7 +27,7 @@
       </div>
     </template>
 
-    <a-tooltip title="线条文字" placement="top" :open="isOpen ? false : undefined">
+    <a-tooltip title="线条文字" placement="bottom" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
         <span class="t-icon">T</span>
       </button>
