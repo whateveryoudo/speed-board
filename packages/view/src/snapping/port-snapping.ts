@@ -7,7 +7,7 @@ import type { Point, PortDirection, PortSnapResult } from '../types'
 export function findClosestPort(
   board: Board | null | undefined,
   localPt: Point,
-  snapRadius = 45
+  snapRadius = 22
 ): PortSnapResult | null {
   if (!board) return null
   const graph = board.graph
@@ -15,7 +15,9 @@ export function findClosestPort(
   let closest: PortSnapResult | null = null
 
   for (const node of nodes) {
-    if (!board.isShapeNode(node)) continue
+    const isMind = node.getData()?.type === 'mindmap-node'
+    const isShape = board.isShapeNode(node)
+    if (!isShape && !isMind) continue
     const pos = node.position()
     const size = node.size()
     if (!size || size.width <= 0 || size.height <= 0) continue
@@ -61,40 +63,48 @@ export function findClosestPort(
     const distLeft = Math.hypot(unrotatedX - leftX, unrotatedY - clampedY)
     const distRight = Math.hypot(unrotatedX - rightX, unrotatedY - clampedY)
 
+    const centerSnapX = Math.min(6, size.width * 0.2)
+    const centerSnapY = Math.min(6, size.height * 0.2)
+
     const edgeCandidates: Array<{
       edge: PortDirection
       dist: number
       unrotatedPt: Point
       isCenter: boolean
       offset: number
+      delta: number
     }> = [
       {
         edge: 'top',
         dist: distTop,
         unrotatedPt: { x: clampedX, y: topY },
-        isCenter: Math.abs(clampedX - cx) < 14,
+        isCenter: Math.abs(clampedX - cx) <= centerSnapX,
         offset: (clampedX - leftX) / size.width,
+        delta: clampedX - cx,
       },
       {
         edge: 'bottom',
         dist: distBottom,
         unrotatedPt: { x: clampedX, y: bottomY },
-        isCenter: Math.abs(clampedX - cx) < 14,
+        isCenter: Math.abs(clampedX - cx) <= centerSnapX,
         offset: (clampedX - leftX) / size.width,
+        delta: clampedX - cx,
       },
       {
         edge: 'left',
         dist: distLeft,
         unrotatedPt: { x: leftX, y: clampedY },
-        isCenter: Math.abs(clampedY - cy) < 14,
+        isCenter: Math.abs(clampedY - cy) <= centerSnapY,
         offset: (clampedY - topY) / size.height,
+        delta: clampedY - cy,
       },
       {
         edge: 'right',
         dist: distRight,
         unrotatedPt: { x: rightX, y: clampedY },
-        isCenter: Math.abs(clampedY - cy) < 14,
+        isCenter: Math.abs(clampedY - cy) <= centerSnapY,
         offset: (clampedY - topY) / size.height,
+        delta: clampedY - cy,
       },
     ]
 
@@ -134,6 +144,7 @@ export function findClosestPort(
           port: portDirection,
           edge: bestEdge.edge,
           offset: bestEdge.offset,
+          delta: bestEdge.delta,
           localPoint: snappedLocalPt,
           screenPoint: {
             ox: clientPt.x,

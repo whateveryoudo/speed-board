@@ -83,6 +83,7 @@ export interface MindmapNodeData {
   parentId?: string
   isRoot?: boolean
   depth: number
+  order?: number
   side?: 'left' | 'right'
   collapsed?: boolean
   text?: string

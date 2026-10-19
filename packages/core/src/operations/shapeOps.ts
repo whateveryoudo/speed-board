@@ -1,5 +1,6 @@
 import type { Node } from '@antv/x6'
 import type { Board, AddShapeOptions } from '../Board'
+import { measureTextWidth } from '@speed-board/shared'
 
 /**
  * 添加通用基础图形
@@ -57,17 +58,23 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
       })
       break
 
-    case 'text':
+    case 'text': {
+      const textVal = options.text || '文本'
+      const fs = options.fontSize || 14
+      const font = `${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+      const measuredW = measureTextWidth(textVal, font)
+      const w = options.width ?? Math.max(40, measuredW + 18)
+      const h = options.height ?? 32
       node = board.graph.addNode({
         shape: 'speed-text-node',
         x,
         y,
-        width: options.width ?? 100,
-        height: options.height ?? 36,
+        width: w,
+        height: h,
         attrs: {
           label: {
-            text: options.text || '文本',
-            fontSize: options.fontSize || 14,
+            text: textVal,
+            fontSize: fs,
             fill: options.fill || '#262626',
           },
         },
@@ -86,6 +93,7 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
         },
       })
       break
+    }
 
     case 'sticky':
       node = board.graph.addNode({

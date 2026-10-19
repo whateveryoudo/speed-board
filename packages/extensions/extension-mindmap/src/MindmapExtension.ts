@@ -9,11 +9,15 @@ import {
   setMindmapStructure,
   setMindmapBranchStyle,
   updateMindmapLayout,
+  moveMindmapNode,
   isMindmapNode,
 } from './commands/mindmapCommands'
+import { MindmapDragController } from './interaction/MindmapDragController'
 import type { MindmapExtensionOptions } from './types'
 
 export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
+  private dragController?: MindmapDragController
+
   constructor(options?: MindmapExtensionOptions) {
     super({
       name: 'mindmap',
@@ -30,16 +34,8 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
         registerMindmapNodes()
         registerMindmapEdges()
 
-        // 监听节点拖动：如果是根节点拖动，整体同步所有子节点位移
-        let draggingRootOrigin: { x: number; y: number } | null = null
-        board.graph.on('node:move', ({ node }) => {
-          if (isMindmapNode(node)) {
-            const data = node.getData() as any
-            if (data?.isRoot && !draggingRootOrigin) {
-              draggingRootOrigin = node.getPosition()
-            }
-          }
-        })
+        // 挂载现代化脑图拖拽控制器 (整树平移、子树 Ghost、悬停嵌套、同级插队、空白回弹)
+        this.dragController = new MindmapDragController(board)
 
         // 监听节点缩放：右上角宽度调整手柄，锁定高度与 Y 坐标防止形变
         let resizingInitialY: number | null = null
@@ -72,16 +68,9 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
             updateMindmapLayout(board, node.id)
           }
         })
-
-        board.graph.on('node:moved', ({ node }) => {
-          if (isMindmapNode(node)) {
-            const data = node.getData() as any
-            if (data?.isRoot) {
-              updateMindmapLayout(board, node.id)
-            }
-          }
-          draggingRootOrigin = null
-        })
+      },
+      onDestroy: () => {
+        this.dragController?.destroy()
       },
       addCommands: (ctx) => ({
         insertMindmap: (options: any) => () => {
@@ -99,6 +88,9 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
         deleteMindmapBranch: (targetId?: string) => () => {
           deleteMindmapBranch(ctx.board, targetId)
           return true
+        },
+        moveMindmapNode: (draggedId: string, targetId: string, position: 'child' | 'before' | 'after') => () => {
+          return moveMindmapNode(ctx.board, draggedId, targetId, position)
         },
         setMindmapStructure: (rootId: string, structure: any) => () => {
           setMindmapStructure(ctx.board, rootId, structure)

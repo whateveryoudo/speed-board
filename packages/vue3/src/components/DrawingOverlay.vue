@@ -11,6 +11,22 @@
     @pointerleave="onOverlayPointerLeave"
     @dblclick="onOverlayDoubleClick"
   >
+    <!-- 0. 连线触碰节点外轮廓高亮 (浅蓝填充 + 1.5px 蓝框, 1:1 语雀) -->
+    <rect
+      v-if="props.drawConfig.mode === 'line' && hoveredNodeHighlight"
+      :x="hoveredNodeHighlight.x"
+      :y="hoveredNodeHighlight.y"
+      :width="hoveredNodeHighlight.width"
+      :height="hoveredNodeHighlight.height"
+      :rx="hoveredNodeHighlight.rx"
+      :ry="hoveredNodeHighlight.rx"
+      :transform="hoveredNodeHighlight.angle ? `rotate(${hoveredNodeHighlight.angle} ${hoveredNodeHighlight.cx} ${hoveredNodeHighlight.cy})` : undefined"
+      fill="rgba(59, 130, 246, 0.08)"
+      stroke="#3b82f6"
+      stroke-width="1.5"
+      pointer-events="none"
+    />
+
     <!-- 1. 随手画/画笔实时预览线 -->
     <path
       v-if="livePathD && (props.drawConfig.mode === 'pencil' || props.drawConfig.mode === 'marker')"
@@ -146,18 +162,9 @@
         stroke-width="1"
       />
 
-      <!-- 终点抓手点 -->
+      <!-- 终点抓手点 (拖拽中不显示多余的引导圈，仅在边线滑动时显示填充蓝圆) -->
       <circle
-        v-if="!lineEndSnapped"
-        :cx="lineEndPoint.ox"
-        :cy="lineEndPoint.oy"
-        r="4"
-        fill="#ffffff"
-        stroke="#374151"
-        stroke-width="1.5"
-      />
-      <circle
-        v-else-if="activeBorderSlidePoint"
+        v-if="activeBorderSlidePoint"
         :cx="activeBorderSlidePoint.ox"
         :cy="activeBorderSlidePoint.oy"
         r="5"
@@ -257,7 +264,40 @@ const isStartBorderAnchor = computed(() => {
   return !!lineStartSnapped.value && 'anchor' in lineStartSnapped.value
 })
 
-const findClosestPort = (localPt: { x: number; y: number }, snapRadius = 45): PortSnapResult | null => {
+const hoveredNodeHighlight = computed(() => {
+  if (props.drawConfig.mode !== 'line' || !hoveredPortNode.value || !overlaySvgRef.value) return null
+  const node = hoveredPortNode.value
+  const graph = props.board?.graph
+  if (!graph) return null
+  const pos = node.position()
+  const size = node.size()
+  if (!size || size.width <= 0 || size.height <= 0) return null
+
+  const svgRect = overlaySvgRef.value.getBoundingClientRect()
+  const p1 = graph.localToClient(pos.x, pos.y)
+  const angle = node.getAngle() || 0
+  const isMind = node.getData()?.type === 'mindmap-node'
+  const rx = isMind ? (node.getData()?.isRoot ? 8 : 6) : 4
+  const zoom = graph.zoom() || 1
+
+  const width = size.width * zoom
+  const height = size.height * zoom
+  const ox = p1.x - svgRect.left
+  const oy = p1.y - svgRect.top
+
+  return {
+    x: ox,
+    y: oy,
+    width,
+    height,
+    rx: rx * zoom,
+    angle,
+    cx: ox + width / 2,
+    cy: oy + height / 2,
+  }
+})
+
+const findClosestPort = (localPt: { x: number; y: number }, snapRadius = 22): PortSnapResult | null => {
   const result = viewFindClosestPort(props.board, localPt, snapRadius)
   if (!result) return null
 
@@ -315,7 +355,7 @@ const onOverlayPointerDown = (e: PointerEvent) => {
     const graph = props.board?.graph
     if (graph) {
       const localPt = graph.clientToLocal(e.clientX, e.clientY)
-      const portResult = findClosestPort(localPt, 45)
+      const portResult = findClosestPort(localPt, 22)
       if (portResult) {
         if (portResult.isCenterPort && portResult.port) {
           lineStartSnapped.value = { cell: portResult.node.id, port: portResult.port }
@@ -326,8 +366,8 @@ const onOverlayPointerDown = (e: PointerEvent) => {
             anchor: {
               name: portResult.edge,
               args: {
-                dx: portResult.edge === 'top' || portResult.edge === 'bottom' ? portResult.offset : 0,
-                dy: portResult.edge === 'left' || portResult.edge === 'right' ? portResult.offset : 0,
+                dx: portResult.edge === 'top' || portResult.edge === 'bottom' ? (portResult.delta ?? portResult.offset) : 0,
+                dy: portResult.edge === 'left' || portResult.edge === 'right' ? (portResult.delta ?? portResult.offset) : 0,
                 rotate: true,
               },
             },
@@ -390,7 +430,7 @@ const onOverlayPointerMove = (e: PointerEvent) => {
     const graph = props.board?.graph
     if (graph) {
       const localPt = graph.clientToLocal(e.clientX, e.clientY)
-      const portResult = findClosestPort(localPt, 45)
+      const portResult = findClosestPort(localPt, 22)
       const contactNode = portResult ? portResult.node : null
       const activePortId = portResult?.isCenterPort ? portResult.port : undefined
 
@@ -425,8 +465,8 @@ const onOverlayPointerMove = (e: PointerEvent) => {
               anchor: {
                 name: portResult.edge,
                 args: {
-                  dx: portResult.edge === 'top' || portResult.edge === 'bottom' ? portResult.offset : 0,
-                  dy: portResult.edge === 'left' || portResult.edge === 'right' ? portResult.offset : 0,
+                  dx: portResult.edge === 'top' || portResult.edge === 'bottom' ? (portResult.delta ?? portResult.offset) : 0,
+                  dy: portResult.edge === 'left' || portResult.edge === 'right' ? (portResult.delta ?? portResult.offset) : 0,
                   rotate: true,
                 },
               },
@@ -532,8 +572,8 @@ const onOverlayPointerUp = (e: PointerEvent) => {
         const localStart = graph.clientToLocal(p1.clientX, p1.clientY)
         const localEnd = graph.clientToLocal(p2.clientX, p2.clientY)
 
-        const startPortFallback = !lineStartSnapped.value ? findClosestPort(localStart, 45) : null
-        const endPortFallback = !lineEndSnapped.value ? findClosestPort(localEnd, 45) : null
+        const startPortFallback = !lineStartSnapped.value ? findClosestPort(localStart, 22) : null
+        const endPortFallback = !lineEndSnapped.value ? findClosestPort(localEnd, 22) : null
 
         let finalStart: any = lineStartSnapped.value
         if (!finalStart) {
@@ -546,8 +586,8 @@ const onOverlayPointerUp = (e: PointerEvent) => {
                 anchor: {
                   name: startPortFallback.edge,
                   args: {
-                    dx: startPortFallback.edge === 'top' || startPortFallback.edge === 'bottom' ? startPortFallback.offset : 0,
-                    dy: startPortFallback.edge === 'left' || startPortFallback.edge === 'right' ? startPortFallback.offset : 0,
+                    dx: startPortFallback.edge === 'top' || startPortFallback.edge === 'bottom' ? (startPortFallback.delta ?? startPortFallback.offset) : 0,
+                    dy: startPortFallback.edge === 'left' || startPortFallback.edge === 'right' ? (startPortFallback.delta ?? startPortFallback.offset) : 0,
                     rotate: true,
                   },
                 },
@@ -569,8 +609,8 @@ const onOverlayPointerUp = (e: PointerEvent) => {
                 anchor: {
                   name: endPortFallback.edge,
                   args: {
-                    dx: endPortFallback.edge === 'top' || endPortFallback.edge === 'bottom' ? endPortFallback.offset : 0,
-                    dy: endPortFallback.edge === 'left' || endPortFallback.edge === 'right' ? endPortFallback.offset : 0,
+                    dx: endPortFallback.edge === 'top' || endPortFallback.edge === 'bottom' ? (endPortFallback.delta ?? endPortFallback.offset) : 0,
+                    dy: endPortFallback.edge === 'left' || endPortFallback.edge === 'right' ? (endPortFallback.delta ?? endPortFallback.offset) : 0,
                     rotate: true,
                   },
                 },

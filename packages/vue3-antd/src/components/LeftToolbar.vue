@@ -220,6 +220,7 @@ import IconfontPopover from './IconfontPopover.vue'
 import ShapePickerPopover from './ShapePickerPopover.vue'
 import { renderShapeCanvasSvg, getShapeTightViewBox, type ShapeDefinition } from '../data/shapeLibrary'
 import type { BoardIconItem, IconProvider } from '../data/defaultIcons'
+import { measureTextWidth } from '@speed-board/shared'
 
 export interface BoardUploadConfig {
   /** 单文件上传方法 (FormData)，返回 Promise<any> */
@@ -549,12 +550,14 @@ const onTextButtonClick = () => {
   brushPopoverOpen.value = false
   linePopoverOpen.value = false
   currentTool.value = 'select'
+  const text = '文本'
+  const measured = measureTextWidth(text, '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif')
   emit('start-placement', {
     type: 'text',
-    width: 100,
-    height: 36,
+    width: Math.max(40, measured + 18),
+    height: 32,
     textConfig: {
-      text: '文本',
+      text,
       fontSize: 14,
       fill: '#262626',
     },

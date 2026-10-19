@@ -199,6 +199,18 @@ export class Board {
   private initGraph(options: BoardOptions) {
     const isMesh = typeof options.grid === 'object' && options.grid.type === 'mesh'
     
+    // 注册全局静默高亮器，屏蔽 X6 默认生成的 #FEB663 橙色边框并避免 TypeError
+    try {
+      Graph.registerHighlighter(
+        'none',
+        {
+          highlight() {},
+          unhighlight() {},
+        },
+        true
+      )
+    } catch {}
+
     this.graph = new Graph({
       container: this.container,
       autoResize: true,
@@ -221,19 +233,24 @@ export class Board {
         minScale: 0.1,
         maxScale: 5,
       },
+      highlighting: {
+        default: { name: 'none' },
+        magnetAdsorbed: { name: 'none' },
+        nodeAvailable: { name: 'none' },
+        magnetAvailable: { name: 'none' },
+      },
       connecting: {
         snap: {
-          radius: 35,
-          anchor: 'bbox',
+          radius: 20,
         },
         allowBlank: true,
         allowLoop: false,
-        allowNode: true,
+        allowNode: false,
         allowPort: true,
         allowEdge: false,
         highlight: false,
-        anchor: 'midSide',
-        connectionPoint: 'anchor',
+        anchor: 'orth',
+        connectionPoint: 'boundary',
         createEdge() {
           return this.createEdge({
             shape: 'edge',
@@ -264,9 +281,19 @@ export class Board {
           name: 'normal',
         },
       },
-      interacting: {
-        nodeMovable: !options.readonly,
-        edgeMovable: !options.readonly,
+      interacting: (cellView: any) => {
+        if (options.readonly) {
+          return { nodeMovable: false, edgeMovable: false, arrowheadMovable: false }
+        }
+        const cell = cellView?.cell
+        if (cell && cell.isNode && cell.isNode()) {
+          const data = cell.getData() as any
+          // 思维导图分支节点：彻底禁用 X6 原生拖拽，保持原节点纹丝不动，由 Ghost 拖拽控制器接管
+          if (data?.type === 'mindmap-node' && !data?.isRoot) {
+            return { nodeMovable: false, edgeMovable: true, arrowheadMovable: true }
+          }
+        }
+        return { nodeMovable: true, edgeMovable: true, arrowheadMovable: true }
       },
     })
   }
@@ -326,7 +353,12 @@ export class Board {
       },
       rotating: {
         enabled(node: Node) {
-          if (node.getData()?.type === 'mindmap-node') {
+          const type = node.getData()?.type
+          if (
+            type === 'mindmap-node' ||
+            type === 'text' ||
+            node.shape === 'speed-text-node'
+          ) {
             return false
           }
           return true
@@ -457,6 +489,38 @@ export class Board {
     })
     this.graph.on('node:change:angle', () => {
       this.syncSelectionBoxesTransform()
+    })
+
+    // 监听吸附高亮与反高亮事件（端点拖拽接触节点与端口时高亮边框和填充，移开或结束时隐藏）
+    this.graph.on('node:highlight', ({ node, magnet, options }: any) => {
+      if (options?.type === 'magnetAdsorbed') {
+        const portId =
+          magnet?.getAttribute?.('port') ||
+          magnet?.getAttribute?.('data-port') ||
+          magnet?.parentElement?.getAttribute?.('data-port') ||
+          undefined
+        this.showNodePorts(node, true, portId)
+      }
+    })
+
+    this.graph.on('node:unhighlight', ({ node, options }: any) => {
+      if (options?.type === 'magnetAdsorbed') {
+        this.showNodePorts(node, false)
+      }
+    })
+
+    this.graph.on('edge:connected', () => {
+      this.hideAllPorts()
+    })
+
+    this.graph.on('batch:stop', ({ name }: any) => {
+      if (name === 'move-arrowhead') {
+        this.hideAllPorts()
+      }
+    })
+
+    this.graph.on('blank:pointerdown', () => {
+      this.hideAllPorts()
     })
   }
 

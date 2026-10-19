@@ -8,17 +8,18 @@
       <a-select
         :value="currentShapeStyle"
         size="small"
-        style="width: 100px"
+        style="width: 130px"
         @change="onShapeStyleChange"
       >
-        <a-select-option value="underline">下划线</a-select-option>
+        <a-select-option value="none">纯文本(无边框)</a-select-option>
         <a-select-option value="capsule">胶囊</a-select-option>
         <a-select-option value="rect">矩形</a-select-option>
+        <a-select-option value="underline">下划线</a-select-option>
       </a-select>
     </div>
 
     <!-- 2. 填充颜色 -->
-    <div v-if="currentShapeStyle !== 'underline'" class="setter-row">
+    <div v-if="currentShapeStyle === 'capsule' || currentShapeStyle === 'rect'" class="setter-row">
       <span class="label">填充颜色</span>
       <a-popover v-model:open="fillPopoverOpen" trigger="click" placement="left">
         <template #content>
@@ -37,7 +38,7 @@
     </div>
 
     <!-- 3. 边框颜色与粗细 -->
-    <div v-if="currentShapeStyle !== 'underline'" class="setter-row">
+    <div v-if="currentShapeStyle === 'capsule' || currentShapeStyle === 'rect'" class="setter-row">
       <span class="label">边框颜色</span>
       <a-popover v-model:open="strokePopoverOpen" trigger="click" placement="left">
         <template #content>
@@ -55,7 +56,7 @@
       </a-popover>
     </div>
 
-    <div v-if="currentShapeStyle !== 'underline'" class="setter-row">
+    <div v-if="currentShapeStyle === 'capsule' || currentShapeStyle === 'rect'" class="setter-row">
       <span class="label">边框粗细</span>
       <a-input-number
         :value="currentStrokeWidth"
@@ -104,7 +105,7 @@ const cellData = computed(() => {
 })
 
 const currentShapeStyle = computed<MindmapShapeStyle>(() => {
-  return cellData.value.shapeStyle || 'underline'
+  return cellData.value.shapeStyle || 'none'
 })
 
 const currentFill = computed(() => {
@@ -127,25 +128,34 @@ const onShapeStyleChange = (style: MindmapShapeStyle) => {
   const data = node.getData() || {}
   node.setData({ ...data, shapeStyle: style })
 
-  if (style === 'underline') {
+  if (style === 'none') {
     node.setAttrByPath('body/fill', 'transparent')
     node.setAttrByPath('body/stroke', 'transparent')
     node.setAttrByPath('body/strokeWidth', 0)
-    node.setAttrByPath('underline/visibility', 'visible')
+    node.setAttrByPath('underline/display', 'none')
+  } else if (style === 'underline') {
+    node.setAttrByPath('body/fill', 'transparent')
+    node.setAttrByPath('body/stroke', 'transparent')
+    node.setAttrByPath('body/strokeWidth', 0)
+    node.setAttrByPath('underline/display', 'block')
+    if (data.branch?.color) {
+      node.setAttrByPath('underline/fill', data.branch.color)
+      node.setAttrByPath('underline/stroke', 'none')
+    }
   } else if (style === 'capsule') {
     node.setAttrByPath('body/rx', 16)
     node.setAttrByPath('body/ry', 16)
     node.setAttrByPath('body/fill', data.fill || '#ffffff')
     node.setAttrByPath('body/stroke', data.branch?.color || '#8b5cf6')
     node.setAttrByPath('body/strokeWidth', 1.5)
-    node.setAttrByPath('underline/visibility', 'hidden')
+    node.setAttrByPath('underline/display', 'none')
   } else if (style === 'rect') {
     node.setAttrByPath('body/rx', 6)
     node.setAttrByPath('body/ry', 6)
     node.setAttrByPath('body/fill', data.fill || '#ffffff')
     node.setAttrByPath('body/stroke', data.branch?.color || '#8b5cf6')
     node.setAttrByPath('body/strokeWidth', 1.5)
-    node.setAttrByPath('underline/visibility', 'hidden')
+    node.setAttrByPath('underline/display', 'none')
   }
 
   ;(props.board as any).commands?.updateMindmapLayout?.(node.id)

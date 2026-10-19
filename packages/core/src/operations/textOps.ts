@@ -1,6 +1,6 @@
 import type { Node } from '@antv/x6'
 import type { Board } from '../Board'
-import { calculateMindmapNodeWidth } from '@speed-board/shared'
+import { calculateMindmapNodeWidth, measureTextWidth } from '@speed-board/shared'
 
 /**
  * 判断图元是否为文本节点
@@ -134,10 +134,13 @@ export function updateTextNode(
       const calcWidth = calculateMindmapNodeWidth(text, !!data.isRoot)
       node.setSize(calcWidth, targetHeight)
     } else {
-      const minWidth = 80
-      const minHeight = 36
-      const calcWidth = Math.max(minWidth, maxLineLen * fs * 0.95 + 24)
-      const calcHeight = Math.max(minHeight, lines.length * fs * 1.45 + 16)
+      const font = `${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+      const maxLine = lines.reduce((max: string, line: string) => (line.length > max.length ? line : max), '')
+      const measuredW = measureTextWidth(maxLine, font)
+      const minWidth = 36
+      const minHeight = 32
+      const calcWidth = Math.max(minWidth, measuredW + 18)
+      const calcHeight = Math.max(minHeight, lines.length * fs * 1.45 + 10)
       node.setSize(Math.round(calcWidth), Math.round(calcHeight))
     }
   }

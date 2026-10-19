@@ -1,5 +1,5 @@
 <template>
-  <div v-if="anchorPoints" class="speed-shape-anchor-ports">
+  <div v-if="anchorPoints && props.visible" class="speed-shape-anchor-ports">
     <!-- 上锚点 -->
     <div
       class="shape-anchor-btn port-top"

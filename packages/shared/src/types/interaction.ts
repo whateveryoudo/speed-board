@@ -16,6 +16,7 @@ export interface PortSnapResult {
   port?: PortDirection
   edge: PortDirection
   offset: number
+  delta?: number
   localPoint: Point
   screenPoint: ScreenPoint
   distance: number

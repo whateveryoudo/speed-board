@@ -49,7 +49,7 @@
 
       <!-- 画布图元浮动快捷工具栏 (1:1 语雀白板 Bubble Toolbar) -->
       <FloatingToolbarHost
-        v-show="!isTyping && !pendingPlacement && !isLineDragging && drawConfig.mode === 'select'"
+        v-show="!isTyping && !pendingPlacement && !isLineDragging && !isDragging && drawConfig.mode === 'select'"
         :board="boardInstance"
         :container-el="canvasWrapperRef"
         :is-typing="isTyping"
@@ -85,7 +85,7 @@
         :board="boardInstance"
         :selected-node="selectedShapeNode"
         :canvas-wrapper="canvasWrapperRef"
-        :visible="drawConfig.mode === 'select' && !isInlineEditing && !isLineDragging && !pendingPlacement"
+        :visible="drawConfig.mode === 'select' && !isInlineEditing && !isLineDragging && !pendingPlacement && !isDragging"
       />
 
       <!-- 思维导图分支延伸手柄与加号按钮 (1:1 语雀白板交互) -->
@@ -93,7 +93,7 @@
         :board="boardInstance"
         :selected-node="selectedMindmapNode"
         :canvas-wrapper="canvasWrapperRef"
-        :visible="drawConfig.mode === 'select' && !isInlineEditing && !isLineDragging && !pendingPlacement"
+        :visible="drawConfig.mode === 'select' && !isInlineEditing && !isLineDragging && !pendingPlacement && !isDragging"
       />
 
       <!-- 手绘与矢量交互覆盖层 (画笔/矢量钢笔/连线激活时在顶层捕获并实时渲染) -->
@@ -144,6 +144,7 @@ import {
   InlineTextEditor,
   ShapeAnchorPorts,
   PlacementOverlay,
+  findClosestPort,
   type BoardOptions,
   type DrawConfig,
 } from '@speed-board/vue3'
@@ -381,25 +382,45 @@ const setupTextListeners = (board: Board) => {
   })
 }
 
-const onCanvasWrapperPointerDown = (e: PointerEvent) => {
-  const target = e.target as HTMLElement
-  if (!target) return
-
-  // 1. 忽略浮动气泡工具栏、右侧属性面板、就地输入编辑器及各类弹出层（颜色选择器、下拉框、模态框）
-  if (
+const isCanvasToolOrWidget = (target: HTMLElement | SVGElement | null): boolean => {
+  if (!target) return false
+  return !!(
     target.closest('.floating-bubble-toolbar') ||
     target.closest('.style-settings-panel') ||
     target.closest('.speed-inline-text-editor') ||
     target.closest('.ant-popover') ||
     target.closest('.ant-dropdown') ||
     target.closest('.ant-modal') ||
-    target.closest('.ant-select-dropdown')
-  ) {
+    target.closest('.ant-select-dropdown') ||
+    target.closest('.x6-cell-tools') ||
+    target.closest('.x6-edge-tools') ||
+    target.closest('.x6-edge-tool') ||
+    target.closest('.x6-node-tools') ||
+    target.closest('.x6-tools-layer') ||
+    target.closest('.x6-widget-selection-inner') ||
+    target.closest('.x6-widget-selection-box') ||
+    target.closest('.x6-widget-transform') ||
+    target.closest('[data-cell-id]') ||
+    target.closest('[data-tool-name]') ||
+    target.closest('[data-tools-name]')
+  )
+}
+
+const onCanvasWrapperPointerDown = (e: PointerEvent) => {
+  const target = e.target as HTMLElement
+  if (!target) return
+
+  // 1. 忽略浮动气泡工具栏、右侧属性面板、就地输入编辑器、弹出层及所有 X6 工具/手柄/选区部件
+  if (isCanvasToolOrWidget(target)) {
     return
   }
 
   // 2. 如果点击的是画布空白区域（未点中任何 X6 图元节点或边）
-  if (!target.closest('.x6-cell') && !target.closest('.x6-node') && !target.closest('.x6-edge')) {
+  if (
+    !target.closest('.x6-cell') &&
+    !target.closest('.x6-node') &&
+    !target.closest('.x6-edge')
+  ) {
     if (isInlineEditing.value) {
       inlineEditorRef.value?.finish()
     }
@@ -415,6 +436,8 @@ const selectedMindmapNode = shallowRef<any>(null)
 const isMindmapSelected = computed(() => !!selectedMindmapNode.value)
 
 const setupSelectionListeners = (board: Board) => {
+  let prevSelectedEdges: any[] = []
+
   const updateSelection = (selected: any[]) => {
     const selectedNodes = (selected || []).filter((c: any) => c && c.isNode && c.isNode())
     const single = selectedNodes.length === 1
@@ -436,11 +459,242 @@ const setupSelectionListeners = (board: Board) => {
     if (selectedMindmapNode.value !== newMindmapNode) {
       selectedMindmapNode.value = newMindmapNode
     }
+
+    // 处理选中边（排除思维导图内部树形分支连线，仅对普通/自由连线呈现两端抓手手柄）
+    const currentSelectedEdges = (selected || []).filter(
+      (c: any) => c && c.isEdge && c.isEdge() && c.getData()?.type !== 'mindmap-edge'
+    )
+
+    // 清除已取消选中的边上的 tools
+    for (const edge of prevSelectedEdges) {
+      if (!currentSelectedEdges.includes(edge)) {
+        try {
+          edge.removeTools()
+        } catch {}
+      }
+    }
+
+    // 为当前选中的边挂载两端端点箭头手柄 (source-arrowhead & target-arrowhead)
+    for (const edge of currentSelectedEdges) {
+      if (!prevSelectedEdges.includes(edge)) {
+        try {
+          const lineColor =
+            edge.getAttrByPath('line/stroke') ||
+            edge.getData()?.stroke ||
+            '#374151'
+
+          const hasTargetMarker = !!edge.getAttrByPath('line/targetMarker')
+          const hasSourceMarker = !!edge.getAttrByPath('line/sourceMarker')
+
+          edge.addTools([
+            {
+              name: 'source-arrowhead',
+              args: {
+                attrs: {
+                  d: hasSourceMarker
+                    ? 'M -8 0 A 4 4 0 1 0 0 0 A 4 4 0 1 0 -8 0 Z'
+                    : 'M -4 0 A 4 4 0 1 0 4 0 A 4 4 0 1 0 -4 0 Z',
+                  fill: '#ffffff',
+                  stroke: lineColor,
+                  'stroke-width': 1.5,
+                  cursor: 'move',
+                },
+              },
+            },
+            {
+              name: 'target-arrowhead',
+              args: {
+                attrs: {
+                  d: hasTargetMarker
+                    ? 'M 0 0 A 4 4 0 1 0 8 0 A 4 4 0 1 0 0 0 Z'
+                    : 'M -4 0 A 4 4 0 1 0 4 0 A 4 4 0 1 0 -4 0 Z',
+                  fill: '#ffffff',
+                  stroke: lineColor,
+                  'stroke-width': 1.5,
+                  cursor: 'move',
+                },
+              },
+            },
+          ])
+        } catch {}
+      }
+    }
+    prevSelectedEdges = currentSelectedEdges
   }
 
   board.graph.on('selection:changed', ({ selected }: any) => {
     updateSelection(selected)
   })
+
+  // 连线属性（颜色、端点箭头）改变时，同步更新其两端手柄样式与位置
+  board.graph.on('edge:change:attrs', ({ edge }: any) => {
+    try {
+      if (board.graph.isCellSelected(edge)) {
+        const lineColor =
+          edge.getAttrByPath('line/stroke') ||
+          edge.getData()?.stroke ||
+          '#374151'
+        const hasTargetMarker = !!edge.getAttrByPath('line/targetMarker')
+        const hasSourceMarker = !!edge.getAttrByPath('line/sourceMarker')
+
+        const toolItems = edge.getTools()?.items || []
+        toolItems.forEach((tool: any) => {
+          if (tool.name === 'source-arrowhead') {
+            tool.setAttrs({
+              stroke: lineColor,
+              d: hasSourceMarker
+                ? 'M -8 0 A 4 4 0 1 0 0 0 A 4 4 0 1 0 -8 0 Z'
+                : 'M -4 0 A 4 4 0 1 0 4 0 A 4 4 0 1 0 -4 0 Z',
+            }, tool.container)
+          } else if (tool.name === 'target-arrowhead') {
+            tool.setAttrs({
+              stroke: lineColor,
+              d: hasTargetMarker
+                ? 'M 0 0 A 4 4 0 1 0 8 0 A 4 4 0 1 0 0 0 Z'
+                : 'M -4 0 A 4 4 0 1 0 4 0 A 4 4 0 1 0 -4 0 Z',
+            }, tool.container)
+          }
+        })
+      }
+    } catch {}
+  })
+}
+
+let cleanupArrowheadListeners: (() => void) | null = null
+
+const setupArrowheadDragListeners = (board: Board) => {
+  let isDraggingArrowhead = false
+  let currentDraggingEdge: any = null
+  let currentDraggingType: 'source' | 'target' | null = null
+  let lastArrowheadType: 'source' | 'target' | null = null
+  let currentActiveSnapResult: any = null
+
+  // 1. 捕获阶段识别点击的是哪一端的端点箭头手柄
+  const onPointerDownCapture = (e: PointerEvent) => {
+    const target = e.target as HTMLElement | SVGElement | null
+    if (target?.closest?.('.x6-edge-tool-source-arrowhead')) {
+      lastArrowheadType = 'source'
+    } else if (target?.closest?.('.x6-edge-tool-target-arrowhead')) {
+      lastArrowheadType = 'target'
+    } else {
+      lastArrowheadType = null
+    }
+  }
+
+  canvasWrapperRef.value?.addEventListener('pointerdown', onPointerDownCapture, true)
+
+  // 2. 监听 X6 内部启动端点拖拽
+  board.graph.on('batch:start', ({ name }: any) => {
+    if (name === 'move-arrowhead') {
+      isDraggingArrowhead = true
+      currentDraggingEdge = board.graph.getSelectedCells().find((c: any) => c && c.isEdge && c.isEdge())
+      currentDraggingType = lastArrowheadType || 'target'
+      currentActiveSnapResult = null
+      canvasWrapperRef.value?.classList.add('is-dragging-arrowhead')
+    }
+  })
+
+  // 3. 拖拽端点移动时，计算吸附与滑动，实时高亮目标节点与端口 (1:1 语雀)
+  const onArrowheadPointerMove = (e: PointerEvent) => {
+    if (!isDraggingArrowhead || !currentDraggingEdge || !boardInstance.value) return
+
+    const graph = boardInstance.value.graph
+    const localPt = graph.clientToLocal(e.clientX, e.clientY)
+
+    // 触发区判定范围 35px
+    const portResult = findClosestPort(boardInstance.value, localPt, 35)
+
+    const otherEndCellId = currentDraggingType === 'target'
+      ? currentDraggingEdge.getSourceCellId?.()
+      : currentDraggingEdge.getTargetCellId?.()
+    const isSelfLoop = !!(otherEndCellId && portResult && otherEndCellId === portResult.node.id)
+
+    if (portResult && !isSelfLoop && portResult.node.id !== currentDraggingEdge.id) {
+      const activePortId = portResult.isCenterPort ? portResult.port : undefined
+      boardInstance.value.showNodePorts(portResult.node, true, activePortId)
+      currentActiveSnapResult = portResult
+
+      if (currentDraggingType) {
+        if (portResult.isCenterPort && portResult.port) {
+          currentDraggingEdge.setTerminal(currentDraggingType, {
+            cell: portResult.node.id,
+            port: portResult.port,
+          }, {}, { ui: true })
+        } else {
+          currentDraggingEdge.setTerminal(currentDraggingType, {
+            cell: portResult.node.id,
+            anchor: {
+              name: portResult.edge,
+              args: {
+                dx: portResult.edge === 'top' || portResult.edge === 'bottom' ? portResult.delta : 0,
+                dy: portResult.edge === 'left' || portResult.edge === 'right' ? portResult.delta : 0,
+                rotate: true,
+              },
+            },
+          }, {}, { ui: true })
+        }
+      }
+    } else {
+      if (currentActiveSnapResult) {
+        boardInstance.value.showNodePorts(currentActiveSnapResult.node, false)
+        currentActiveSnapResult = null
+      }
+    }
+  }
+
+  window.addEventListener('pointermove', onArrowheadPointerMove)
+
+  // 4. 拖拽结束时锁定端点并清理高亮
+  const onArrowheadDragStop = () => {
+    if (!isDraggingArrowhead) return
+
+    const snapResult = currentActiveSnapResult
+    const edge = currentDraggingEdge
+    const type = currentDraggingType
+
+    if (snapResult && edge && type) {
+      if (snapResult.isCenterPort && snapResult.port) {
+        edge.setTerminal(type, {
+          cell: snapResult.node.id,
+          port: snapResult.port,
+        })
+      } else {
+        edge.setTerminal(type, {
+          cell: snapResult.node.id,
+          anchor: {
+            name: snapResult.edge,
+            args: {
+              dx: snapResult.edge === 'top' || snapResult.edge === 'bottom' ? snapResult.delta : 0,
+              dy: snapResult.edge === 'left' || snapResult.edge === 'right' ? snapResult.delta : 0,
+              rotate: true,
+            },
+          },
+        })
+      }
+    }
+
+    isDraggingArrowhead = false
+    currentDraggingEdge = null
+    currentDraggingType = null
+    currentActiveSnapResult = null
+    lastArrowheadType = null
+    canvasWrapperRef.value?.classList.remove('is-dragging-arrowhead')
+    boardInstance.value?.hideAllPorts()
+  }
+
+  board.graph.on('batch:stop', ({ name }: any) => {
+    if (name === 'move-arrowhead') {
+      onArrowheadDragStop()
+    }
+  })
+
+  window.addEventListener('pointerup', onArrowheadDragStop)
+
+  cleanupArrowheadListeners = () => {
+    canvasWrapperRef.value?.removeEventListener('pointerdown', onPointerDownCapture, true)
+    window.removeEventListener('pointermove', onArrowheadPointerMove)
+    window.removeEventListener('pointerup', onArrowheadDragStop)
+  }
 }
 
 const onBoardCreated = (board: Board) => {
@@ -448,6 +702,8 @@ const onBoardCreated = (board: Board) => {
   setupRotationListeners(board)
   setupTextListeners(board)
   setupSelectionListeners(board)
+  setupArrowheadDragListeners(board)
+  setupDragListeners(board)
 
   board.graph.on('node:start-edit', ({ node }: { node: any }) => {
     startInlineTextEdit(node)
@@ -477,6 +733,27 @@ const vectorStrokeDash = ref('none')
 const vectorOpacity = ref(1)
 
 const isLineDragging = ref(false)
+const isDragging = ref(false)
+
+const setupDragListeners = (board: Board) => {
+  const onDragStart = () => {
+    isDragging.value = true
+  }
+  const onDragEnd = () => {
+    isDragging.value = false
+  }
+
+  board.graph.on('node:move', onDragStart)
+  board.graph.on('node:moving', onDragStart)
+  board.graph.on('node:moved', onDragEnd)
+  board.graph.on('node:drag:start', onDragStart)
+  board.graph.on('node:drag:end', onDragEnd)
+  board.graph.on('mindmap:drag:start', onDragStart)
+  board.graph.on('mindmap:drag:end', onDragEnd)
+  board.graph.on('translate', onDragStart)
+
+  window.addEventListener('pointerup', onDragEnd)
+}
 
 // 鼠标跟随放置模式 (Ghost Placement Mode)
 const pendingPlacement = ref<PendingPlacementItem | null>(null)
@@ -624,6 +901,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   cleanupAntdCssVars?.()
+  cleanupArrowheadListeners?.()
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('pointerup', onGlobalPointerUp)
 })
@@ -684,6 +962,14 @@ onUnmounted(() => {
 .snap-start-pulse {
   transform-origin: center;
   animation: pulse-ring 1.2s infinite ease-in-out;
+}
+
+:deep(.is-dragging-arrowhead) {
+  .x6-edge-tool-source-arrowhead,
+  .x6-edge-tool-target-arrowhead {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
 }
 
 // 旋转实时度数指示气泡 (1:1 语雀白板风格)

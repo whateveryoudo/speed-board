@@ -203,11 +203,22 @@
       height: 18px !important;
       pointer-events: auto !important;
       border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background-color: transparent !important;
       background-image: url('../assets/images/rotate.svg') !important;
       background-repeat: no-repeat !important;
       background-position: center !important;
       background-size: 16px 16px !important;
     }
+
+    &.no-rotate .x6-widget-transform-rotate {
+      display: none !important;
+    }
+  }
+
+  .x6-widget-transform.no-rotate .x6-widget-transform-rotate {
+    display: none !important;
   }
 
   // 思维导图节点选中态：仅保留右上角宽度调整手柄 (1:1 语雀白板外观)
@@ -271,3 +282,13 @@
   animation: speed-spin 1s linear infinite;
   transform-origin: center;
 }
+
+// 连线端点拖拽进行中：隐藏两端端点引导圈手柄，展示干净的箭头尖端与吸附实心填充圆 (1:1 语雀白板交互)
+.is-dragging-arrowhead {
+  .x6-edge-tool-source-arrowhead,
+  .x6-edge-tool-target-arrowhead {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+}
+

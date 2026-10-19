@@ -108,6 +108,17 @@ export function buildMindmapTree(graph: Graph, rootNode: Node): MindmapTreeNode 
     }
   }
 
+  // 对每个节点的 children 按照 order 稳定升序排序
+  for (const item of nodeMap.values()) {
+    if (item.children && item.children.length > 1) {
+      item.children.sort((a, b) => {
+        const orderA = a.data?.order ?? 0
+        const orderB = b.data?.order ?? 0
+        return orderA - orderB
+      })
+    }
+  }
+
   return nodeMap.get(rootNode.id)!
 }
 
@@ -140,10 +151,18 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       depth: nLayout.depth,
     })
 
-    // 同步下划线颜色
-    if (!currentData.isRoot && currentData.branch?.color) {
-      node.setAttrByPath('underline/stroke', currentData.branch.color)
-      node.setAttrByPath('underline/strokeWidth', currentData.branch.width ?? 3)
+    // 同步下划线显示：仅下划线风格显示，卡片/胶囊等卡片风格彻底隐藏，杜绝多余杂点残留
+    if (!currentData.isRoot) {
+      const shapeStyle = currentData.shapeStyle || 'none'
+      if (shapeStyle === 'underline') {
+        node.setAttrByPath('underline/display', 'block')
+        if (currentData.branch?.color) {
+          node.setAttrByPath('underline/fill', currentData.branch.color)
+          node.setAttrByPath('underline/stroke', 'none')
+        }
+      } else {
+        node.setAttrByPath('underline/display', 'none')
+      }
     }
   }
 
@@ -291,39 +310,48 @@ export function addMindmapChild(board: Board, parentNodeId?: string): string | n
     branchColor = parentData.branch?.color || '#8b5cf6'
   }
 
-  const childId = `mindmap-node-${Date.now()}`
-  const childText = '分支主题'
-  const childWidth = calculateMindmapNodeWidth(childText, false)
-  const childNode = graph.addNode({
-    id: childId,
-    shape: 'speed-mindmap-node',
-    x: parentNode.getBBox().x + 120,
-    y: parentNode.getBBox().y,
-    width: childWidth,
-    height: 32,
-    attrs: {
-      label: {
+    const { nodes } = getMindmapElements(graph, mindmapId)
+    const existingSiblings = nodes.filter((n) => (n.getData() as MindmapNodeData)?.parentId === parentNode.id)
+    const maxOrder = existingSiblings.reduce(
+      (max, n) => Math.max(max, (n.getData() as MindmapNodeData)?.order ?? 0),
+      0
+    )
+    const nextOrder = existingSiblings.length === 0 ? 100 : maxOrder + 100
+
+    const childId = `mindmap-node-${Date.now()}`
+    const childText = '分支主题'
+    const childWidth = calculateMindmapNodeWidth(childText, false)
+    const childNode = graph.addNode({
+      id: childId,
+      shape: 'speed-mindmap-node',
+      x: parentNode.getBBox().x + 120,
+      y: parentNode.getBBox().y,
+      width: childWidth,
+      height: 32,
+      attrs: {
+        label: {
+          text: childText,
+        },
+        underline: {
+          display: 'none',
+        },
+      },
+      data: {
+        type: 'mindmap-node',
+        mindmapId,
+        parentId: parentNode.id,
+        isRoot: false,
+        depth: (parentData.depth ?? 0) + 1,
+        order: nextOrder,
         text: childText,
-      },
-      underline: {
-        stroke: branchColor,
-      },
-    },
-    data: {
-      type: 'mindmap-node',
-      mindmapId,
-      parentId: parentNode.id,
-      isRoot: false,
-      depth: (parentData.depth ?? 0) + 1,
-      text: childText,
-      shapeStyle: 'underline',
-      branch: {
-        color: branchColor,
-        width: 3,
-        type: 'curve',
-      },
-    } as MindmapNodeData,
-  })
+        shapeStyle: 'none',
+        branch: {
+          color: branchColor,
+          width: 3,
+          type: 'curve',
+        },
+      } as MindmapNodeData,
+    })
 
   updateMindmapLayout(board, mindmapId)
   graph.cleanSelection()
@@ -449,3 +477,174 @@ export function setMindmapBranchStyle(
 
   updateMindmapLayout(board, data.mindmapId)
 }
+
+/**
+ * 获取指定思维导图节点的直接子节点列表
+ */
+export function getMindmapChildren(graph: Graph, parentId: string): Node[] {
+  return graph.getNodes().filter((n) => {
+    const data = n.getData() as MindmapNodeData | undefined
+    return data?.type === 'mindmap-node' && data.parentId === parentId
+  })
+}
+
+/**
+ * 递归获取指定思维导图节点的所有后代节点列表 (BFS)
+ */
+export function getMindmapDescendants(graph: Graph, nodeId: string): Node[] {
+  const result: Node[] = []
+  const queue: string[] = [nodeId]
+  const visited = new Set<string>([nodeId])
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!
+    const children = getMindmapChildren(graph, currentId)
+    for (const child of children) {
+      if (!visited.has(child.id)) {
+        visited.add(child.id)
+        result.push(child)
+        queue.push(child.id)
+      }
+    }
+  }
+
+  return result
+}
+
+/**
+ * 移动/重新挂载思维导图节点（嵌套为子节点、前插兄弟、后插兄弟）
+ * 包含严密的防成环保护、兄弟排序重计算、分支颜色与深度级联更新
+ */
+export function moveMindmapNode(
+  board: Board,
+  draggedNodeId: string,
+  targetNodeId: string,
+  position: 'child' | 'before' | 'after'
+): boolean {
+  const graph = board.graph
+  const draggedNode = graph.getCellById(draggedNodeId) as Node
+  const targetNode = graph.getCellById(targetNodeId) as Node
+  if (!draggedNode || !targetNode) return false
+
+  const draggedData = draggedNode.getData() as MindmapNodeData
+  const targetData = targetNode.getData() as MindmapNodeData
+  if (!draggedData || !targetData) return false
+
+  // 根节点不能被移动为其他节点的子节点或兄弟节点
+  if (draggedData.isRoot) return false
+  if (draggedNode.id === targetNode.id) return false
+
+  const rootNode = getMindmapRootNode(graph, draggedData.mindmapId)
+  if (!rootNode) return false
+
+  // 防成环保护：目标节点绝对不能是拖拽节点自身或其后代节点
+  const descendants = getMindmapDescendants(graph, draggedNode.id)
+  const invalidIds = new Set([draggedNode.id, ...descendants.map((d) => d.id)])
+  if (invalidIds.has(targetNode.id)) {
+    return false
+  }
+
+  let newParentId: string
+  if (position === 'child') {
+    newParentId = targetNode.id
+  } else {
+    // 兄弟插入：父节点与 targetNode 一致
+    if (targetData.isRoot || !targetData.parentId) {
+      newParentId = targetNode.id
+      position = 'child'
+    } else {
+      newParentId = targetData.parentId
+    }
+  }
+
+  const newParentNode = graph.getCellById(newParentId) as Node
+  if (!newParentNode) return false
+  const newParentData = newParentNode.getData() as MindmapNodeData
+
+  // 确定分支颜色与深度
+  let branchColor = '#8b5cf6'
+  if (newParentData.isRoot) {
+    // 挂在根节点下作为一级分支，分配彩虹色
+    const { nodes } = getMindmapElements(graph, draggedData.mindmapId)
+    const rootChildren = nodes.filter(
+      (n) => (n.getData() as MindmapNodeData)?.parentId === newParentNode.id && n.id !== draggedNode.id
+    )
+    branchColor = MINDMAP_RAINBOW_COLORS[rootChildren.length % MINDMAP_RAINBOW_COLORS.length]
+  } else {
+    // 继承父级分支颜色
+    branchColor = newParentData.branch?.color || '#8b5cf6'
+  }
+
+  // 递归同步被拖拽子树的深度与颜色
+  function updateSubtree(currNode: Node, depth: number, color: string) {
+    const d = currNode.getData() as MindmapNodeData
+    currNode.setData({
+      ...d,
+      depth,
+      branch: {
+        ...(d.branch || {}),
+        color,
+      },
+    })
+    if (!d.isRoot) {
+      currNode.setAttrByPath('underline/fill', color)
+      currNode.setAttrByPath('underline/stroke', 'none')
+    }
+    const children = getMindmapChildren(graph, currNode.id)
+    for (const child of children) {
+      updateSubtree(child, depth + 1, color)
+    }
+  }
+
+  // 计算兄弟排序 (order)
+  const siblings = getMindmapChildren(graph, newParentId).filter((n) => n.id !== draggedNode.id)
+  // 按原 order 排序现有兄弟
+  siblings.sort((a, b) => {
+    const oA = (a.getData() as MindmapNodeData)?.order ?? 0
+    const oB = (b.getData() as MindmapNodeData)?.order ?? 0
+    return oA - oB
+  })
+
+  if (position === 'child') {
+    siblings.push(draggedNode)
+  } else if (position === 'before') {
+    const idx = siblings.findIndex((n) => n.id === targetNode.id)
+    if (idx !== -1) {
+      siblings.splice(idx, 0, draggedNode)
+    } else {
+      siblings.push(draggedNode)
+    }
+  } else if (position === 'after') {
+    const idx = siblings.findIndex((n) => n.id === targetNode.id)
+    if (idx !== -1) {
+      siblings.splice(idx + 1, 0, draggedNode)
+    } else {
+      siblings.push(draggedNode)
+    }
+  }
+
+  // 重新分配连续递增的 order
+  for (let i = 0; i < siblings.length; i++) {
+    const sib = siblings[i]
+    const sData = sib.getData() as MindmapNodeData
+    sib.setData({
+      ...sData,
+      parentId: newParentId,
+      order: (i + 1) * 100,
+    })
+  }
+
+  // 更新拖拽节点及所有后代节点的深度与分支颜色
+  updateSubtree(draggedNode, (newParentData.depth ?? 0) + 1, branchColor)
+
+  // 刷新并重排布局
+  updateMindmapLayout(board, draggedData.mindmapId)
+
+  // 保持选中被拖动的节点
+  graph.cleanSelection()
+  graph.select(draggedNode)
+  graph.trigger('selection:changed', { selected: [draggedNode] })
+
+  return true
+}
+

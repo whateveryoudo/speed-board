@@ -12,6 +12,10 @@ export function registerMindmapNodes(): void {
       markup: [
         {
           tagName: 'rect',
+          selector: 'bg',
+        },
+        {
+          tagName: 'rect',
           selector: 'body',
         },
         {
@@ -20,6 +24,16 @@ export function registerMindmapNodes(): void {
         },
       ],
       attrs: {
+        bg: {
+          refWidth: '100%',
+          refHeight: '100%',
+          rx: 8,
+          ry: 8,
+          fill: 'transparent',
+          stroke: 'transparent',
+          strokeWidth: 0,
+          pointerEvents: 'none',
+        },
         body: {
           rx: 8,
           ry: 8,
@@ -47,25 +61,53 @@ export function registerMindmapNodes(): void {
           left: {
             position: 'left',
             attrs: {
-              circle: { r: 0, magnet: true },
+              circle: {
+                r: 3.5,
+                stroke: '#3b82f6',
+                strokeWidth: 1.5,
+                fill: '#ffffff',
+                opacity: 0,
+                magnet: true,
+              },
             },
           },
           right: {
             position: 'right',
             attrs: {
-              circle: { r: 0, magnet: true },
+              circle: {
+                r: 3.5,
+                stroke: '#3b82f6',
+                strokeWidth: 1.5,
+                fill: '#ffffff',
+                opacity: 0,
+                magnet: true,
+              },
             },
           },
           top: {
             position: 'top',
             attrs: {
-              circle: { r: 0, magnet: true },
+              circle: {
+                r: 3.5,
+                stroke: '#3b82f6',
+                strokeWidth: 1.5,
+                fill: '#ffffff',
+                opacity: 0,
+                magnet: true,
+              },
             },
           },
           bottom: {
             position: 'bottom',
             attrs: {
-              circle: { r: 0, magnet: true },
+              circle: {
+                r: 3.5,
+                stroke: '#3b82f6',
+                strokeWidth: 1.5,
+                fill: '#ffffff',
+                opacity: 0,
+                magnet: true,
+              },
             },
           },
         },
@@ -88,10 +130,14 @@ export function registerMindmapNodes(): void {
       markup: [
         {
           tagName: 'rect',
+          selector: 'bg',
+        },
+        {
+          tagName: 'rect',
           selector: 'body',
         },
         {
-          tagName: 'line',
+          tagName: 'rect',
           selector: 'underline',
         },
         {
@@ -100,6 +146,16 @@ export function registerMindmapNodes(): void {
         },
       ],
       attrs: {
+        bg: {
+          refWidth: '100%',
+          refHeight: '100%',
+          rx: 6,
+          ry: 6,
+          fill: 'transparent',
+          stroke: 'transparent',
+          strokeWidth: 0,
+          pointerEvents: 'none',
+        },
         body: {
           fill: 'transparent',
           stroke: 'transparent',
@@ -107,13 +163,15 @@ export function registerMindmapNodes(): void {
           cursor: 'pointer',
         },
         underline: {
-          refX: 0,
+          display: 'none',
+          refWidth: '100%',
           refY: '100%',
-          refX2: '100%',
-          refY2: '100%',
-          stroke: '#8b5cf6',
-          strokeWidth: 3,
-          strokeLinecap: 'round',
+          refY2: -3,
+          height: 3,
+          rx: 1.5,
+          ry: 1.5,
+          fill: '#8b5cf6',
+          stroke: 'none',
         },
         label: {
           text: '分支主题',
@@ -133,25 +191,53 @@ export function registerMindmapNodes(): void {
           left: {
             position: 'left',
             attrs: {
-              circle: { r: 0, magnet: true },
+              circle: {
+                r: 3.5,
+                stroke: '#3b82f6',
+                strokeWidth: 1.5,
+                fill: '#ffffff',
+                opacity: 0,
+                magnet: true,
+              },
             },
           },
           right: {
             position: 'right',
             attrs: {
-              circle: { r: 0, magnet: true },
+              circle: {
+                r: 3.5,
+                stroke: '#3b82f6',
+                strokeWidth: 1.5,
+                fill: '#ffffff',
+                opacity: 0,
+                magnet: true,
+              },
             },
           },
           top: {
             position: 'top',
             attrs: {
-              circle: { r: 0, magnet: true },
+              circle: {
+                r: 3.5,
+                stroke: '#3b82f6',
+                strokeWidth: 1.5,
+                fill: '#ffffff',
+                opacity: 0,
+                magnet: true,
+              },
             },
           },
           bottom: {
             position: 'bottom',
             attrs: {
-              circle: { r: 0, magnet: true },
+              circle: {
+                r: 3.5,
+                stroke: '#3b82f6',
+                strokeWidth: 1.5,
+                fill: '#ffffff',
+                opacity: 0,
+                magnet: true,
+              },
             },
           },
         },
