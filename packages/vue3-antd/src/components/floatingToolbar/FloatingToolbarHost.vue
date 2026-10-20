@@ -20,6 +20,24 @@
           :board="props.board"
         />
 
+        <!-- 思维导图: 结构布局 (11种结构) -->
+        <MindmapLayoutItem
+          v-else-if="item === 'mindmap-layout'"
+          :board="props.board"
+        />
+
+        <!-- 思维导图: 分支类型 (曲线/直角) -->
+        <MindmapBranchItem
+          v-else-if="item === 'mindmap-branch'"
+          :board="props.board"
+        />
+
+        <!-- 思维导图: 节点形状 (下划线/胶囊/卡片) -->
+        <MindmapShapeItem
+          v-else-if="item === 'mindmap-shape'"
+          :board="props.board"
+        />
+
         <!-- 2. 填充颜色 -->
         <FillColorItem
           v-else-if="item === 'fill'"
@@ -135,6 +153,9 @@ import {
 import type { Board } from '@speed-board/core'
 import { getNodeSchema, type NodeSchema } from '../../schema/nodeSchema'
 import ShapeSwitchItem from './items/ShapeSwitchItem.vue'
+import MindmapLayoutItem from './items/MindmapLayoutItem.vue'
+import MindmapBranchItem from './items/MindmapBranchItem.vue'
+import MindmapShapeItem from './items/MindmapShapeItem.vue'
 import FillColorItem from './items/FillColorItem.vue'
 import StrokeItem from './items/StrokeItem.vue'
 import TextFormatItem from './items/TextFormatItem.vue'
@@ -210,6 +231,7 @@ const shouldShowDivider = (item: string, idx: number) => {
   if (idx === 0) return false
   if (item === 'open-panel') return true
   if (item === 'fill') return true
+  if (item === 'text') return true
   return false
 }
 </script>

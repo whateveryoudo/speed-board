@@ -117,7 +117,7 @@
       </div>
 
       <!-- 胶囊 2: 辅助工具 (AI / 设置) -->
-      <div class="board-floating-capsule tool-capsule">
+      <!-- <div class="board-floating-capsule tool-capsule">
         <a-tooltip title="AI 助手">
           <a-button type="text" class="shadow-btn-wrapper">
             <SIconFont type="icon-kl-ai-assistant" :size="18" />
@@ -133,7 +133,7 @@
             <SettingOutlined />
           </a-button>
         </a-tooltip>
-      </div>
+      </div> -->
 
       <!-- 胶囊 3: 展开/收起左侧工具栏 (快捷键 ⌘+.) -->
       <div class="board-floating-capsule toggle-capsule">

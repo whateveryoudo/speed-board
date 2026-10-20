@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>旗帜4</title>
+    <defs>
+        <linearGradient x1="50%" y1="0.378844788%" x2="50%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#45DE9D" offset="0%"></stop>
+            <stop stop-color="#00B96B" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="50%" y1="0.671977777%" x2="50%" y2="99.7456157%" id="linearGradient-2">
+            <stop stop-color="#00B96B" stop-opacity="0.11609655" offset="0%"></stop>
+            <stop stop-color="#00B96B" stop-opacity="0.489624877" offset="100%"></stop>
+        </linearGradient>
+        <rect id="path-3" x="0" y="0" width="22" height="22" rx="11"></rect>
+        
+    </defs>
+    <g id="旗帜4" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="编组-19">
+            <g id="矩形">
+                <use fill="url(#linearGradient-1)" fill-rule="evenodd" xlink:href="#path-3"></use>
+                
+                <rect stroke="url(#linearGradient-2)" stroke-width="0.5" stroke-linejoin="square" x="0.25" y="0.25" width="21.5" height="21.5" rx="10.75"></rect>
+            </g>
+            <g id="编组" transform="translate(7.333333, 5.500000)" fill="#FFFFFF">
+                <path d="M0,7.04227474 C1.03747709,6.56598579 1.96395862,6.32887314 2.77944458,6.33093681 C4.00267353,6.33403231 5.09338385,7.69595082 6.42617215,7.77684361 C7.12074332,7.8190002 7.83057462,7.68079168 8.55566603,7.36221805 C8.92713925,7.20090418 9.1668999,6.83426996 9.16666667,6.42928399 L9.16666667,1.61151351 C9.16550286,1.33030257 8.93659638,1.10327599 8.65538542,1.10443547 C8.6161416,1.10459728 8.57704805,1.10929545 8.53914999,1.11954978 C7.88175034,1.28198631 7.28173472,1.34478764 6.73910312,1.30795377 C5.6729921,1.23558608 4.33936229,0.0070953671 2.98605451,0.000116762324 C2.25944832,-0.00363012917 1.47242596,0.171470238 0.624987418,0.525417863 C0.247273562,0.683080507 0.00117420813,1.05190398 0,1.4612004 L0,7.04227474 L0,7.04227474 Z" id="路径-4"></path>
+                <rect id="矩形" opacity="0.713381813" x="0.00139393541" y="0.785822708" width="1.52754546" height="10.2141773" rx="0.763772728"></rect>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -143,7 +143,7 @@ export const multipleSchema: NodeSchema = {
 export const mindmapSchema: NodeSchema = {
   type: 'mindmap',
   label: '思维导图',
-  quickToolbar: ['text', 'link', 'open-panel'],
+  quickToolbar: ['mindmap-layout', 'mindmap-branch', 'mindmap-shape', 'text', 'link', 'open-panel'],
   panel: {
     tabs: ['style', 'text', 'arrange'],
     sections: {

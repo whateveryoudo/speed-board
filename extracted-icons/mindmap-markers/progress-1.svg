@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>进度 2</title>
+    <defs>
+        <linearGradient x1="50%" y1="0.378844788%" x2="50%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#45DE9D" offset="0%"></stop>
+            <stop stop-color="#00B96B" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="50%" y1="0.671977777%" x2="50%" y2="99.7456157%" id="linearGradient-2">
+            <stop stop-color="#00B96B" stop-opacity="0.11609655" offset="0%"></stop>
+            <stop stop-color="#00B96B" stop-opacity="0.489624877" offset="100%"></stop>
+        </linearGradient>
+        <rect id="path-3" x="0" y="0" width="22" height="22" rx="11"></rect>
+        
+    </defs>
+    <g id="进度-2" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="矩形">
+            <use fill="url(#linearGradient-1)" fill-rule="evenodd" xlink:href="#path-3"></use>
+            
+            <rect stroke="url(#linearGradient-2)" stroke-width="0.5" stroke-linejoin="square" x="0.25" y="0.25" width="21.5" height="21.5" rx="10.75"></rect>
+        </g>
+        <path d="M10.9922349,2.75 L10.9922349,11 L17.2996105,5.67652317 C18.5160997,7.11333655 19.25,8.97114228 19.25,11 C19.25,15.5563492 15.5563492,19.25 11,19.25 C6.44365081,19.25 2.75,15.5563492 2.75,11 C2.75,6.44365081 6.43588568,2.75 10.9922349,2.75 L10.9922349,2.75 Z" id="形状结合" fill-opacity="0.9" fill="#FFFFFF"></path>
+    </g>
+</svg>

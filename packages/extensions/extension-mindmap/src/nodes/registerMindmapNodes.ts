@@ -19,6 +19,10 @@ export function registerMindmapNodes(): void {
           selector: 'body',
         },
         {
+          tagName: 'rect',
+          selector: 'underline',
+        },
+        {
           tagName: 'text',
           selector: 'label',
         },
@@ -41,6 +45,17 @@ export function registerMindmapNodes(): void {
           stroke: '#e5e7eb',
           strokeWidth: 1.5,
           cursor: 'move',
+        },
+        underline: {
+          display: 'none',
+          refWidth: '100%',
+          refY: '100%',
+          refY2: -3,
+          height: 3,
+          rx: 1.5,
+          ry: 1.5,
+          fill: '#3b82f6',
+          stroke: 'none',
         },
         label: {
           text: '思维导图',

@@ -29,7 +29,7 @@ export class CommandManager {
             return val
           }
           if (target._commands.has(prop)) {
-            return (props?: any) => target.execute(prop, props)
+            return (...args: any[]) => target.execute(prop, ...args)
           }
         }
         return Reflect.get(target, prop, receiver)
@@ -66,7 +66,7 @@ export class CommandManager {
     return this._commands.has(name)
   }
 
-  async execute(name: string, props?: any): Promise<boolean> {
+  async execute(name: string, ...args: any[]): Promise<boolean> {
     const fn = this._commands.get(name)
     if (!fn) {
       console.warn(`[@speed-board/core] Unknown command: "${name}"`)
@@ -79,7 +79,7 @@ export class CommandManager {
     }
 
     try {
-      let result = fn(props)
+      let result = fn(...args)
       if (typeof result === 'function') {
         result = result(ctx)
       }

@@ -151,18 +151,36 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       depth: nLayout.depth,
     })
 
-    // 同步下划线显示：仅下划线风格显示，卡片/胶囊等卡片风格彻底隐藏，杜绝多余杂点残留
-    if (!currentData.isRoot) {
-      const shapeStyle = currentData.shapeStyle || 'none'
-      if (shapeStyle === 'underline') {
-        node.setAttrByPath('underline/display', 'block')
-        if (currentData.branch?.color) {
-          node.setAttrByPath('underline/fill', currentData.branch.color)
-          node.setAttrByPath('underline/stroke', 'none')
-        }
-      } else {
-        node.setAttrByPath('underline/display', 'none')
-      }
+    // 同步节点形状样式 (下划线 / 胶囊 / 卡片矩形 / 纯文本)
+    const shapeStyle = currentData.shapeStyle || (currentData.isRoot ? 'rect' : 'none')
+    const primaryColor = currentData.branch?.color || '#3b82f6'
+
+    if (shapeStyle === 'underline') {
+      node.setAttrByPath('body/fill', 'transparent')
+      node.setAttrByPath('body/stroke', 'transparent')
+      node.setAttrByPath('body/strokeWidth', 0)
+      node.setAttrByPath('underline/display', 'block')
+      node.setAttrByPath('underline/fill', primaryColor)
+      node.setAttrByPath('underline/stroke', 'none')
+    } else if (shapeStyle === 'capsule') {
+      node.setAttrByPath('body/rx', 16)
+      node.setAttrByPath('body/ry', 16)
+      node.setAttrByPath('body/fill', currentData.fill || (currentData.isRoot ? '#f3f4f6' : '#ffffff'))
+      node.setAttrByPath('body/stroke', currentData.stroke || primaryColor)
+      node.setAttrByPath('body/strokeWidth', currentData.strokeWidth || 1.5)
+      node.setAttrByPath('underline/display', 'none')
+    } else if (shapeStyle === 'rect') {
+      node.setAttrByPath('body/rx', currentData.isRoot ? 8 : 6)
+      node.setAttrByPath('body/ry', currentData.isRoot ? 8 : 6)
+      node.setAttrByPath('body/fill', currentData.fill || (currentData.isRoot ? '#f3f4f6' : '#ffffff'))
+      node.setAttrByPath('body/stroke', currentData.stroke || (currentData.isRoot ? '#e5e7eb' : primaryColor))
+      node.setAttrByPath('body/strokeWidth', currentData.strokeWidth || 1.5)
+      node.setAttrByPath('underline/display', 'none')
+    } else if (shapeStyle === 'none') {
+      node.setAttrByPath('body/fill', 'transparent')
+      node.setAttrByPath('body/stroke', 'transparent')
+      node.setAttrByPath('body/strokeWidth', 0)
+      node.setAttrByPath('underline/display', 'none')
     }
   }
 
@@ -184,8 +202,15 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
     const strokeColor = edgeInfo.color || '#8b5cf6'
     const strokeWidth = edgeInfo.width ?? 3
 
+    // 根据所属分支类型确定连线 connector (曲线 / 直角折线)
+    const sourceNode = graph.getCellById(edgeInfo.source) as Node
+    const sourceData = (sourceNode?.getData() || {}) as MindmapNodeData
+    const branchType = sourceData.branch?.type || rootData.branch?.type || 'curve'
+    const connectorName = branchType === 'straight' ? 'mindmap-straight' : 'mindmap-curve'
+
     let edge = existingEdgeMap.get(key)
     if (edge) {
+      edge.setConnector(connectorName)
       edge.setSource({
         cell: edgeInfo.source,
         port: sourcePort,
@@ -203,6 +228,9 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
     } else {
       graph.addEdge({
         shape: 'speed-mindmap-edge',
+        connector: {
+          name: connectorName,
+        },
         source: {
           cell: edgeInfo.source,
           port: sourcePort,
@@ -477,6 +505,20 @@ export function setMindmapBranchStyle(
     ...data,
     branch: newBranch,
   })
+
+  // 如果选中的是根节点，将分支类型及全局配置级联同步给整棵树的各分支
+  if (data.isRoot) {
+    const { nodes } = getMindmapElements(graph, data.mindmapId)
+    for (const n of nodes) {
+      if (n.id !== node.id) {
+        const nd = n.getData() as MindmapNodeData
+        n.setData({
+          ...nd,
+          branch: { ...(nd.branch || {}), ...branchConfig },
+        })
+      }
+    }
+  }
 
   updateMindmapLayout(board, data.mindmapId)
 }

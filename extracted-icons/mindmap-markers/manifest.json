@@ -1,0 +1,191 @@
+[
+  {
+    "id": "insert-icon-priority-0",
+    "name": "priority-1",
+    "category": "priority",
+    "label": "优先级 1",
+    "rawTitle": "1",
+    "filename": "priority-1.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/bf9b8e4b-b1d4-45b1-bafc-f22c905b7b4e.svg"
+  },
+  {
+    "id": "insert-icon-priority-1",
+    "name": "priority-2",
+    "category": "priority",
+    "label": "优先级 2",
+    "rawTitle": "2",
+    "filename": "priority-2.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/bbb05404-6149-4cd6-b234-e330d412ceff.svg"
+  },
+  {
+    "id": "insert-icon-priority-2",
+    "name": "priority-3",
+    "category": "priority",
+    "label": "优先级 3",
+    "rawTitle": "3",
+    "filename": "priority-3.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/1ef71652-d5a3-48b7-9e57-de90c7aa835b.svg"
+  },
+  {
+    "id": "insert-icon-priority-3",
+    "name": "priority-4",
+    "category": "priority",
+    "label": "优先级 4",
+    "rawTitle": "4",
+    "filename": "priority-4.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/4119993f-c9b6-4c2d-8a65-907840a47202.svg"
+  },
+  {
+    "id": "insert-icon-priority-4",
+    "name": "priority-5",
+    "category": "priority",
+    "label": "优先级 5",
+    "rawTitle": "5",
+    "filename": "priority-5.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/61ae2c45-7c6d-40fe-a772-873e34aecc6f.svg"
+  },
+  {
+    "id": "insert-icon-priority-5",
+    "name": "priority-6",
+    "category": "priority",
+    "label": "优先级 6",
+    "rawTitle": "6",
+    "filename": "priority-6.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/f9e31950-3daa-457b-a429-6da0c6f8fee0.svg"
+  },
+  {
+    "id": "insert-icon-priority-6",
+    "name": "priority-7",
+    "category": "priority",
+    "label": "优先级 7",
+    "rawTitle": "7",
+    "filename": "priority-7.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/cf26510b-6d9a-43dc-9bba-67839b11c05b.svg"
+  },
+  {
+    "id": "insert-icon-progress-0",
+    "name": "progress-0",
+    "category": "progress",
+    "label": "进度 0%",
+    "rawTitle": "进度 1",
+    "filename": "progress-0.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/8b4c2bef-649d-40ac-b43b-f33fd456284d.svg"
+  },
+  {
+    "id": "insert-icon-progress-1",
+    "name": "progress-1",
+    "category": "progress",
+    "label": "进度 1/6",
+    "rawTitle": "进度 2",
+    "filename": "progress-1.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/3a513a92-a334-4469-98ae-3c5825d8864e.svg"
+  },
+  {
+    "id": "insert-icon-progress-2",
+    "name": "progress-2",
+    "category": "progress",
+    "label": "进度 2/6",
+    "rawTitle": "进度 3",
+    "filename": "progress-2.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/bd0e81dc-34e8-4b6f-9221-9d33371f53b9.svg"
+  },
+  {
+    "id": "insert-icon-progress-3",
+    "name": "progress-3",
+    "category": "progress",
+    "label": "进度 3/6",
+    "rawTitle": "进度 4",
+    "filename": "progress-3.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/aad5a7c4-8f72-47c0-805b-6b0d239a51d5.svg"
+  },
+  {
+    "id": "insert-icon-progress-4",
+    "name": "progress-4",
+    "category": "progress",
+    "label": "进度 4/6",
+    "rawTitle": "进度 5",
+    "filename": "progress-4.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/5489b9dd-20bc-464a-a064-2593db39d1df.svg"
+  },
+  {
+    "id": "insert-icon-progress-5",
+    "name": "progress-5",
+    "category": "progress",
+    "label": "进度 5/6",
+    "rawTitle": "进度 6",
+    "filename": "progress-5.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/8d2d4df2-f1f0-48c6-875d-c694d01fcfad.svg"
+  },
+  {
+    "id": "insert-icon-progress-6",
+    "name": "progress-6",
+    "category": "progress",
+    "label": "进度 6/6 (100%)",
+    "rawTitle": "进度 7",
+    "filename": "progress-6.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/d07956ae-58ad-479a-b59d-310646dd5f37.svg"
+  },
+  {
+    "id": "insert-icon-flag-0",
+    "name": "flag-1-red",
+    "category": "flag",
+    "label": "红旗",
+    "rawTitle": "旗帜1",
+    "filename": "flag-1-red.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/01e45248-e9d6-4ac1-9018-f64b82050155.svg"
+  },
+  {
+    "id": "insert-icon-flag-1",
+    "name": "flag-2-orange",
+    "category": "flag",
+    "label": "橙旗",
+    "rawTitle": "旗帜2",
+    "filename": "flag-2-orange.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/ddb1da7b-5481-4d40-a9f0-d6aea06c0011.svg"
+  },
+  {
+    "id": "insert-icon-flag-2",
+    "name": "flag-3-yellow",
+    "category": "flag",
+    "label": "黄旗",
+    "rawTitle": "旗帜3",
+    "filename": "flag-3-yellow.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/566d145a-bffa-4b19-b9fd-14315c9d2fd3.svg"
+  },
+  {
+    "id": "insert-icon-flag-3",
+    "name": "flag-4-green",
+    "category": "flag",
+    "label": "绿旗",
+    "rawTitle": "旗帜4",
+    "filename": "flag-4-green.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/ba0e8dee-7014-4213-84d0-6aee48c37248.svg"
+  },
+  {
+    "id": "insert-icon-flag-4",
+    "name": "flag-5-cyan",
+    "category": "flag",
+    "label": "青旗",
+    "rawTitle": "旗帜5",
+    "filename": "flag-5-cyan.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/d3e16f31-34bd-4269-9ef7-d04005303024.svg"
+  },
+  {
+    "id": "insert-icon-flag-5",
+    "name": "flag-6-blue",
+    "category": "flag",
+    "label": "蓝旗",
+    "rawTitle": "旗帜6",
+    "filename": "flag-6-blue.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/ca82f31a-a2d9-4751-a8d0-d4f87771b913.svg"
+  },
+  {
+    "id": "insert-icon-flag-6",
+    "name": "flag-7-purple",
+    "category": "flag",
+    "label": "紫旗",
+    "rawTitle": "旗帜7",
+    "filename": "flag-7-purple.svg",
+    "url": "https://gw.alipayobjects.com/zos/bmw-prod/1a24ad93-ccd5-4fe5-a42e-f8777b933e47.svg"
+  }
+]

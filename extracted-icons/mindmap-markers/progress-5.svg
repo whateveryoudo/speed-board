@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>进度 6</title>
+    <defs>
+        <linearGradient x1="50%" y1="0.378844788%" x2="50%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#45DE9D" offset="0%"></stop>
+            <stop stop-color="#00B96B" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="50%" y1="0.671977777%" x2="50%" y2="99.7456157%" id="linearGradient-2">
+            <stop stop-color="#00B96B" stop-opacity="0.11609655" offset="0%"></stop>
+            <stop stop-color="#00B96B" stop-opacity="0.489624877" offset="100%"></stop>
+        </linearGradient>
+        <rect id="path-3" x="0" y="0" width="22" height="22" rx="11"></rect>
+        
+    </defs>
+    <g id="进度-6" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="编组-18">
+            <g id="矩形">
+                <use fill="url(#linearGradient-1)" fill-rule="evenodd" xlink:href="#path-3"></use>
+                
+                <rect stroke="url(#linearGradient-2)" stroke-width="0.5" stroke-linejoin="square" x="0.25" y="0.25" width="21.5" height="21.5" rx="10.75"></rect>
+            </g>
+            <path d="M10.9342112,2.75 L10.9342112,11 L3.95153445,6.6130562 C5.40919617,4.29229809 7.98997102,2.75 10.9342112,2.75 L10.9342112,2.75 Z" id="形状结合" fill-opacity="0.9" fill="#FFFFFF"></path>
+        </g>
+    </g>
+</svg>

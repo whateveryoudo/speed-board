@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>1</title>
+    <defs>
+        <linearGradient x1="50%" y1="0.378844788%" x2="50%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#EA7583" offset="0%"></stop>
+            <stop stop-color="#DF2A3F" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="99.7456157%" id="linearGradient-2">
+            <stop stop-color="#DF2A3F" stop-opacity="0.5" offset="0%"></stop>
+            <stop stop-color="#DF2A3F" offset="100%"></stop>
+        </linearGradient>
+        <rect id="path-3" x="0" y="0" width="22" height="22" rx="11"></rect>
+        
+    </defs>
+    <g id="1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="矩形">
+            <use fill="url(#linearGradient-1)" fill-rule="evenodd" xlink:href="#path-3"></use>
+            
+            <rect stroke="url(#linearGradient-2)" stroke-width="0.5" stroke-linejoin="square" x="0.25" y="0.25" width="21.5" height="21.5" rx="10.75"></rect>
+        </g>
+        <path d="M10.484375,15.3958333 L10.484375,8.00520833 L9.625,8.00520833 C8.97569444,8.00520833 8.63194444,7.66145833 8.59375,6.97395833 C8.63194444,6.40104167 8.97569444,6.07638889 9.625,6 L11.6875,6 C12.2986111,6.03819444 12.6232639,6.38194444 12.6614583,7.03125 L12.6614583,15.3958333 C12.6232639,16.0833333 12.2604167,16.4270833 11.5729167,16.4270833 C10.8472222,16.4270833 10.484375,16.0833333 10.484375,15.3958333 Z" id="路径" fill="#FFFFFF" fill-rule="nonzero"></path>
+    </g>
+</svg>

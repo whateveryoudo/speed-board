@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>4</title>
+    <defs>
+        <linearGradient x1="50%" y1="0.519501706%" x2="50%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#DCE1DE" offset="0%"></stop>
+            <stop stop-color="#909795" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="109.140947%" id="linearGradient-2">
+            <stop stop-color="#B0B3B2" stop-opacity="0.3" offset="0%"></stop>
+            <stop stop-color="#909795" stop-opacity="0.367392373" offset="100%"></stop>
+        </linearGradient>
+        <rect id="path-3" x="0" y="0" width="22" height="22" rx="11"></rect>
+        
+    </defs>
+    <g id="4" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="矩形">
+            <use fill="url(#linearGradient-1)" fill-rule="evenodd" xlink:href="#path-3"></use>
+            
+            <rect stroke="url(#linearGradient-2)" stroke-width="0.5" stroke-linejoin="square" x="0.25" y="0.25" width="21.5" height="21.5" rx="10.75"></rect>
+        </g>
+        <path d="M11.2291667,13.8072917 L7.67708333,13.8072917 C7.02777778,13.8072917 6.68402778,13.5208333 6.64583333,12.9479167 C6.60763889,12.71875 6.68402778,12.4895833 6.875,12.2604167 L10.140625,6.359375 C10.4079861,5.78645833 10.9045139,5.5 11.6302083,5.5 C12.7378472,5.57638889 13.3107639,6.1875 13.3489583,7.33333333 L13.3489583,11.859375 L13.578125,11.859375 C14.1892361,11.9357639 14.5329861,12.2604167 14.609375,12.8333333 C14.5329861,13.4444444 14.1892361,13.7690972 13.578125,13.8072917 L13.3489583,13.8072917 L13.3489583,15.0677083 C13.3489583,15.7552083 12.9861111,16.0989583 12.2604167,16.0989583 C11.5347222,16.0989583 11.1909722,15.7552083 11.2291667,15.0677083 L11.2291667,13.8072917 Z M11.2291667,11.859375 L11.2291667,7.79166667 L11.171875,7.79166667 L9.22395833,11.859375 L11.2291667,11.859375 Z" id="形状" fill="#FFFFFF" fill-rule="nonzero"></path>
+    </g>
+</svg>

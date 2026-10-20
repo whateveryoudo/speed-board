@@ -261,7 +261,7 @@ watch(
 )
 </script>
 
-<style scoped>
+<style scoped lang="less">
 .style-settings-panel {
   position: absolute;
   top: 108px; /* 紧随右上角工具条下方垂直排列，不与右上角胶囊工具条重叠 */
@@ -312,14 +312,16 @@ watch(
   background-color: #f3f4f6;
 }
 
-.panel-tabs-wrapper {
+.panel-tabs-wrapper{
   padding: 0 14px;
-  background-color: #fafafa;
   border-bottom: 1px solid #f3f4f6;
 }
 
 .panel-ant-tabs :deep(.ant-tabs-nav) {
   margin-bottom: 0;
+  &::before{
+    display: none;
+  }
 }
 
 .panel-ant-tabs :deep(.ant-tabs-content-holder) {

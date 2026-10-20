@@ -7,22 +7,29 @@
       <span class="label">节点形状</span>
       <a-select
         :value="currentShapeStyle"
-        size="small"
         style="width: 130px"
         @change="onShapeStyleChange"
       >
-        <a-select-option value="none">纯文本(无边框)</a-select-option>
-        <a-select-option value="capsule">胶囊</a-select-option>
         <a-select-option value="rect">矩形</a-select-option>
+        <a-select-option value="capsule">胶囊</a-select-option>
+        <a-select-option value="underline">下划线</a-select-option>
+        <a-select-option value="none">纯文本(无边框)</a-select-option>
       </a-select>
     </div>
 
     <!-- 2. 填充颜色 -->
-    <div v-if="currentShapeStyle === 'capsule' || currentShapeStyle === 'rect'" class="setter-row">
+    <div class="setter-row">
       <span class="label">填充颜色</span>
       <a-popover v-model:open="fillPopoverOpen" trigger="click" placement="left">
         <template #content>
           <div class="color-palette">
+            <div
+              class="color-dot is-transparent-dot"
+              title="透明/无填充"
+              @click="onFillChange('transparent')"
+            >
+              <span class="transparent-slash" />
+            </div>
             <div
               v-for="color in PRESET_COLORS"
               :key="color"
@@ -32,16 +39,28 @@
             />
           </div>
         </template>
-        <div class="color-preview-block" :style="{ backgroundColor: currentFill }" />
+        <div
+          class="color-preview-block"
+          :style="currentFill !== 'transparent' ? { backgroundColor: currentFill } : {}"
+        >
+          <span v-if="currentFill === 'transparent'" class="transparent-slash" />
+        </div>
       </a-popover>
     </div>
 
     <!-- 3. 边框颜色与粗细 -->
-    <div v-if="currentShapeStyle === 'capsule' || currentShapeStyle === 'rect'" class="setter-row">
+    <div class="setter-row">
       <span class="label">边框颜色</span>
       <a-popover v-model:open="strokePopoverOpen" trigger="click" placement="left">
         <template #content>
           <div class="color-palette">
+            <div
+              class="color-dot is-transparent-dot"
+              title="无边框"
+              @click="onStrokeChange('transparent')"
+            >
+              <span class="transparent-slash" />
+            </div>
             <div
               v-for="color in PRESET_COLORS"
               :key="color"
@@ -51,11 +70,16 @@
             />
           </div>
         </template>
-        <div class="color-preview-block" :style="{ backgroundColor: currentStroke }" />
+        <div
+          class="color-preview-block"
+          :style="currentStroke !== 'transparent' && currentStrokeWidth > 0 ? { backgroundColor: currentStroke } : {}"
+        >
+          <span v-if="currentStroke === 'transparent' || currentStrokeWidth === 0" class="transparent-slash" />
+        </div>
       </a-popover>
     </div>
 
-    <div v-if="currentShapeStyle === 'capsule' || currentShapeStyle === 'rect'" class="setter-row">
+    <div class="setter-row">
       <span class="label">边框粗细</span>
       <a-input-number
         :value="currentStrokeWidth"
@@ -65,13 +89,6 @@
         style="width: 80px"
         @change="onStrokeWidthChange"
       />
-    </div>
-
-    <!-- 4. 手动设置节点尺寸 -->
-    <div class="setter-row">
-      <a-checkbox v-model:checked="isManualSize" @change="onManualSizeChange">
-        手动设置节点尺寸
-      </a-checkbox>
     </div>
   </div>
 </template>
@@ -104,9 +121,7 @@ const cellData = computed(() => {
 })
 
 const currentShapeStyle = computed<MindmapShapeStyle>(() => {
-  const style = cellData.value.shapeStyle
-  if (style === 'underline') return 'none'
-  return style || 'none'
+  return cellData.value.shapeStyle || 'rect'
 })
 
 const currentFill = computed(() => {
@@ -129,6 +144,8 @@ const onShapeStyleChange = (style: MindmapShapeStyle) => {
   const data = node.getData() || {}
   node.setData({ ...data, shapeStyle: style })
 
+  const primaryColor = data.branch?.color || '#3b82f6'
+
   if (style === 'none') {
     node.setAttrByPath('body/fill', 'transparent')
     node.setAttrByPath('body/stroke', 'transparent')
@@ -139,44 +156,58 @@ const onShapeStyleChange = (style: MindmapShapeStyle) => {
     node.setAttrByPath('body/stroke', 'transparent')
     node.setAttrByPath('body/strokeWidth', 0)
     node.setAttrByPath('underline/display', 'block')
-    if (data.branch?.color) {
-      node.setAttrByPath('underline/fill', data.branch.color)
-      node.setAttrByPath('underline/stroke', 'none')
-    }
+    node.setAttrByPath('underline/fill', primaryColor)
+    node.setAttrByPath('underline/stroke', 'none')
   } else if (style === 'capsule') {
     node.setAttrByPath('body/rx', 16)
     node.setAttrByPath('body/ry', 16)
-    node.setAttrByPath('body/fill', data.fill || '#ffffff')
-    node.setAttrByPath('body/stroke', data.branch?.color || '#8b5cf6')
-    node.setAttrByPath('body/strokeWidth', 1.5)
+    node.setAttrByPath('body/fill', data.fill || (data.isRoot ? '#f3f4f6' : '#ffffff'))
+    node.setAttrByPath('body/stroke', data.stroke || primaryColor)
+    node.setAttrByPath('body/strokeWidth', data.strokeWidth || 1.5)
     node.setAttrByPath('underline/display', 'none')
   } else if (style === 'rect') {
-    node.setAttrByPath('body/rx', 6)
-    node.setAttrByPath('body/ry', 6)
-    node.setAttrByPath('body/fill', data.fill || '#ffffff')
-    node.setAttrByPath('body/stroke', data.branch?.color || '#8b5cf6')
-    node.setAttrByPath('body/strokeWidth', 1.5)
+    node.setAttrByPath('body/rx', data.isRoot ? 8 : 6)
+    node.setAttrByPath('body/ry', data.isRoot ? 8 : 6)
+    node.setAttrByPath('body/fill', data.fill || (data.isRoot ? '#f3f4f6' : '#ffffff'))
+    node.setAttrByPath('body/stroke', data.stroke || (data.isRoot ? '#e5e7eb' : primaryColor))
+    node.setAttrByPath('body/strokeWidth', data.strokeWidth || 1.5)
     node.setAttrByPath('underline/display', 'none')
   }
 
-  ;(props.board as any).commands?.updateMindmapLayout?.(node.id)
+  ;(props.board as any).commands?.updateMindmapLayout?.(data.mindmapId || node.id)
 }
 
 const onFillChange = (color: string) => {
   fillPopoverOpen.value = false
   if (!selectedCell.value) return
-  selectedCell.value.setAttrByPath('body/fill', color)
+  const node = selectedCell.value
+  const data = (node.getData() || {}) as any
+  node.setData({ ...data, fill: color })
+  node.setAttrByPath('body/fill', color)
 }
 
 const onStrokeChange = (color: string) => {
   strokePopoverOpen.value = false
   if (!selectedCell.value) return
-  selectedCell.value.setAttrByPath('body/stroke', color)
+  const node = selectedCell.value
+  const data = (node.getData() || {}) as any
+  node.setData({ ...data, stroke: color })
+  node.setAttrByPath('body/stroke', color)
+  if (color === 'transparent') {
+    node.setAttrByPath('body/strokeWidth', 0)
+  } else if (currentStrokeWidth.value === 0) {
+    node.setData({ ...data, stroke: color, strokeWidth: 1.5 })
+    node.setAttrByPath('body/strokeWidth', 1.5)
+  }
 }
 
 const onStrokeWidthChange = (val: any) => {
   if (!selectedCell.value) return
-  selectedCell.value.setAttrByPath('body/strokeWidth', Number(val) || 1)
+  const node = selectedCell.value
+  const data = (node.getData() || {}) as any
+  const width = Number(val) || 0
+  node.setData({ ...data, strokeWidth: width })
+  node.setAttrByPath('body/strokeWidth', width)
 }
 
 const onManualSizeChange = (e: any) => {
@@ -207,12 +238,30 @@ const onManualSizeChange = (e: any) => {
     }
 
     .color-preview-block {
+      position: relative;
       width: 48px;
       height: 24px;
       border-radius: 4px;
       border: 1px solid #d1d5db;
       cursor: pointer;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      background-color: #ffffff;
+      overflow: hidden;
+
+      .transparent-slash {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          to top right,
+          transparent calc(50% - 1px),
+          #ef4444 calc(50% - 1px),
+          #ef4444 calc(50% + 1px),
+          transparent calc(50% + 1px)
+        );
+      }
     }
   }
 }
@@ -224,11 +273,30 @@ const onManualSizeChange = (e: any) => {
   width: 130px;
 
   .color-dot {
+    position: relative;
     width: 20px;
     height: 20px;
     border-radius: 4px;
     cursor: pointer;
     border: 1px solid rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    background-color: #ffffff;
+
+    .transparent-slash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        to top right,
+        transparent calc(50% - 1px),
+        #ef4444 calc(50% - 1px),
+        #ef4444 calc(50% + 1px),
+        transparent calc(50% + 1px)
+      );
+    }
+
     &:hover {
       transform: scale(1.15);
     }

@@ -7,7 +7,8 @@
     "dev": "pnpm --filter @speed-board/vue3-demo dev",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
-    "extract-icons": "node scripts/extract-icons.mjs"
+    "extract-icons": "node scripts/extract-icons.mjs",
+    "extract:markers": "node scripts/extract-mindmap-markers.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

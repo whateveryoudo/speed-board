@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>进度 7</title>
+    <defs>
+        <linearGradient x1="50%" y1="0.378844788%" x2="50%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#45DE9D" offset="0%"></stop>
+            <stop stop-color="#00B96B" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="50%" y1="0.671977777%" x2="50%" y2="99.7456157%" id="linearGradient-2">
+            <stop stop-color="#00B96B" stop-opacity="0.11609655" offset="0%"></stop>
+            <stop stop-color="#00B96B" stop-opacity="0.489624877" offset="100%"></stop>
+        </linearGradient>
+        <rect id="path-3" x="0" y="0" width="22" height="22" rx="11"></rect>
+        
+    </defs>
+    <g id="进度-7" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="编组-16">
+            <g id="矩形">
+                <use fill="url(#linearGradient-1)" fill-rule="evenodd" xlink:href="#path-3"></use>
+                
+                <rect stroke="url(#linearGradient-2)" stroke-width="0.5" stroke-linejoin="square" x="0.25" y="0.25" width="21.5" height="21.5" rx="10.75"></rect>
+            </g>
+            <path d="M15.5361198,6.73602428 C15.9725728,6.30396213 16.6730202,6.31122012 17.1006128,6.75223544 C17.5204309,7.18523231 17.5211399,7.87537103 17.1079501,8.30924486 L17.0845693,8.33308205 L10.0832383,15.2639761 C9.66111217,15.6818554 8.99045815,15.6896444 8.55906729,15.2873057 L8.53490775,15.2640938 L4.91554968,11.6822271 C4.47903223,11.2502314 4.47174389,10.5424633 4.89927072,10.101383 C5.31902433,9.66832226 6.00186328,9.65334927 6.43969272,10.0618061 L6.46376129,10.0849338 L9.30887654,12.9005184 L15.5361198,6.73602428 Z" id="路径-4" fill="#FFFFFF" fill-rule="nonzero"></path>
+        </g>
+    </g>
+</svg>
