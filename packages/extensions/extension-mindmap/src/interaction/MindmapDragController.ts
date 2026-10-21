@@ -7,6 +7,7 @@ import {
   getMindmapDescendants,
   moveMindmapNode,
   updateMindmapLayout,
+  getMindmapRootNode,
 } from '../commands/mindmapCommands'
 import { MindmapDragIndicator, type PlaceholderType } from './MindmapDragIndicator'
 
@@ -125,13 +126,13 @@ export class MindmapDragController {
       const data = node.getData() as MindmapNodeData | undefined
       if (!data || data.isRoot) return
 
-      // 仅处理左键
-      if ((e as MouseEvent).button !== 0) return
+      const mouseEvent = (e as unknown) as MouseEvent
+      if (mouseEvent.button !== 0) return
 
       this.pendingDrag = {
         node,
-        startClientX: (e as MouseEvent).clientX,
-        startClientY: (e as MouseEvent).clientY,
+        startClientX: mouseEvent.clientX,
+        startClientY: mouseEvent.clientY,
       }
 
       this.bindWindowDragEvents()
@@ -262,100 +263,183 @@ export class MindmapDragController {
   }
 
   /**
-   * 核心几何判定：计算光标处于候选目标的【上方】、【下方】还是【后面嵌套】
+   * 核心几何判定：计算光标处于候选目标的【同级插槽】还是【嵌套为子分支】
+   * 彻底解决缝隙处“停顿两个点位”与重叠跳跃问题：相邻兄弟间隙只映射唯一稳定的单插槽！
    */
   private updatePlaceholderAt(cursorX: number, cursorY: number): void {
     if (!this.draggedNode || !this.draggedBBox) return
 
-    let bestMatch: {
-      target: Node
-      position: PlaceholderType
-      distance: number
-    } | null = null
+    // 1. 优先判定嵌套为子分支 (Child)：候选节点右侧区域
+    let childMatch: { target: Node; distance: number } | null = null
 
     for (const cand of this.candidateNodes) {
       const candBBox = cand.getBBox()
       const candData = cand.getData() as MindmapNodeData
 
       if (candData.isRoot) {
-        // 根节点：只支持【后面嵌套为子分支】
-        const inHorizontal =
-          cursorX >= candBBox.x - 30 && cursorX <= candBBox.x + candBBox.width + 120
-        const inVertical =
-          cursorY >= candBBox.y - 30 && cursorY <= candBBox.y + candBBox.height + 30
-
-        if (inHorizontal && inVertical) {
+        const inH = cursorX >= candBBox.x - 20 && cursorX <= candBBox.x + candBBox.width + 120
+        const inV = cursorY >= candBBox.y - 20 && cursorY <= candBBox.y + candBBox.height + 20
+        if (inH && inV) {
           const dist = Math.hypot(
-            cursorX - (candBBox.x + candBBox.width / 2),
+            cursorX - (candBBox.x + candBBox.width),
             cursorY - (candBBox.y + candBBox.height / 2)
           )
-          if (!bestMatch || dist < bestMatch.distance) {
-            bestMatch = { target: cand, position: 'child', distance: dist }
+          if (!childMatch || dist < childMatch.distance) {
+            childMatch = { target: cand, distance: dist }
           }
         }
       } else {
-        // 普通分支节点：根据上下边缘与后方区域精准判定 3 类占位
-        const inHorizontal =
-          cursorX >= candBBox.x - 50 && cursorX <= candBBox.x + candBBox.width + 130
-        const inVertical =
-          cursorY >= candBBox.y - 45 && cursorY <= candBBox.y + candBBox.height + 45
-
-        if (inHorizontal && inVertical) {
-          let pos: PlaceholderType
-
-          // 靠近右侧外侧（后方） -> 优先判定为【后面嵌套为子分支】
-          if (cursorX > candBBox.x + candBBox.width * 0.75) {
-            pos = 'child'
-          } else if (cursorY < candBBox.y + 6) {
-            // 靠近上侧 -> 【上方插队】
-            pos = 'before'
-          } else if (cursorY > candBBox.y + candBBox.height - 6) {
-            // 靠近下侧 -> 【下方插队】
-            pos = 'after'
-          } else {
-            // 中心 -> 【后面嵌套为子分支】
-            pos = 'child'
-          }
-
+        // 分支节点：右侧 35% 内部及右侧外侧区域判定为嵌套为子节点
+        const inH =
+          cursorX >= candBBox.x + candBBox.width * 0.65 &&
+          cursorX <= candBBox.x + candBBox.width + 120
+        const inV = cursorY >= candBBox.y - 8 && cursorY <= candBBox.y + candBBox.height + 8
+        if (inH && inV) {
           const dist = Math.hypot(
-            cursorX - (candBBox.x + candBBox.width / 2),
+            cursorX - (candBBox.x + candBBox.width),
             cursorY - (candBBox.y + candBBox.height / 2)
           )
-          if (!bestMatch || dist < bestMatch.distance) {
-            bestMatch = { target: cand, position: pos, distance: dist }
+          if (!childMatch || dist < childMatch.distance) {
+            childMatch = { target: cand, distance: dist }
           }
         }
       }
     }
 
-    if (bestMatch) {
+    if (childMatch) {
       this.currentDropTarget = {
-        targetId: bestMatch.target.id,
-        position: bestMatch.position,
+        targetId: childMatch.target.id,
+        position: 'child',
+      }
+      const draggedData = this.draggedNode.getData() as MindmapNodeData
+      const rootNode = getMindmapRootNode(this.board.graph, this.draggedNode.id)
+      const rootData = rootNode?.getData() as MindmapNodeData | undefined
+      const branchType: 'curve' | 'straight' =
+        rootData?.branch?.type === 'straight' ? 'straight' : 'curve'
+
+      this.indicator.showPlaceholder(
+        'child',
+        childMatch.target.getBBox(),
+        childMatch.target.getBBox(),
+        this.draggedBBox.width,
+        this.draggedBBox.height,
+        draggedData?.branch?.color || '#3b82f6',
+        branchType
+      )
+      return
+    }
+
+    // 2. 同级插槽判定 (Sibling Insertion Slots)
+    // 按 parentId 分组各组兄弟，计算无重叠无跳跃的单一几何插槽
+    interface SiblingSlot {
+      target: Node
+      position: 'before' | 'after'
+      slotY: number
+      distance: number
+    }
+
+    const parentGroups = new Map<string, Node[]>()
+    for (const cand of this.candidateNodes) {
+      const candData = cand.getData() as MindmapNodeData
+      if (!candData.isRoot && candData.parentId) {
+        const group = parentGroups.get(candData.parentId) || []
+        group.push(cand)
+        parentGroups.set(candData.parentId, group)
+      }
+    }
+
+    let bestSlot: SiblingSlot | null = null
+
+    for (const [, siblings] of parentGroups) {
+      // 按 Y 坐标从上至下排序
+      siblings.sort((a, b) => a.getBBox().y - b.getBBox().y)
+
+      for (let i = 0; i <= siblings.length; i++) {
+        let slotY = 0
+        let minY = 0
+        let maxY = 0
+        let targetNode: Node
+        let position: 'before' | 'after'
+        let refBBox: { x: number; y: number; width: number; height: number }
+
+        if (i === 0) {
+          // 第一个兄弟上方
+          const first = siblings[0]
+          const fBBox = first.getBBox()
+          refBBox = fBBox
+          slotY = fBBox.y - 8
+          minY = fBBox.y - 30
+          maxY = fBBox.y + fBBox.height * 0.4
+          targetNode = first
+          position = 'before'
+        } else if (i === siblings.length) {
+          // 最后一个兄弟下方
+          const last = siblings[siblings.length - 1]
+          const lBBox = last.getBBox()
+          refBBox = lBBox
+          slotY = lBBox.y + lBBox.height + 8
+          minY = lBBox.y + lBBox.height * 0.6
+          maxY = lBBox.y + lBBox.height + 30
+          targetNode = last
+          position = 'after'
+        } else {
+          // 两个相邻兄弟中间缝隙：唯一稳定单插槽
+          const prev = siblings[i - 1]
+          const curr = siblings[i]
+          const pBBox = prev.getBBox()
+          const cBBox = curr.getBBox()
+          refBBox = pBBox
+          slotY = (pBBox.y + pBBox.height + cBBox.y) / 2
+          minY = pBBox.y + pBBox.height * 0.4
+          maxY = cBBox.y + cBBox.height * 0.6
+          targetNode = prev
+          position = 'after'
+        }
+
+        const minX = refBBox.x - 50
+        const maxX = refBBox.x + refBBox.width + 60
+
+        if (cursorX >= minX && cursorX <= maxX && cursorY >= minY && cursorY <= maxY) {
+          const dist = Math.hypot(cursorX - refBBox.x, cursorY - slotY)
+          if (!bestSlot || dist < bestSlot.distance) {
+            bestSlot = {
+              target: targetNode,
+              position,
+              slotY,
+              distance: dist,
+            }
+          }
+        }
+      }
+    }
+
+    if (bestSlot) {
+      this.currentDropTarget = {
+        targetId: bestSlot.target.id,
+        position: bestSlot.position,
       }
 
       // 获取当前占位连线应该连接的父节点包围盒
-      let parentBBox: { x: number; y: number; width: number; height: number } | null = null
-      if (bestMatch.position === 'child') {
-        parentBBox = bestMatch.target.getBBox()
-      } else {
-        const candData = bestMatch.target.getData() as MindmapNodeData
-        const parentId = candData.parentId || candData.mindmapId
-        const parentNode = this.board.graph.getCellById(parentId) as Node | undefined
-        if (parentNode) {
-          parentBBox = parentNode.getBBox()
-        }
-      }
+      const candData = bestSlot.target.getData() as MindmapNodeData
+      const parentId = candData.parentId || candData.mindmapId
+      const parentNode = this.board.graph.getCellById(parentId) as Node | undefined
+      const parentBBox = parentNode ? parentNode.getBBox() : null
 
       const draggedData = this.draggedNode.getData() as MindmapNodeData
+      const rootNode = getMindmapRootNode(this.board.graph, this.draggedNode.id)
+      const rootData = rootNode?.getData() as MindmapNodeData | undefined
+      const branchType: 'curve' | 'straight' =
+        rootData?.branch?.type === 'straight' ? 'straight' : 'curve'
 
       this.indicator.showPlaceholder(
-        bestMatch.position,
-        bestMatch.target.getBBox(),
+        bestSlot.position,
+        bestSlot.target.getBBox(),
         parentBBox,
         this.draggedBBox.width,
         this.draggedBBox.height,
-        draggedData?.branch?.color || '#3b82f6'
+        draggedData?.branch?.color || '#3b82f6',
+        branchType,
+        bestSlot.slotY
       )
     } else {
       this.currentDropTarget = null

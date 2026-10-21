@@ -50,18 +50,23 @@ export function updateTextNode(
   node.setData(newData)
 
   if (options.text !== undefined) {
+    node.setAttrByPath('textWrap/html', options.text)
     node.setAttrByPath('label/text', options.text)
   }
   if (options.fontSize !== undefined) {
+    node.setAttrByPath('textWrap/style/fontSize', `${options.fontSize}px`)
     node.setAttrByPath('label/fontSize', options.fontSize)
   }
   if (options.fill !== undefined) {
+    node.setAttrByPath('textWrap/style/color', options.fill)
     node.setAttrByPath('label/fill', options.fill)
   }
   if (options.bold !== undefined) {
+    node.setAttrByPath('textWrap/style/fontWeight', options.bold ? 'bold' : 'normal')
     node.setAttrByPath('label/fontWeight', options.bold ? 'bold' : 'normal')
   }
   if (options.italic !== undefined) {
+    node.setAttrByPath('textWrap/style/fontStyle', options.italic ? 'italic' : 'normal')
     node.setAttrByPath('label/fontStyle', options.italic ? 'italic' : 'normal')
   }
 
@@ -227,3 +232,127 @@ export function getSelectedTextData(board: Board): {
     verticalAlign,
   }
 }
+
+/**
+ * 激活图元原生就地文本编辑 (1:1 语雀 In-Canvas contenteditable，0 像素抖动，彻底消除外部 Overlay)
+ */
+export function activateNodeTextEdit(
+  board: Board,
+  node: Node,
+  initialChar?: string
+): void {
+  const graph = board.graph
+  const view = graph.findViewByCell(node)
+  if (!view || !view.container) {
+    requestAnimationFrame(() => {
+      activateNodeTextEdit(board, node, initialChar)
+    })
+    return
+  }
+
+  // 1. 查找内置的 contenteditable div (支持普通文本/图形/便签 .speed-node-text，及思维导图 .mindmap-node-text)
+  const textEl = (view.container.querySelector('.speed-node-text') ||
+    view.container.querySelector('.mindmap-node-text')) as HTMLDivElement | null
+
+  if (!textEl) return
+
+  // 避免重复编辑
+  if (textEl.getAttribute('contenteditable') === 'true') {
+    return
+  }
+
+  textEl.setAttribute('contenteditable', 'true')
+  textEl.style.userSelect = 'text'
+  textEl.style.cursor = 'text'
+  textEl.focus()
+
+  if (initialChar) {
+    textEl.innerText = initialChar
+    const range = document.createRange()
+    const sel = window.getSelection()
+    range.selectNodeContents(textEl)
+    range.collapse(false)
+    sel?.removeAllRanges()
+    sel?.addRange(range)
+  } else {
+    const range = document.createRange()
+    const sel = window.getSelection()
+    range.selectNodeContents(textEl)
+    sel?.removeAllRanges()
+    sel?.addRange(range)
+  }
+
+  let finished = false
+  const commitEdit = () => {
+    if (finished) return
+    finished = true
+
+    textEl.removeEventListener('keydown', onKeyDown)
+    textEl.removeEventListener('blur', onBlur)
+
+    textEl.removeAttribute('contenteditable')
+    textEl.style.userSelect = 'none'
+    textEl.style.cursor = 'default'
+
+    const rawText = textEl.innerText.trim()
+    const isMind = node.getData()?.type === 'mindmap-node'
+
+    if (isMind) {
+      const data = node.getData() || {}
+      const defaultText = data.isRoot ? '思维导图' : '分支主题'
+      const newText = rawText === '' ? defaultText : rawText
+      textEl.innerText = newText
+      node.setData({ ...data, text: newText })
+      ;(board as any).commands?.updateMindmapLayout?.(data.mindmapId)
+    } else if (board.isShapeNode(node)) {
+      board.updateShapeNode(node, { text: rawText })
+    } else {
+      const newText = rawText === '' ? '文本' : rawText
+      textEl.innerText = newText
+      board.updateTextNode(node, { text: newText })
+    }
+  }
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      commitEdit()
+      return
+    }
+
+    if (e.key === 'Enter') {
+      const isMind = node.getData()?.type === 'mindmap-node'
+      if (isMind) {
+        if (!e.shiftKey && !e.isComposing && (e as any).keyCode !== 229) {
+          e.preventDefault()
+          e.stopPropagation()
+          commitEdit()
+          const data = node.getData() || {}
+          if (data.isRoot || !data.parentId) {
+            ;(board as any).commands?.addMindmapChild?.(node.id)
+          } else {
+            ;(board as any).commands?.addMindmapSibling?.(node.id)
+          }
+          return
+        }
+      } else {
+        // 普通文本：Enter 换行输入；单行文本或者文本图元 Enter 提交
+        if (!e.shiftKey && (node.getData()?.singleLine || node.shape === 'speed-text-node')) {
+          e.preventDefault()
+          e.stopPropagation()
+          commitEdit()
+          return
+        }
+      }
+    }
+  }
+
+  const onBlur = () => {
+    commitEdit()
+  }
+
+  textEl.addEventListener('keydown', onKeyDown)
+  textEl.addEventListener('blur', onBlur)
+}
+

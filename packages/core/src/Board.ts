@@ -33,7 +33,9 @@ import {
   updateTextNode,
   updateSelectedTextStyle,
   getSelectedTextData,
+  activateNodeTextEdit,
 } from './operations/textOps'
+import { initAllCanvasInteractions } from './operations/interactionOps'
 import {
   showNodePorts,
   hideAllPorts,
@@ -69,12 +71,18 @@ export interface BoardOptions {
 
 export type ShapeType = 'rect' | 'circle' | 'diamond' | 'text' | 'sticky' | 'icon' | 'path' | 'shape'
 
-export type DrawingMode = 'select' | 'hand' | 'pencil' | 'marker' | 'brush' | 'eraser' | 'vector'
+export type DrawingMode = 'select' | 'hand' | 'pencil' | 'marker' | 'brush' | 'eraser' | 'vector' | 'line'
 
 export interface DrawingOptions {
   color?: string
   width?: number
   opacity?: number
+  lineType?: 'elbow' | 'straight' | 'curve'
+  vectorFillColor?: string
+  vectorStrokeColor?: string
+  vectorStrokeWidth?: number
+  vectorStrokeDash?: string
+  vectorOpacity?: number
 }
 
 export interface AddShapeOptions {
@@ -251,6 +259,27 @@ export class Board {
         highlight: false,
         anchor: 'orth',
         connectionPoint: 'boundary',
+        validateMagnet({ cell }: any) {
+          if (!cell) return true
+          const data = cell.getData?.()
+          const shape = cell.shape
+          // 思维导图节点只支持被外部连线吸附接入，绝不允许作为起点主动拉线
+          if (
+            data?.type === 'mindmap-node' ||
+            shape === 'speed-mindmap-root' ||
+            shape === 'speed-mindmap-node'
+          ) {
+            return false
+          }
+          return true
+        },
+        validateConnection({ edge }: any) {
+          // 思维导图内部结构分支连线不可手动交互或重连
+          if (edge?.shape === 'speed-mindmap-edge') {
+            return false
+          }
+          return true
+        },
         createEdge() {
           return this.createEdge({
             shape: 'edge',
@@ -327,7 +356,10 @@ export class Board {
 
     this.transformPlugin = new Transform({
       resizing: {
-        enabled: true,
+        enabled(node: Node) {
+          if (node.shape === 'speed-freehand-path') return false
+          return true
+        },
         minWidth: 20,
         minHeight(node: Node) {
           if (node.getData()?.type === 'mindmap-node') {
@@ -357,7 +389,10 @@ export class Board {
           if (
             type === 'mindmap-node' ||
             type === 'text' ||
-            node.shape === 'speed-text-node'
+            type === 'group' ||
+            node.getData()?.isGroup ||
+            node.shape === 'speed-text-node' ||
+            node.shape === 'speed-freehand-path'
           ) {
             return false
           }
@@ -484,6 +519,9 @@ export class Board {
     this.graph.on('selection:changed', () => {
       this.syncSelectionBoxesTransform()
     })
+    this.graph.on('cell:change:data', () => {
+      this.syncSelectionBoxesTransform()
+    })
     this.graph.on('node:rotated', () => {
       this.syncSelectionBoxesTransform()
     })
@@ -499,13 +537,13 @@ export class Board {
           magnet?.getAttribute?.('data-port') ||
           magnet?.parentElement?.getAttribute?.('data-port') ||
           undefined
-        this.showNodePorts(node, true, portId)
+        this.showNodePorts(node, true, portId, true)
       }
     })
 
     this.graph.on('node:unhighlight', ({ node, options }: any) => {
       if (options?.type === 'magnetAdsorbed') {
-        this.showNodePorts(node, false)
+        this.showNodePorts(node, false, undefined, true)
       }
     })
 
@@ -522,6 +560,10 @@ export class Board {
     this.graph.on('blank:pointerdown', () => {
       this.hideAllPorts()
     })
+
+    // 下沉并挂载核心交互控制器 (旋转徽标、箭头抓手、端点拖拽磁吸、双击就地文本编辑)
+    const cleanupInteractions = initAllCanvasInteractions(this)
+    this.activeCleanupFns.push(cleanupInteractions)
   }
 
   private initCollabSync() {
@@ -707,6 +749,12 @@ export class Board {
     return addVectorShape(this, options)
   }
 
+  public insertMindmap(options?: any) {
+    if (this.commands && this.commands.has('insertMindmap')) {
+      return this.commands.execute('insertMindmap', options)
+    }
+  }
+
   public updateShapeNode(nodeOrId: Node | string, options: any) {
     return updateShapeNode(this, nodeOrId, options)
   }
@@ -753,9 +801,21 @@ export class Board {
     return getSelectedTextData(this)
   }
 
+  public activateTextEdit(node?: any, initialChar?: string) {
+    let target = node
+    if (!target) {
+      const selected = this.graph.getSelectedCells()
+      if (selected.length === 1 && selected[0].isNode()) {
+        target = selected[0]
+      }
+    }
+    if (!target) return
+    activateNodeTextEdit(this, target, initialChar)
+  }
+
   // 4. 连接与连线
-  public showNodePorts(node: Node | string | null, visible: boolean, activePortId?: string) {
-    return showNodePorts(this, node, visible, activePortId)
+  public showNodePorts(node: Node | string | null, visible: boolean, activePortId?: string, highlightBody?: boolean) {
+    return showNodePorts(this, node, visible, activePortId, highlightBody)
   }
 
   public hideAllPorts() {

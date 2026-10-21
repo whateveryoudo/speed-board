@@ -59,16 +59,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import { useLineOperations } from '../../../composables/useLineOperations'
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('line-type')
 const { getLineType, setLineType } = useLineOperations(() => props.board)
 
 const currentType = computed(() => getLineType())

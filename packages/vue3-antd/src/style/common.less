@@ -89,6 +89,11 @@
     background-color: var(--speed-board-selection-bg, rgba(22, 119, 255, 0.08)) !important;
   }
 
+  // 多选状态下：彻底隐藏所有 Transform 变换框及手柄（避免多选时残留单个图元的缩放圆点与旋转手柄，1:1 对齐语雀）
+  &:not(.is-single-selected) .x6-widget-transform {
+    display: none !important;
+  }
+
   .x6-widget-transform {
     border: 1.5px solid var(--speed-board-selection, var(--ant-color-primary, #1677ff)) !important;
     border-radius: 0 !important;
@@ -225,7 +230,8 @@
   &.is-mindmap-selected {
     .x6-widget-transform {
       border: 1.5px solid #1677ff !important;
-      border-radius: 4px !important;
+      border-radius: 6px !important;
+      transition: border-radius 0.12s ease;
 
       // 隐藏其他所有手柄与旋转手柄
       .x6-widget-transform-resize:not([data-position='top-right']) {
@@ -254,6 +260,24 @@
           transform: scale(1.25) !important;
         }
       }
+    }
+
+    // 胶囊形状选框：与胶囊节点完美贴合，彻底消除四角间隙
+    &.is-mindmap-capsule .x6-widget-transform {
+      border-radius: 9999px !important;
+    }
+
+    // 矩形形状选框：根节点 8px，分支子节点 6px
+    &.is-mindmap-rect.is-mindmap-root .x6-widget-transform {
+      border-radius: 8px !important;
+    }
+    &.is-mindmap-rect:not(.is-mindmap-root) .x6-widget-transform {
+      border-radius: 6px !important;
+    }
+
+    // 纯文本形状选框
+    &.is-mindmap-none .x6-widget-transform {
+      border-radius: 4px !important;
     }
   }
 
@@ -291,4 +315,292 @@
     pointer-events: none !important;
   }
 }
+
+// 思维导图原生内置控制手柄样式 (1:1 对标语雀 SVG 内嵌结构)
+.mindmap-native-handle {
+  position: absolute;
+  top: 12px;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+
+  &.right {
+    left: 0;
+  }
+
+  &.left {
+    right: 0;
+  }
+
+  // 折叠状态（数字徽标）：始终常驻显示！
+  &.is-collapsed {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  [data-action] {
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .branch-anchor-dot {
+    position: absolute;
+    top: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    pointer-events: none;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+
+    .right & {
+      left: -4px;
+    }
+    .left & {
+      right: -4px;
+    }
+  }
+
+  .branch-stub-line {
+    position: absolute;
+    height: 3px;
+    width: 14px;
+    top: -1.5px;
+    pointer-events: none;
+    border-radius: 1.5px;
+
+    &.right {
+      left: 0;
+    }
+
+    &.left {
+      right: 0;
+    }
+
+    &.is-expanded-with-children {
+      width: 32px;
+    }
+  }
+
+  .branch-add-btn {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    top: -9px;
+    border-radius: 50%;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.right {
+      left: 14px;
+    }
+
+    &.left {
+      right: 14px;
+    }
+
+    &.is-secondary {
+      background-color: #9ca3af;
+      &.right {
+        left: 32px;
+      }
+      &.left {
+        right: 32px;
+      }
+
+      &:hover {
+        background-color: #6b7280;
+      }
+    }
+
+    &:hover {
+      transform: scale(1.22);
+      filter: brightness(0.95);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  .branch-collapse-btn {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    top: -9px;
+    border-radius: 50%;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.right {
+      left: 10px;
+    }
+
+    &.left {
+      right: 10px;
+    }
+
+    &:hover {
+      transform: scale(1.22);
+      filter: brightness(0.92);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  .branch-count-badge {
+    position: absolute;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    top: -9px;
+    border-radius: 9px;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.right {
+      left: 10px;
+    }
+
+    &.left {
+      right: 10px;
+    }
+
+    &:hover {
+      transform: scale(1.22);
+      filter: brightness(0.92);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
+// 当脑图节点被选中、或者鼠标悬浮于节点上时，显示内置指示器
+.x6-node.is-mindmap-selected .mindmap-native-handle,
+.x6-node[data-shape^="speed-mindmap"]:hover .mindmap-native-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+// 图元原生内置 contenteditable 文本样式 (0 像素抖动，1:1 对标语雀)
+.speed-node-text,
+.mindmap-node-text {
+  box-sizing: border-box;
+  outline: none;
+  word-break: break-word;
+  white-space: pre-wrap;
+  user-select: text;
+  cursor: text;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// 原生 X6 连接桩 (Ports) 悬停与吸附动效 (1:1 语雀白板外观)
+.x6-port {
+  circle {
+    transition: transform 0.15s ease, r 0.15s ease, fill 0.15s ease;
+    transform-origin: center;
+
+    &:hover {
+      r: 5.5px !important;
+      fill: #2563eb !important;
+      stroke: #ffffff !important;
+      stroke-width: 1.5px !important;
+      cursor: crosshair;
+    }
+  }
+}
+
+// 鼠标跟随虚影放置图层样式
+.speed-placement-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 70;
+  pointer-events: all;
+  cursor: crosshair;
+}
+
+.speed-placement-ghost {
+  opacity: 0.65;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: opacity 0.12s ease;
+
+  .placement-ghost-text {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 8px;
+    border: 1.5px dashed #3b82f6;
+    background: rgba(239, 246, 255, 0.7);
+    color: #262626;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+
+  .placement-ghost-shape {
+    border: 1.5px dashed #3b82f6;
+    border-radius: 4px;
+    background: rgba(239, 246, 255, 0.5);
+    box-sizing: border-box;
+  }
+
+  .placement-ghost-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed #3b82f6;
+    border-radius: 6px;
+    background: rgba(239, 246, 255, 0.6);
+    box-sizing: border-box;
+
+    svg {
+      width: 70%;
+      height: 70%;
+    }
+  }
+
+  .placement-ghost-basic {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed;
+    border-radius: 8px;
+    font-weight: 500;
+    box-sizing: border-box;
+  }
+}
+
+
 

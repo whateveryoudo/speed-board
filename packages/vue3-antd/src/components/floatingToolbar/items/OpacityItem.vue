@@ -35,16 +35,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip, Slider as ASlider } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import { useNodeStyle } from '../../../composables/useNodeStyle'
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('opacity')
 const { styleState, updateStyle } = useNodeStyle(() => props.board)
 
 const currentPercent = computed(() => {

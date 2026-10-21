@@ -238,24 +238,55 @@ export function toggleLockSelected(board: Board): boolean {
 }
 
 /**
- * 同步选框的旋转变换角度
+ * 同步选框的旋转变换角度与形状圆角 (胶囊/圆角贴合)
  */
 export function syncSelectionBoxesTransform(board: Board) {
   requestAnimationFrame(() => {
     const container = board.container.querySelector('.x6-widget-selection')
-    if (!container) return
-    const boxes = container.querySelectorAll('.x6-widget-selection-box')
-    boxes.forEach((box) => {
-      const id = box.getAttribute('data-cell-id')
-      if (id) {
-        const cell = board.graph.getCellById(id)
-        if (cell && cell.isNode()) {
-          const angle = cell.getAngle() || 0
-          if (angle) {
-            ;(box as HTMLElement).style.transform = `rotate(${angle}deg)`
-            ;(box as HTMLElement).style.transformOrigin = 'center center'
+    if (container) {
+      const boxes = container.querySelectorAll('.x6-widget-selection-box')
+      boxes.forEach((box) => {
+        const id = box.getAttribute('data-cell-id')
+        if (id) {
+          const cell = board.graph.getCellById(id)
+          if (cell && cell.isNode()) {
+            const angle = cell.getAngle() || 0
+            if (angle) {
+              ;(box as HTMLElement).style.transform = `rotate(${angle}deg)`
+              ;(box as HTMLElement).style.transformOrigin = 'center center'
+            } else {
+              ;(box as HTMLElement).style.transform = ''
+            }
+
+            const data = (cell.getData() || {}) as any
+            if (data?.type === 'mindmap-node') {
+              if (data?.shapeStyle === 'capsule') {
+                ;(box as HTMLElement).style.borderRadius = '9999px'
+              } else if (data?.shapeStyle === 'rect') {
+                ;(box as HTMLElement).style.borderRadius = data?.isRoot ? '8px' : '6px'
+              } else {
+                ;(box as HTMLElement).style.borderRadius = '4px'
+              }
+            }
+          }
+        }
+      })
+    }
+
+    // 同时同步 Transform 单选变换框的圆角，防止胶囊节点与矩形选框产生四角间隙
+    const transformWidgets = board.container.querySelectorAll('.x6-widget-transform')
+    transformWidgets.forEach((widget) => {
+      const selectedCells = board.graph.getSelectedCells()
+      if (selectedCells.length === 1 && selectedCells[0].isNode()) {
+        const cell = selectedCells[0]
+        const data = (cell.getData() || {}) as any
+        if (data?.type === 'mindmap-node') {
+          if (data?.shapeStyle === 'capsule') {
+            ;(widget as HTMLElement).style.borderRadius = '9999px'
+          } else if (data?.shapeStyle === 'rect') {
+            ;(widget as HTMLElement).style.borderRadius = data?.isRoot ? '8px' : '6px'
           } else {
-            ;(box as HTMLElement).style.transform = ''
+            ;(widget as HTMLElement).style.borderRadius = '4px'
           }
         }
       }

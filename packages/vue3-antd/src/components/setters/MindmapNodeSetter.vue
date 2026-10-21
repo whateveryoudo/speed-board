@@ -8,12 +8,11 @@
       <a-select
         :value="currentShapeStyle"
         style="width: 130px"
-        @change="onShapeStyleChange"
+        @change="(val: any) => onShapeStyleChange(val)"
       >
         <a-select-option value="rect">矩形</a-select-option>
         <a-select-option value="capsule">胶囊</a-select-option>
-        <a-select-option value="underline">下划线</a-select-option>
-        <a-select-option value="none">纯文本(无边框)</a-select-option>
+        <a-select-option value="none">纯文本</a-select-option>
       </a-select>
     </div>
 
@@ -41,7 +40,7 @@
         </template>
         <div
           class="color-preview-block"
-          :style="currentFill !== 'transparent' ? { backgroundColor: currentFill } : {}"
+          :style="fillPreviewStyle"
         >
           <span v-if="currentFill === 'transparent'" class="transparent-slash" />
         </div>
@@ -72,7 +71,7 @@
         </template>
         <div
           class="color-preview-block"
-          :style="currentStroke !== 'transparent' && currentStrokeWidth > 0 ? { backgroundColor: currentStroke } : {}"
+          :style="strokePreviewStyle"
         >
           <span v-if="currentStroke === 'transparent' || currentStrokeWidth === 0" class="transparent-slash" />
         </div>
@@ -136,6 +135,22 @@ const currentStrokeWidth = computed(() => {
   return Number(selectedCell.value?.getAttrByPath('body/strokeWidth')) || 1.5
 })
 
+const fillPreviewStyle = computed<Record<string, string>>(() => {
+  const style: Record<string, string> = {}
+  if (currentFill.value !== 'transparent') {
+    style.backgroundColor = String(currentFill.value)
+  }
+  return style
+})
+
+const strokePreviewStyle = computed<Record<string, string>>(() => {
+  const style: Record<string, string> = {}
+  if (currentStroke.value !== 'transparent' && currentStrokeWidth.value > 0) {
+    style.backgroundColor = String(currentStroke.value)
+  }
+  return style
+})
+
 const isManualSize = ref(false)
 
 const onShapeStyleChange = (style: MindmapShapeStyle) => {
@@ -159,8 +174,9 @@ const onShapeStyleChange = (style: MindmapShapeStyle) => {
     node.setAttrByPath('underline/fill', primaryColor)
     node.setAttrByPath('underline/stroke', 'none')
   } else if (style === 'capsule') {
-    node.setAttrByPath('body/rx', 16)
-    node.setAttrByPath('body/ry', 16)
+    const rx = data.isRoot ? 21 : 16
+    node.setAttrByPath('body/rx', rx)
+    node.setAttrByPath('body/ry', rx)
     node.setAttrByPath('body/fill', data.fill || (data.isRoot ? '#f3f4f6' : '#ffffff'))
     node.setAttrByPath('body/stroke', data.stroke || primaryColor)
     node.setAttrByPath('body/strokeWidth', data.strokeWidth || 1.5)

@@ -72,6 +72,13 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
         width: w,
         height: h,
         attrs: {
+          textWrap: {
+            html: textVal,
+            style: {
+              fontSize: `${fs}px`,
+              color: options.fill || '#262626',
+            },
+          },
           label: {
             text: textVal,
             fontSize: fs,
@@ -145,6 +152,13 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
             opacity: options.opacity ?? 1,
             viewBox: options.viewBox || '6 6 20 20',
             preserveAspectRatio: 'none',
+          },
+          textWrap: {
+            html: options.text || '',
+            style: {
+              fontSize: `${options.fontSize ?? 14}px`,
+              color: options.textColor ?? '#1f2937',
+            },
           },
           label: {
             text: options.text ?? '',
@@ -379,6 +393,35 @@ export function updateShapeNode(
           viewBox: viewBox || '6 6 20 20',
           preserveAspectRatio: 'none',
         },
+        textFo: {
+          x: 8,
+          y: 8,
+          refWidth: '100%',
+          refWidth2: -16,
+          refHeight: '100%',
+          refHeight2: -16,
+          style: {
+            overflow: 'hidden',
+          },
+        },
+        textWrap: {
+          class: 'speed-node-text',
+          html: options.text ?? data.text ?? '',
+          style: {
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: `${options.fontSize ?? data.fontSize ?? 14}px`,
+            color: options.textColor ?? data.textColor ?? '#1f2937',
+            outline: 'none',
+            wordBreak: 'break-word',
+            whiteSpace: 'pre-wrap',
+            userSelect: 'none',
+            cursor: 'default',
+          },
+        },
         label: {
           text: options.text ?? data.text ?? '',
           fontSize: options.fontSize ?? data.fontSize ?? 14,
@@ -426,18 +469,23 @@ export function updateShapeNode(
   }
 
   if (options.text !== undefined) {
+    node.setAttrByPath('textWrap/html', options.text)
     node.setAttrByPath('label/text', options.text)
   }
   if (options.fontSize !== undefined) {
+    node.setAttrByPath('textWrap/style/fontSize', `${options.fontSize}px`)
     node.setAttrByPath('label/fontSize', options.fontSize)
   }
   if (options.textColor !== undefined) {
+    node.setAttrByPath('textWrap/style/color', options.textColor)
     node.setAttrByPath('label/fill', options.textColor)
   }
   if (options.bold !== undefined) {
+    node.setAttrByPath('textWrap/style/fontWeight', options.bold ? 'bold' : 'normal')
     node.setAttrByPath('label/fontWeight', options.bold ? 'bold' : 'normal')
   }
   if (options.italic !== undefined) {
+    node.setAttrByPath('textWrap/style/fontStyle', options.italic ? 'italic' : 'normal')
     node.setAttrByPath('label/fontStyle', options.italic ? 'italic' : 'normal')
   }
   if (options.underline !== undefined || options.strike !== undefined) {

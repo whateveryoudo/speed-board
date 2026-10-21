@@ -19,6 +19,24 @@ function getMindmapCurvePath(
 }
 
 /**
+ * 直角折线分支生成器 (1:1 匹配 X6 mindmap-straight，带平滑微圆角)
+ */
+function getMindmapStraightPath(
+  source: { x: number; y: number },
+  target: { x: number; y: number }
+): string {
+  const factor = target.x >= source.x ? 1 : -1
+  const dy = target.y - source.y
+  if (Math.abs(dy) < 4) {
+    return `M ${source.x} ${source.y} L ${target.x} ${target.y}`
+  }
+  const signY = dy > 0 ? 1 : -1
+  const midX = source.x + Math.min(24, Math.abs(target.x - source.x) * 0.5) * factor
+  const r = Math.min(6, Math.abs(dy) * 0.5, Math.abs(target.x - source.x) * 0.5)
+  return `M ${source.x} ${source.y} L ${midX - r * factor} ${source.y} Q ${midX} ${source.y} ${midX} ${source.y + r * signY} L ${midX} ${target.y - r * signY} Q ${midX} ${target.y} ${midX + r * factor} ${target.y} L ${target.x} ${target.y}`
+}
+
+/**
  * 脑图拖拽视觉指示器 (SVG 级高性能渲染)
  * 管理两部分视觉元素：
  * 1. 跟随光标移动的 Ghost 克隆体 (半透明虚化卡片)
@@ -41,6 +59,9 @@ export class MindmapDragIndicator {
   private placeholderRect: SVGRectElement | null = null
   private placeholderTargetRect: SVGRectElement | null = null
   private placeholderBranchLine: SVGPathElement | null = null
+  private placeholderInsertionBar: SVGGElement | null = null
+  private placeholderBarLine: SVGRectElement | null = null
+  private placeholderBarCircle: SVGCircleElement | null = null
 
   constructor(graph: Graph) {
     this.graph = graph
@@ -99,6 +120,24 @@ export class MindmapDragIndicator {
     pRect.setAttribute('ry', '6')
     pGroup.appendChild(pRect)
 
+    // 同级插队专用水平指示条 (居中于节点间距缝隙，彻底杜绝与相邻节点内容重叠遮挡)
+    const pBarGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    pBarGroup.style.display = 'none'
+
+    const pBarLine = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    pBarLine.setAttribute('height', '3.5')
+    pBarLine.setAttribute('rx', '1.75')
+    pBarLine.setAttribute('ry', '1.75')
+    pBarLine.setAttribute('fill', '#3b82f6')
+    pBarGroup.appendChild(pBarLine)
+
+    const pBarCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    pBarCircle.setAttribute('r', '4')
+    pBarCircle.setAttribute('fill', '#3b82f6')
+    pBarGroup.appendChild(pBarCircle)
+
+    pGroup.appendChild(pBarGroup)
+
     g.appendChild(pGroup)
 
     // ==========================================
@@ -136,6 +175,9 @@ export class MindmapDragIndicator {
     this.placeholderTargetRect = pTargetRect
     this.placeholderBranchLine = pBranchLine
     this.placeholderRect = pRect
+    this.placeholderInsertionBar = pBarGroup
+    this.placeholderBarLine = pBarLine
+    this.placeholderBarCircle = pBarCircle
 
     this.ghostGroup = ghGroup
     this.ghostRect = ghRect
@@ -171,10 +213,10 @@ export class MindmapDragIndicator {
   }
 
   /**
-   * 显示纯几何 Placeholder 占位投影（无文字，上下后均完整模拟贝塞尔连接线）：
-   * 1. 'before': 目标上方虚线卡片 + 父节点延伸出的虚线连接曲线
-   * 2. 'after':  目标下方虚线卡片 + 父节点延伸出的虚线连接曲线
-   * 3. 'child':  目标右侧子分支虚线卡片 + 目标延伸出的虚线连接曲线 + 目标高亮框
+   * 显示纯几何 Placeholder 占位投影：
+   * 1. 'before': 目标上方水平插槽指示条 + 父节点延伸出的连线 (避免遮挡已有节点)
+   * 2. 'after':  目标下方水平插槽指示条 + 父节点延伸出的连线 (避免遮挡已有节点)
+   * 3. 'child':  目标右侧子分支虚线卡片 + 目标延伸出的连线 + 目标高亮框
    */
   public showPlaceholder(
     type: PlaceholderType,
@@ -182,14 +224,19 @@ export class MindmapDragIndicator {
     parentBBox: { x: number; y: number; width: number; height: number } | null,
     draggedWidth = 90,
     draggedHeight = 32,
-    branchColor = '#3b82f6'
+    branchColor = '#3b82f6',
+    branchType: 'curve' | 'straight' = 'curve',
+    slotY?: number
   ): void {
     if (!this.ensureElements()) return
     if (
       !this.placeholderGroup ||
       !this.placeholderRect ||
       !this.placeholderTargetRect ||
-      !this.placeholderBranchLine
+      !this.placeholderBranchLine ||
+      !this.placeholderInsertionBar ||
+      !this.placeholderBarLine ||
+      !this.placeholderBarCircle
     ) {
       return
     }
@@ -203,14 +250,30 @@ export class MindmapDragIndicator {
     let sourcePoint = { x: 0, y: 0 }
     let targetPoint = { x: 0, y: 0 }
 
-    if (type === 'before') {
-      // 1. 上方插队
+    if (type === 'before' || type === 'after') {
+      // 同级插队：纯粹干净的单条水平指示线 (Insertion Bar)，居中于节点间距缝隙，彻底杜绝与相邻节点重叠遮挡与多点跳跃
       this.placeholderTargetRect.style.display = 'none'
+      this.placeholderRect.style.display = 'none'
+      this.placeholderInsertionBar.style.display = 'block'
 
-      placeholderX = targetBBox.x
-      placeholderY = targetBBox.y - boxH - 12
+      const barW = Math.max(draggedWidth, targetBBox.width, 70)
+      const barX = targetBBox.x
+      const barY =
+        slotY !== undefined
+          ? Math.round(slotY)
+          : type === 'before'
+          ? Math.round(targetBBox.y - 8)
+          : Math.round(targetBBox.y + targetBBox.height + 8)
 
-      // 连线起点：来自共同的父节点右侧端口
+      this.placeholderBarLine.setAttribute('x', String(barX))
+      this.placeholderBarLine.setAttribute('y', String(barY - 1.75))
+      this.placeholderBarLine.setAttribute('width', String(barW))
+      this.placeholderBarLine.setAttribute('fill', branchColor || '#3b82f6')
+
+      this.placeholderBarCircle.setAttribute('cx', String(barX))
+      this.placeholderBarCircle.setAttribute('cy', String(barY))
+      this.placeholderBarCircle.setAttribute('fill', branchColor || '#3b82f6')
+
       if (parentBBox) {
         sourcePoint = {
           x: parentBBox.x + parentBBox.width,
@@ -219,76 +282,60 @@ export class MindmapDragIndicator {
       } else {
         sourcePoint = {
           x: targetBBox.x - 45,
-          y: targetBBox.y,
+          y: barY,
         }
       }
 
-      // 连线终点：占位卡片左侧中点
       targetPoint = {
-        x: placeholderX,
-        y: placeholderY + boxH / 2,
-      }
-    } else if (type === 'after') {
-      // 2. 下方插队
-      this.placeholderTargetRect.style.display = 'none'
-
-      placeholderX = targetBBox.x
-      placeholderY = targetBBox.y + targetBBox.height + 12
-
-      // 连线起点：来自共同的父节点右侧端口
-      if (parentBBox) {
-        sourcePoint = {
-          x: parentBBox.x + parentBBox.width,
-          y: parentBBox.y + parentBBox.height / 2,
-        }
-      } else {
-        sourcePoint = {
-          x: targetBBox.x - 45,
-          y: targetBBox.y + targetBBox.height,
-        }
-      }
-
-      // 连线终点：占位卡片左侧中点
-      targetPoint = {
-        x: placeholderX,
-        y: placeholderY + boxH / 2,
+        x: barX,
+        y: barY,
       }
     } else if (type === 'child') {
-      // 3. 后面嵌套为子分支
-      // 目标节点自身高亮轮廓
-      const pad = 4
+      // 后面嵌套为子分支：右侧展示完整尺寸虚线占位卡片 + 目标高亮轮廓
+      if (this.placeholderInsertionBar) {
+        this.placeholderInsertionBar.style.display = 'none'
+      }
       this.placeholderTargetRect.style.display = 'block'
+      this.placeholderRect.style.display = 'block'
+
+      const pad = 4
       this.placeholderTargetRect.setAttribute('x', String(targetBBox.x - pad))
       this.placeholderTargetRect.setAttribute('y', String(targetBBox.y - pad))
       this.placeholderTargetRect.setAttribute('width', String(targetBBox.width + pad * 2))
       this.placeholderTargetRect.setAttribute('height', String(targetBBox.height + pad * 2))
+      this.placeholderTargetRect.setAttribute('stroke', branchColor || '#3b82f6')
 
       placeholderX = targetBBox.x + targetBBox.width + 36
       placeholderY = targetBBox.y + (targetBBox.height - boxH) / 2
 
-      // 连线起点：来自当前目标节点右侧端口
+      this.placeholderRect.setAttribute('x', String(placeholderX))
+      this.placeholderRect.setAttribute('y', String(placeholderY))
+      this.placeholderRect.setAttribute('width', String(boxW))
+      this.placeholderRect.setAttribute('height', String(boxH))
+      this.placeholderRect.setAttribute('rx', '6')
+      this.placeholderRect.setAttribute('ry', '6')
+      this.placeholderRect.setAttribute('stroke', branchColor || '#3b82f6')
+      this.placeholderRect.setAttribute('fill', 'rgba(59, 130, 246, 0.12)')
+
       sourcePoint = {
         x: targetBBox.x + targetBBox.width,
         y: targetBBox.y + targetBBox.height / 2,
       }
 
-      // 连线终点：子分支占位卡片左侧中点
       targetPoint = {
         x: placeholderX,
         y: placeholderY + boxH / 2,
       }
     }
 
-    // 更新纯几何占位虚框位置
-    this.placeholderRect.setAttribute('x', String(placeholderX))
-    this.placeholderRect.setAttribute('y', String(placeholderY))
-    this.placeholderRect.setAttribute('width', String(boxW))
-    this.placeholderRect.setAttribute('height', String(boxH))
+    // 根据分支风格 (曲线 vs 直角) 动态生成完全吻合的模拟连线
+    const linePath =
+      branchType === 'straight'
+        ? getMindmapStraightPath(sourcePoint, targetPoint)
+        : getMindmapCurvePath(sourcePoint, targetPoint)
 
-    // 绘制上下后统一的平滑贝塞尔虚线
-    const curvePath = getMindmapCurvePath(sourcePoint, targetPoint)
     this.placeholderBranchLine.style.display = 'block'
-    this.placeholderBranchLine.setAttribute('d', curvePath)
+    this.placeholderBranchLine.setAttribute('d', linePath)
     this.placeholderBranchLine.setAttribute('stroke', branchColor || '#3b82f6')
   }
 

@@ -35,22 +35,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
 import type { Board } from '@speed-board/core'
 import type { MindmapShapeStyle } from '@speed-board/shared'
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('mindmap-shape')
 
 const SHAPE_OPTIONS: { key: MindmapShapeStyle; icon: string; label: string }[] = [
-  { key: 'rect', icon: 'icon-kl-biankuang', label: '矩形' },
-  { key: 'capsule', icon: 'icon-kl-shape2', label: '胶囊' },
-  { key: 'underline', icon: 'icon-kl-arrow-n1', label: '下划线' },
+  { key: 'rect', icon: 'icon-kl-board-shape-triangle', label: '矩形' },
+  { key: 'capsule', icon: 'icon-kl-shape11', label: '胶囊' },
+  { key: 'none', icon: 'icon-kl-text2', label: '纯文本' },
 ]
 
 const selectedCell = computed(() => {
@@ -61,7 +62,7 @@ const currentShapeStyle = computed<MindmapShapeStyle>(() => {
   if (!selectedCell.value) return 'rect'
   const data = selectedCell.value.getData() as any
   const style = data?.shapeStyle
-  if (!style || style === 'none') {
+  if (!style || style === 'underline') {
     return 'rect'
   }
   return style
@@ -76,35 +77,39 @@ const selectShape = (style: MindmapShapeStyle) => {
   if (!props.board || !selectedCell.value) return
   const node = selectedCell.value
   const data = (node.getData() || {}) as any
-  node.setData({ ...data, shapeStyle: style })
 
   const primaryColor = data.branch?.color || '#3b82f6'
 
   if (style === 'none') {
+    node.setData({ ...data, shapeStyle: style })
     node.setAttrByPath('body/fill', 'transparent')
     node.setAttrByPath('body/stroke', 'transparent')
     node.setAttrByPath('body/strokeWidth', 0)
     node.setAttrByPath('underline/display', 'none')
-  } else if (style === 'underline') {
-    node.setAttrByPath('body/fill', 'transparent')
-    node.setAttrByPath('body/stroke', 'transparent')
-    node.setAttrByPath('body/strokeWidth', 0)
-    node.setAttrByPath('underline/display', 'block')
-    node.setAttrByPath('underline/fill', primaryColor)
-    node.setAttrByPath('underline/stroke', 'none')
   } else if (style === 'capsule') {
-    node.setAttrByPath('body/rx', 16)
-    node.setAttrByPath('body/ry', 16)
-    node.setAttrByPath('body/fill', data.fill || (data.isRoot ? '#f3f4f6' : '#ffffff'))
-    node.setAttrByPath('body/stroke', data.stroke || primaryColor)
-    node.setAttrByPath('body/strokeWidth', data.strokeWidth || 1.5)
+    const rx = data.isRoot ? 21 : 16
+    const stroke = (data.stroke && data.stroke !== 'transparent') ? data.stroke : primaryColor
+    const strokeWidth = (data.strokeWidth && data.strokeWidth > 0) ? data.strokeWidth : 1.5
+    const fill = (data.fill && data.fill !== 'transparent') ? data.fill : (data.isRoot ? '#f3f4f6' : '#ffffff')
+
+    node.setData({ ...data, shapeStyle: style, stroke, strokeWidth, fill })
+    node.setAttrByPath('body/rx', rx)
+    node.setAttrByPath('body/ry', rx)
+    node.setAttrByPath('body/fill', fill)
+    node.setAttrByPath('body/stroke', stroke)
+    node.setAttrByPath('body/strokeWidth', strokeWidth)
     node.setAttrByPath('underline/display', 'none')
   } else if (style === 'rect') {
+    const stroke = (data.stroke && data.stroke !== 'transparent') ? data.stroke : (data.isRoot ? '#e5e7eb' : primaryColor)
+    const strokeWidth = (data.strokeWidth && data.strokeWidth > 0) ? data.strokeWidth : 1.5
+    const fill = (data.fill && data.fill !== 'transparent') ? data.fill : (data.isRoot ? '#f3f4f6' : '#ffffff')
+
+    node.setData({ ...data, shapeStyle: style, stroke, strokeWidth, fill })
     node.setAttrByPath('body/rx', data.isRoot ? 8 : 6)
     node.setAttrByPath('body/ry', data.isRoot ? 8 : 6)
-    node.setAttrByPath('body/fill', data.fill || (data.isRoot ? '#f3f4f6' : '#ffffff'))
-    node.setAttrByPath('body/stroke', data.stroke || (data.isRoot ? '#e5e7eb' : primaryColor))
-    node.setAttrByPath('body/strokeWidth', data.strokeWidth || 1.5)
+    node.setAttrByPath('body/fill', fill)
+    node.setAttrByPath('body/stroke', stroke)
+    node.setAttrByPath('body/strokeWidth', strokeWidth)
     node.setAttrByPath('underline/display', 'none')
   }
 

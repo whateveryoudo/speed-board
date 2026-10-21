@@ -34,6 +34,8 @@ export interface BubbleMenuViewOptions {
  */
 export function resolveCellType(cell: Cell, board?: Board | null): string {
   if (cell.isEdge()) return 'line'
+  const data = (cell.getData() || {}) as any
+  if (data.isGroup || data.type === 'group') return 'group'
   const shape = cell.shape
   if (shape === 'speed-image-node') return 'image'
   if (shape === 'speed-vector-polygon') return 'vector'
@@ -260,6 +262,21 @@ export class BubbleMenuView {
     }
   }
 
+  private updateTimer: any = null
+
+  public queueUpdate() {
+    if (this.updateTimer) cancelAnimationFrame(this.updateTimer)
+    this.updateTimer = requestAnimationFrame(() => {
+      if (!this.board || this.isTyping) return
+      const hasSelected = this.board.graph.getSelectedCells().length > 0
+      if (hasSelected && !this.isInteracting) {
+        this.updatePosition()
+      } else if (!hasSelected) {
+        this.hide()
+      }
+    })
+  }
+
   public sync() {
     if (this.board && this.board.graph.getSelectedCells().length > 0 && !this.isTyping) {
       this.setupAutoUpdate()
@@ -273,21 +290,11 @@ export class BubbleMenuView {
     const graph = board.graph
 
     const onSelectionChange = () => {
-      setTimeout(() => {
-        const hasSelected = graph.getSelectedCells().length > 0
-        if (hasSelected && !this.isTyping) {
-          this.setupAutoUpdate()
-          this.updatePosition()
-        } else {
-          this.hide()
-        }
-      }, 0)
+      this.queueUpdate()
     }
 
     const onCellChange = () => {
-      if (this.visible && !this.isTyping) {
-        this.updatePosition()
-      }
+      this.queueUpdate()
     }
 
     const onDragStart = () => {
@@ -296,12 +303,11 @@ export class BubbleMenuView {
     }
 
     const onDragEnd = () => {
-      if (this.isInteracting) {
-        this.isInteracting = false
-        setTimeout(() => {
-          this.updatePosition()
-        }, 0)
-      }
+      this.isInteracting = false
+      this.queueUpdate()
+      setTimeout(() => {
+        this.queueUpdate()
+      }, 50)
     }
 
     graph.on('cell:selected', onSelectionChange)
@@ -310,7 +316,7 @@ export class BubbleMenuView {
     graph.on('node:change:position', onCellChange)
     graph.on('node:change:size', onCellChange)
     graph.on('node:change:data', onCellChange)
-    graph.on('cell:change:data', onCellChange)
+    graph.on('cell:change:*', onCellChange)
     graph.on('edge:change:vertices', onCellChange)
     graph.on('edge:change:source', (args) => {
       if (args?.options?.ui) onDragStart()
@@ -321,6 +327,10 @@ export class BubbleMenuView {
       else onCellChange()
     })
     graph.on('edge:change:terminal', onCellChange)
+    graph.on('edge:change:*', onCellChange)
+    graph.on('render:done', onCellChange)
+    graph.on('model:updated', onCellChange)
+    graph.on('mindmap:collapse:change', onCellChange)
     graph.on('node:moving', onDragStart)
     graph.on('node:moved', onDragEnd)
     graph.on('node:drag:start', onDragStart)
@@ -332,22 +342,38 @@ export class BubbleMenuView {
     graph.on('scale', onCellChange)
     graph.on('translate', onCellChange)
 
+    const scrollerEl = board.scrollerPlugin?.container
+    if (scrollerEl) {
+      scrollerEl.addEventListener('scroll', onCellChange, { passive: true })
+    }
+
     const onPointerUp = () => onDragEnd()
     window.addEventListener('pointerup', onPointerUp)
 
     this.cleanupEvents = () => {
       window.removeEventListener('pointerup', onPointerUp)
+      if (this.updateTimer) {
+        cancelAnimationFrame(this.updateTimer)
+        this.updateTimer = null
+      }
+      if (scrollerEl) {
+        scrollerEl.removeEventListener('scroll', onCellChange)
+      }
       graph.off('cell:selected', onSelectionChange)
       graph.off('cell:unselected', onSelectionChange)
       graph.off('selection:changed', onSelectionChange)
       graph.off('node:change:position', onCellChange)
       graph.off('node:change:size', onCellChange)
       graph.off('node:change:data', onCellChange)
-      graph.off('cell:change:data', onCellChange)
+      graph.off('cell:change:*', onCellChange)
       graph.off('edge:change:vertices', onCellChange)
       graph.off('edge:change:source')
       graph.off('edge:change:target')
       graph.off('edge:change:terminal', onCellChange)
+      graph.off('edge:change:*', onCellChange)
+      graph.off('render:done', onCellChange)
+      graph.off('model:updated', onCellChange)
+      graph.off('mindmap:collapse:change', onCellChange)
       graph.off('node:moving', onDragStart)
       graph.off('node:moved', onDragEnd)
       graph.off('node:drag:start', onDragStart)

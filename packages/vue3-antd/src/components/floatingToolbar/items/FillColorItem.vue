@@ -33,17 +33,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import ColorTonePicker from '../../ColorTonePicker.vue'
 import { useNodeStyle } from '../../../composables/useNodeStyle'
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('fill')
 const { syncFromSelection, updateStyle } = useNodeStyle(() => props.board)
 
 const currentColor = computed(() => {
@@ -55,6 +56,13 @@ const currentColor = computed(() => {
   }
   if (cell.shape === 'speed-vector-polygon') {
     return (cell.getAttrByPath('body/fill') as string) || '#ffffff'
+  }
+  if (
+    cell.getData()?.type === 'mindmap-node' ||
+    cell.shape === 'speed-mindmap-root' ||
+    cell.shape === 'speed-mindmap-node'
+  ) {
+    return (cell.getAttrByPath('body/fill') as string) || (cell.getData() as any)?.fill || '#ffffff'
   }
   return '#ffffff'
 })

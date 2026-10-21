@@ -83,7 +83,7 @@
             class="shadow-btn-wrapper"
             @click="centerContent"
           >
-            <AimOutlined />
+            <SIconFont type="icon-kl-shiyinghuabu" :size="18" />
           </a-button>
         </a-tooltip>
 

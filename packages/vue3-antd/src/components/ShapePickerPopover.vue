@@ -67,6 +67,7 @@
             <button
               class="shape-item-btn"
               :class="{ 'is-active': props.activeShapeId === shape.id }"
+              @pointerdown="(e: PointerEvent) => onShapePointerDown(e, shape)"
               @click="onSelectShape(shape)"
             >
               <div
@@ -192,7 +193,38 @@ const onContainerScroll = () => {
 }
 
 // 选择图元
+let justDraggedShape = false
+
+const onShapePointerDown = (e: PointerEvent, shape: ShapeDefinition) => {
+  if (e.button !== 0) return
+  const startX = e.clientX
+  const startY = e.clientY
+  let dragging = false
+
+  const onPointerMove = (ev: PointerEvent) => {
+    if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) {
+      dragging = true
+      justDraggedShape = true
+      emit('select', shape)
+    }
+  }
+
+  const onPointerUp = () => {
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+    if (dragging) {
+      setTimeout(() => {
+        justDraggedShape = false
+      }, 50)
+    }
+  }
+
+  window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
+}
+
 const onSelectShape = (shape: ShapeDefinition) => {
+  if (justDraggedShape) return
   emit('select', shape)
 }
 </script>

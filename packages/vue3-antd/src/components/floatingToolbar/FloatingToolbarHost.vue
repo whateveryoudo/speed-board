@@ -1,13 +1,13 @@
 <template>
   <div
-    v-show="visible"
+    v-show="visible && props.visible !== false"
     ref="toolbarRef"
     class="floating-bubble-toolbar"
     @mousedown.stop
     @pointerdown.stop
   >
     <div class="bubble-toolbar-inner">
-      <template v-for="(item, idx) in activeSchema.quickToolbar" :key="item">
+      <template v-for="(item, idx) in activeToolbarItems" :key="item">
         <!-- 分隔线 (当属于不同功能块或在 open-panel 之前时展示) -->
         <div
           v-if="shouldShowDivider(item, idx)"
@@ -59,7 +59,7 @@
         <!-- 5. 链接 -->
         <LinkItem
           v-else-if="item === 'link'"
-          @open-link="emit('open-link-overlay')"
+          @open-link="emit('open-link-overlay'); closePopover()"
         />
 
         <!-- 6. 不透明度 (图片等) -->
@@ -78,6 +78,7 @@
         <LineReverseItem
           v-else-if="item === 'line-reverse'"
           :board="props.board"
+          @click="closePopover()"
         />
 
         <!-- 9. 端点箭头 -->
@@ -96,6 +97,7 @@
         <FontSizeItem
           v-else-if="item === 'font-size'"
           :board="props.board"
+          @click="closePopover()"
         />
 
         <!-- 12. 独立文本颜色 (纯文本节点) -->
@@ -109,6 +111,7 @@
           v-else-if="item === 'align-h'"
           :board="props.board"
           mode="horizontal"
+          @click="closePopover()"
         />
 
         <!-- 14. 垂直对齐 -->
@@ -116,18 +119,32 @@
           v-else-if="item === 'align-v'"
           :board="props.board"
           mode="vertical"
+          @click="closePopover()"
         />
 
         <!-- 15. 粗体切换 -->
         <BoldItem
           v-else-if="item === 'bold'"
           :board="props.board"
+          @click="closePopover()"
         />
 
-        <!-- 16. 打开/聚焦右侧深度设置面板 (🎛) -->
+        <!-- 16. 多选对齐与分布二级气泡 (1:1 语雀白板) -->
+        <ArrangePopoverItem
+          v-else-if="item === 'arrange'"
+          :board="props.board"
+        />
+
+        <!-- 17. 成组 / 取消成组 (1:1 语雀白板) -->
+        <GroupItem
+          v-else-if="item === 'group'"
+          :board="props.board"
+        />
+
+        <!-- 18. 打开/聚焦右侧深度设置面板 (🎛) -->
         <OpenPanelItem
           v-else-if="item === 'open-panel'"
-          @click="emit('open-panel')"
+          @click="emit('open-panel'); closePopover()"
         />
       </template>
     </div>
@@ -169,21 +186,33 @@ import FontSizeItem from './items/FontSizeItem.vue'
 import TextColorItem from './items/TextColorItem.vue'
 import AlignItem from './items/AlignItem.vue'
 import BoldItem from './items/BoldItem.vue'
+import ArrangePopoverItem from './items/ArrangePopoverItem.vue'
+import GroupItem from './items/GroupItem.vue'
 import OpenPanelItem from './items/OpenPanelItem.vue'
+import { useToolbarPopoverHost } from './useToolbarPopover'
+import { useCellAttributes } from '../../composables/useCellAttributes'
 
 import { useBubbleMenu, type BubbleMenuContext } from '@speed-board/vue3'
 
-const props = defineProps<{
-  board: Board | null
-  containerEl?: HTMLElement | null
-  isTyping?: boolean
-  shouldShow?: (context: BubbleMenuContext) => boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    board: Board | null
+    containerEl?: HTMLElement | null
+    isTyping?: boolean
+    visible?: boolean
+    shouldShow?: (context: BubbleMenuContext) => boolean
+  }>(),
+  {
+    visible: true,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'open-panel'): void
   (e: 'open-link-overlay'): void
 }>()
+
+const { activePopoverKey, closePopover } = useToolbarPopoverHost()
 
 const {
   menuRef: toolbarRef,
@@ -196,6 +225,35 @@ const {
   containerEl: () => props.containerEl,
   isTyping: () => props.isTyping ?? false,
   shouldShow: props.shouldShow,
+})
+
+// 当工具栏隐藏或选中节点改变时，关闭所有二级气泡
+watch(visible, (v) => {
+  if (!v) {
+    closePopover()
+  }
+})
+
+watch(selectedCells, () => {
+  closePopover()
+})
+
+watch(
+  () => props.visible,
+  (v) => {
+    if (v) {
+      nextTick(() => {
+        updatePosition()
+      })
+      setTimeout(() => {
+        updatePosition()
+      }, 50)
+    }
+  }
+)
+
+defineExpose({
+  updatePosition,
 })
 
 const selectedCellData = computed(() => {
@@ -227,10 +285,34 @@ const activeSchema = computed<NodeSchema>(() => {
   return getNodeSchema(currentType.value)
 })
 
+const mindmapShapeStyle = useCellAttributes<string>(
+  () => props.board,
+  (cell) => {
+    const data = cell.getData() as any
+    return data?.shapeStyle || 'rect'
+  },
+  'rect'
+)
+
+const activeToolbarItems = computed(() => {
+  const schema = activeSchema.value
+  if (!schema?.quickToolbar) return []
+
+  return schema.quickToolbar.filter((item) => {
+    // 思维导图节点：当为纯文本 (none) 时，隐藏填充 (fill) 和描边 (stroke)
+    if (currentType.value === 'mindmap' && (item === 'fill' || item === 'stroke')) {
+      const style = mindmapShapeStyle.value || 'rect'
+      return style === 'rect' || style === 'capsule'
+    }
+    return true
+  })
+})
+
 const shouldShowDivider = (item: string, idx: number) => {
   if (idx === 0) return false
   if (item === 'open-panel') return true
-  if (item === 'fill') return true
+  if (item === 'mindmap-shape') return true
+  if (item === 'fill' && currentType.value !== 'mindmap') return true
   if (item === 'text') return true
   return false
 }

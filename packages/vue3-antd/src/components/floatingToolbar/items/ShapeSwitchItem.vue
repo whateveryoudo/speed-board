@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { computed, watch, onUnmounted } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import { useCellAttributes } from '../../../composables/useCellAttributes'
@@ -47,12 +47,13 @@ import {
   getShapeIconSvg,
   type ShapeDefinition,
 } from '../../../data/shapeLibrary'
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('shape-switch')
 
 const currentShapeId = useCellAttributes(
   () => props.board,

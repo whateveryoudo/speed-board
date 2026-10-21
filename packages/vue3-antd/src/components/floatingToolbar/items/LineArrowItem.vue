@@ -62,12 +62,13 @@ import {
   useLineOperations,
   ARROWHEAD_PRESETS,
 } from '../../../composables/useLineOperations'
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('arrow-head')
 const activePos = ref<'target' | 'source'>('target')
 
 const { arrowheadPresets, setArrowMarker, getSelectedEdge } = useLineOperations(() => props.board)

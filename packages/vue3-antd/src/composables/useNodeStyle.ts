@@ -118,9 +118,10 @@ export function useNodeStyle(getBoard: () => Board | null) {
         if (textData) {
           textState.value = { ...textState.value, ...textData }
         }
-        const fill = (cell.getAttrByPath('body/fill') as string) || '#ffffff'
-        const stroke = (cell.getAttrByPath('body/stroke') as string) || '#374151'
-        const strokeWidth = (cell.getAttrByPath('body/strokeWidth') as number) || 2
+        const data = (cell.getData() || {}) as any
+        const fill = (cell.getAttrByPath('body/fill') as string) || data.fill || '#ffffff'
+        const stroke = (cell.getAttrByPath('body/stroke') as string) || data.stroke || '#374151'
+        const strokeWidth = (cell.getAttrByPath('body/strokeWidth') as number) ?? data.strokeWidth ?? 1.5
         styleState.value = { fill, stroke, strokeWidth, strokeDasharray: 'none', opacity: 1 }
         return
       }
@@ -221,6 +222,39 @@ export function useNodeStyle(getBoard: () => Board | null) {
             opacity: newOpacity,
             svgContent,
           })
+        } else if (
+          cell.shape === 'speed-mindmap-root' ||
+          cell.shape === 'speed-mindmap-node' ||
+          cell.getData()?.type === 'mindmap-node'
+        ) {
+          const data = (cell.getData() || {}) as any
+          const patchData: any = {}
+          if (patch.fill !== undefined) {
+            patchData.fill = patch.fill
+            cell.setAttrByPath('body/fill', patch.fill)
+          }
+          if (patch.stroke !== undefined) {
+            patchData.stroke = patch.stroke
+            cell.setAttrByPath('body/stroke', patch.stroke)
+            if (patch.stroke === 'transparent') {
+              cell.setAttrByPath('body/strokeWidth', 0)
+              patchData.strokeWidth = 0
+            } else if ((data.strokeWidth || 0) === 0) {
+              patchData.strokeWidth = 1.5
+              cell.setAttrByPath('body/strokeWidth', 1.5)
+            }
+          }
+          if (patch.strokeWidth !== undefined) {
+            patchData.strokeWidth = patch.strokeWidth
+            cell.setAttrByPath('body/strokeWidth', patch.strokeWidth)
+          }
+          if (patch.strokeDasharray !== undefined) {
+            cell.setAttrByPath(
+              'body/strokeDasharray',
+              patch.strokeDasharray === 'none' ? undefined : patch.strokeDasharray
+            )
+          }
+          cell.setData({ ...data, ...patchData })
         }
       }
     }

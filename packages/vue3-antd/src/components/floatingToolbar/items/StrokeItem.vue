@@ -8,47 +8,49 @@
     :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
   >
     <template #content>
-      <div class="quick-stroke-popover">
-        <!-- 上排：线型切换 (实线 / 虚线) -->
-        <div class="dash-switch-row">
-          <button
-            class="dash-btn"
-            :class="{ 'is-active': currentDash === 'none' }"
-            title="实线"
-            @click="setDash('none')"
-          >
-            <svg width="24" height="10" viewBox="0 0 24 10">
-              <line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2.5" />
-            </svg>
-          </button>
-          <button
-            class="dash-btn"
-            :class="{ 'is-active': currentDash === '6,4' }"
-            title="虚线"
-            @click="setDash('6,4')"
-          >
-            <svg width="24" height="10" viewBox="0 0 24 10">
-              <line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2.5" stroke-dasharray="5,4" />
-            </svg>
-          </button>
-        </div>
+      <div class="quick-stroke-popover" :class="{ 'is-mindmap-mode': isMindmapNode }">
+        <!-- 上排：线型切换 (实线 / 虚线) —— 仅常规图形与线条支持，思维导图节点不展示 -->
+        <template v-if="!isMindmapNode">
+          <div class="dash-switch-row">
+            <button
+              class="dash-btn"
+              :class="{ 'is-active': currentDash === 'none' }"
+              title="实线"
+              @click="setDash('none')"
+            >
+              <svg width="24" height="10" viewBox="0 0 24 10">
+                <line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2.5" />
+              </svg>
+            </button>
+            <button
+              class="dash-btn"
+              :class="{ 'is-active': currentDash === '6,4' }"
+              title="虚线"
+              @click="setDash('6,4')"
+            >
+              <svg width="24" height="10" viewBox="0 0 24 10">
+                <line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2.5" stroke-dasharray="5,4" />
+              </svg>
+            </button>
+          </div>
 
-        <div class="stroke-divider" />
+          <div class="stroke-divider" />
+        </template>
 
-        <!-- 下排：粗细数值输入 + 颜色预览块 -->
+        <!-- 下排：粗细数值输入 + 颜色预览块 (二级弹层) -->
         <div class="bottom-ctrl-row">
           <div class="width-input-box">
             <input
               type="number"
               class="number-input"
               :value="currentWidth"
-              min="1"
+              min="0"
               max="20"
               @change="onWidthChange"
             />
           </div>
 
-          <!-- 描边颜色选择器 -->
+          <!-- 描边颜色选择器 (二级浮层) -->
           <a-popover
             v-model:open="colorOpen"
             trigger="click"
@@ -82,8 +84,7 @@
     <a-tooltip title="描边" placement="bottom" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="9" />
-          <circle cx="12" cy="12" r="4" fill="currentColor" />
+          <circle cx="12" cy="12" r="9" stroke-dasharray="2.5 3" />
         </svg>
       </button>
     </a-tooltip>
@@ -91,21 +92,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import ColorTonePicker from '../../ColorTonePicker.vue'
 import { useNodeStyle } from '../../../composables/useNodeStyle'
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('stroke')
 const colorOpen = ref(false)
+
+watch(isOpen, (v) => {
+  if (!v) {
+    colorOpen.value = false
+  }
+})
 const { updateStyle } = useNodeStyle(() => props.board)
 
 const getActiveCell = () => props.board?.graph.getSelectedCells()[0]
+
+const isMindmapNode = computed(() => {
+  const cell = getActiveCell()
+  if (!cell) return false
+  return (
+    cell.getData()?.type === 'mindmap-node' ||
+    cell.shape === 'speed-mindmap-root' ||
+    cell.shape === 'speed-mindmap-node'
+  )
+})
 
 const currentColor = computed(() => {
   const cell = getActiveCell()
@@ -118,6 +136,9 @@ const currentColor = computed(() => {
   }
   if (cell.shape === 'speed-vector-polygon') {
     return (cell.getAttrByPath('body/stroke') as string) || '#374151'
+  }
+  if (isMindmapNode.value) {
+    return (cell.getAttrByPath('body/stroke') as string) || (cell.getData() as any)?.stroke || '#374151'
   }
   return '#374151'
 })
@@ -133,6 +154,10 @@ const currentWidth = computed(() => {
   }
   if (cell.shape === 'speed-vector-polygon') {
     return (cell.getAttrByPath('body/strokeWidth') as number) || 2
+  }
+  if (isMindmapNode.value) {
+    const sw = cell.getAttrByPath('body/strokeWidth')
+    return sw !== undefined ? Number(sw) : ((cell.getData() as any)?.strokeWidth ?? 1.5)
   }
   return 2
 })
@@ -158,7 +183,7 @@ const setDash = (dash: string) => {
 
 const onWidthChange = (e: Event) => {
   const val = Number((e.target as HTMLInputElement).value)
-  if (val >= 1 && val <= 30) {
+  if (val >= 0 && val <= 30) {
     updateStyle({ strokeWidth: val })
   }
 }
@@ -197,6 +222,10 @@ const onColorSelect = (c: string) => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.quick-stroke-popover.is-mindmap-mode {
+  width: 96px;
 }
 
 .dash-switch-row {

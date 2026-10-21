@@ -46,6 +46,7 @@
           :key="icon.id"
           class="icon-grid-item"
           :title="icon.name"
+          @pointerdown="(e: PointerEvent) => onIconPointerDown(e, icon)"
           @click="onSelect(icon)"
         >
           <svg
@@ -415,7 +416,38 @@ const triggerSearch = () => {
 /**
  * 点击图标：SVG 结构早已就绪，零网络延迟立即放置！
  */
+let justDraggedIcon = false
+
+const onIconPointerDown = (e: PointerEvent, icon: LoadedIconItem) => {
+  if (e.button !== 0) return
+  const startX = e.clientX
+  const startY = e.clientY
+  let dragging = false
+
+  const onPointerMove = (ev: PointerEvent) => {
+    if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) {
+      dragging = true
+      justDraggedIcon = true
+      onSelect(icon)
+    }
+  }
+
+  const onPointerUp = () => {
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+    if (dragging) {
+      setTimeout(() => {
+        justDraggedIcon = false
+      }, 50)
+    }
+  }
+
+  window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
+}
+
 const onSelect = (icon: LoadedIconItem) => {
+  if (justDraggedIcon) return
   const fullSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width} ${icon.height}" width="100%" height="100%" style="width:100%;height:100%;display:block;color:#333333;fill:#333333;">${icon.body}</svg>`
 
   emit('select', {

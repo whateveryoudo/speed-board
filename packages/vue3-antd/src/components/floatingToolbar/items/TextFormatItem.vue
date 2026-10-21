@@ -224,29 +224,37 @@
 
     <a-tooltip title="文本" placement="top" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
-        <SIconFont type="icon-kl-text" :size="18"/>
+        <SIconFont type="icon-kl-text2" :size="18"/>
       </button>
     </a-tooltip>
   </a-popover>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip, Select as ASelect } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import ColorTonePicker from '../../ColorTonePicker.vue'
 import { useNodeStyle } from '../../../composables/useNodeStyle'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
-
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('text')
 const colorOpen = ref(false)
 const alignOpen = ref(false)
 const valignOpen = ref(false)
+
+watch(isOpen, (v) => {
+  if (!v) {
+    colorOpen.value = false
+    alignOpen.value = false
+    valignOpen.value = false
+  }
+})
 const { textState, updateTextStyle } = useNodeStyle(() => props.board)
 
 const fontSizeOptions = [
@@ -296,12 +304,12 @@ const onTextColorSelect = (color: string) => {
 }
 
 const onSelectAlign = (val: string) => {
-  updateTextStyle({ align: val })
+  updateTextStyle({ align: val as any })
   alignOpen.value = false
 }
 
 const onSelectValign = (val: string) => {
-  updateTextStyle({ verticalAlign: val })
+  updateTextStyle({ verticalAlign: val as any })
   valignOpen.value = false
 }
 </script>

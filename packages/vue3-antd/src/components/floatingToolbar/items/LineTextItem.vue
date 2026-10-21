@@ -40,12 +40,13 @@ import { ref, nextTick } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip, Input as AInput, Button as AButton } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import { useLineOperations } from '../../../composables/useLineOperations'
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('line-text')
 const inputValue = ref('')
 const inputRef = ref()
 

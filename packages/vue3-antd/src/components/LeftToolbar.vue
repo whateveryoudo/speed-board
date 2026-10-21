@@ -123,7 +123,9 @@
         <!-- 1.4 插入文本 (Text - 'T') -->
         <a-tooltip title="插入文本 (T)" placement="right">
           <a-button type="text" class="shadow-btn-wrapper"
-            :class="{ 'is-active': props.activePlacementType === 'text' }" @click="onTextButtonClick">
+            :class="{ 'is-active': props.activePlacementType === 'text' }"
+            @pointerdown="(e: PointerEvent) => handleButtonPointerDown(e, startTextPlacement)"
+            @click="onTextButtonClick">
             <SIconFont type="icon-kl-text1" :size="20" />
           </a-button>
         </a-tooltip>
@@ -185,7 +187,9 @@
         <!-- 1.7 思维导图 (Mindmap) -->
         <a-tooltip title="思维导图" placement="right">
           <a-button type="text" class="shadow-btn-wrapper"
-            :class="{ 'is-active': props.activePlacementType === 'mindmap' }" @click="onMindmapButtonClick">
+            :class="{ 'is-active': props.activePlacementType === 'mindmap' }"
+            @pointerdown="(e: PointerEvent) => handleButtonPointerDown(e, startMindmapPlacement)"
+            @click="onMindmapButtonClick">
             <SIconFont type="icon-kl-board-mindmap" :size="20" />
           </a-button>
         </a-tooltip>
@@ -232,7 +236,7 @@ export interface BoardUploadConfig {
 }
 
 export interface PendingPlacementItem {
-  type: 'text' | 'shape' | 'icon' | 'basic'
+  type: 'text' | 'shape' | 'icon' | 'basic' | 'mindmap'
   width: number
   height: number
   textConfig?: Record<string, any>
@@ -267,7 +271,7 @@ const props = withDefaults(
     uploadConfig?: BoardUploadConfig
     visible?: boolean
     activeMode?: string
-    activePlacementType?: 'text' | 'shape' | 'icon' | 'basic' | null
+    activePlacementType?: 'text' | 'shape' | 'icon' | 'basic' | 'mindmap' | null
   }>(),
   {
     visible: true,
@@ -539,12 +543,50 @@ const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) =>
   emit('shape-added', { shape: shape as string, node })
 }
 
+let justDragged = false
+
+const handleButtonPointerDown = (
+  e: PointerEvent,
+  startPlacementFn: () => void
+) => {
+  if (e.button !== 0) return
+  const startX = e.clientX
+  const startY = e.clientY
+  let dragging = false
+
+  const onPointerMove = (ev: PointerEvent) => {
+    if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) {
+      dragging = true
+      justDragged = true
+      startPlacementFn()
+    }
+  }
+
+  const onPointerUp = () => {
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+    if (dragging) {
+      setTimeout(() => {
+        justDragged = false
+      }, 50)
+    }
+  }
+
+  window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
+}
+
 // 文本按钮点击：若已处于文本放置模式则取消，否则触发放置模式 (1:1 语雀白板交互)
 const onTextButtonClick = () => {
+  if (justDragged) return
   if (props.activePlacementType === 'text') {
     emit('cancel-placement')
     return
   }
+  startTextPlacement()
+}
+
+const startTextPlacement = () => {
   shapePickerOpen.value = false
   iconPickerOpen.value = false
   brushPopoverOpen.value = false
@@ -566,10 +608,15 @@ const onTextButtonClick = () => {
 
 // 思维导图按钮点击：触发中心主题放置模式
 const onMindmapButtonClick = () => {
+  if (justDragged) return
   if (props.activePlacementType === 'mindmap') {
     emit('cancel-placement')
     return
   }
+  startMindmapPlacement()
+}
+
+const startMindmapPlacement = () => {
   shapePickerOpen.value = false
   iconPickerOpen.value = false
   brushPopoverOpen.value = false

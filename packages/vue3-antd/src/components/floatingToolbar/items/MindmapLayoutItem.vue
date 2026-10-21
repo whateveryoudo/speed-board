@@ -34,16 +34,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
 import type { Board } from '@speed-board/core'
+import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
   board: Board | null
 }>()
 
-const isOpen = ref(false)
+const { isOpen } = useToolbarPopover('mindmap-layout')
 
 const LAYOUT_OPTIONS = [
   { key: 'balanced', icon: 'icon-kl-jiegou1', label: '思维导图 (向两侧)' },

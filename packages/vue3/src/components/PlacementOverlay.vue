@@ -6,6 +6,7 @@
     @pointerleave="onPointerLeave"
     @pointermove="onPointerMove"
     @pointerdown="onPointerDown"
+    @pointerup="onPointerUp"
     @contextmenu.prevent="cancel"
   >
     <transition name="ghost-fade">
@@ -124,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import type { Board } from '@speed-board/core'
 import type { PendingPlacementItem } from '@speed-board/view'
 
@@ -142,6 +143,7 @@ const emit = defineEmits<{
 
 const mousePos = ref<{ x: number; y: number } | null>(null)
 const isHovering = ref(false)
+let hasDropped = false
 
 const currentZoom = computed(() => {
   return props.board ? props.board.graph.zoom() : 1
@@ -167,10 +169,56 @@ const ghostStyle = computed(() => {
 })
 
 const cancel = () => {
+  hasDropped = true
   mousePos.value = null
   isHovering.value = false
+  window.removeEventListener('pointermove', onWindowPointerMove)
+  window.removeEventListener('pointerup', onWindowPointerUp)
   emit('cancel')
 }
+
+const onWindowPointerMove = (e: PointerEvent) => {
+  if (!props.canvasWrapper || !props.pendingPlacement) return
+  const rect = props.canvasWrapper.getBoundingClientRect()
+  mousePos.value = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top,
+  }
+  const isInside =
+    e.clientX >= rect.left &&
+    e.clientX <= rect.right &&
+    e.clientY >= rect.top &&
+    e.clientY <= rect.bottom
+  isHovering.value = isInside
+}
+
+const onWindowPointerUp = (e: PointerEvent) => {
+  if (!props.pendingPlacement || !isHovering.value) return
+  if (e.button !== 0) return
+  dropAtEvent(e)
+}
+
+watch(
+  () => props.pendingPlacement,
+  (newVal) => {
+    hasDropped = false
+    if (newVal) {
+      window.addEventListener('pointermove', onWindowPointerMove, { passive: true })
+      window.addEventListener('pointerup', onWindowPointerUp)
+    } else {
+      window.removeEventListener('pointermove', onWindowPointerMove)
+      window.removeEventListener('pointerup', onWindowPointerUp)
+      mousePos.value = null
+      isHovering.value = false
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  window.removeEventListener('pointermove', onWindowPointerMove)
+  window.removeEventListener('pointerup', onWindowPointerUp)
+})
 
 const onPointerMove = (e: PointerEvent) => {
   if (!props.canvasWrapper || !props.pendingPlacement) return
@@ -186,8 +234,8 @@ const onPointerLeave = () => {
   isHovering.value = false
 }
 
-const onPointerDown = (e: PointerEvent) => {
-  if (!props.pendingPlacement || !props.board) return
+const dropAtEvent = (e: PointerEvent) => {
+  if (hasDropped || !props.pendingPlacement || !props.board) return
 
   // 右键点击取消放置
   if (e.button === 2) {
@@ -195,9 +243,9 @@ const onPointerDown = (e: PointerEvent) => {
     return
   }
 
-  // 仅在左键且已在画板移动显现虚影后响应放置
-  if (e.button !== 0 || !isHovering.value || !mousePos.value) return
+  if (e.button !== 0) return
 
+  hasDropped = true
   e.preventDefault()
   e.stopPropagation()
 
@@ -271,4 +319,85 @@ const onPointerDown = (e: PointerEvent) => {
     emit('place', { item, node })
   }
 }
+
+const onPointerDown = (e: PointerEvent) => {
+  dropAtEvent(e)
+}
+
+const onPointerUp = (e: PointerEvent) => {
+  dropAtEvent(e)
+}
 </script>
+
+<style scoped lang="less">
+.speed-placement-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 70;
+  pointer-events: all;
+  cursor: crosshair;
+}
+
+.speed-placement-ghost {
+  opacity: 0.65;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: opacity 0.12s ease;
+
+  .placement-ghost-text {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 8px;
+    border: 1.5px dashed #3b82f6;
+    background: rgba(239, 246, 255, 0.7);
+    color: #262626;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+
+  .placement-ghost-shape {
+    border: 1.5px dashed #3b82f6;
+    border-radius: 4px;
+    background: rgba(239, 246, 255, 0.5);
+    box-sizing: border-box;
+  }
+
+  .placement-ghost-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed #3b82f6;
+    border-radius: 6px;
+    background: rgba(239, 246, 255, 0.6);
+    box-sizing: border-box;
+
+    svg {
+      width: 70%;
+      height: 70%;
+    }
+  }
+
+  .placement-ghost-basic {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed;
+    border-radius: 8px;
+    font-weight: 500;
+    box-sizing: border-box;
+  }
+}
+
+.ghost-fade-enter-active,
+.ghost-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.ghost-fade-enter-from,
+.ghost-fade-leave-to {
+  opacity: 0;
+}
+</style>

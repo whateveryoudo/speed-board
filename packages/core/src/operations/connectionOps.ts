@@ -8,7 +8,8 @@ export function showNodePorts(
   board: Board,
   node: Node | string | null,
   visible: boolean,
-  activePortId?: string
+  activePortId?: string,
+  highlightBody: boolean = false
 ) {
   if (!node) return
   const cell = typeof node === 'string' ? board.graph.getCellById(node) : node
@@ -29,58 +30,60 @@ export function showNodePorts(
         view.container.querySelector(`.x6-node-${name}`)) as SVGRectElement | null
     }
 
-    const bgEl = getSelector('bg')
-    const bodyEl = getSelector('body') || (view.container.querySelector('rect') as SVGRectElement | null)
+    if (highlightBody) {
+      const bgEl = getSelector('bg')
+      const bodyEl = getSelector('body') || (view.container.querySelector('rect') as SVGRectElement | null)
 
-    if (bgEl) {
-      if (visible) {
-        if (size.width > 0 && size.height > 0) {
-          bgEl.setAttribute('width', `${size.width}`)
-          bgEl.setAttribute('height', `${size.height}`)
-          bgEl.setAttribute('x', '0')
-          bgEl.setAttribute('y', '0')
-        }
-        bgEl.setAttribute('fill', 'rgba(59, 130, 246, 0.08)')
-        bgEl.setAttribute('stroke', '#3b82f6')
-        bgEl.setAttribute('stroke-width', '1.5')
-        bgEl.setAttribute('rx', rx)
-        bgEl.setAttribute('ry', rx)
-      } else {
-        bgEl.setAttribute('fill', 'transparent')
-        bgEl.setAttribute('stroke', 'transparent')
-        bgEl.setAttribute('stroke-width', '0')
-      }
-    }
-
-    // 将触碰高亮同步施加在其可视主体 body 矩形上，确保 100% 呈现边框和浅蓝填充
-    if (bodyEl && (isMind || !bgEl)) {
-      if (visible) {
-        if (!bodyEl.dataset.origFill) {
-          bodyEl.dataset.origFill = bodyEl.getAttribute('fill') || 'transparent'
-          bodyEl.dataset.origStroke = bodyEl.getAttribute('stroke') || 'transparent'
-          bodyEl.dataset.origStrokeWidth = bodyEl.getAttribute('stroke-width') || '0'
-          bodyEl.dataset.origRx = bodyEl.getAttribute('rx') || '0'
-        }
-        bodyEl.setAttribute('fill', 'rgba(59, 130, 246, 0.08)')
-        bodyEl.setAttribute('stroke', '#3b82f6')
-        bodyEl.setAttribute('stroke-width', '1.5')
-        bodyEl.setAttribute('rx', rx)
-        bodyEl.setAttribute('ry', rx)
-      } else {
-        if (bodyEl.dataset.origFill !== undefined) {
-          bodyEl.setAttribute('fill', bodyEl.dataset.origFill)
-          bodyEl.setAttribute('stroke', bodyEl.dataset.origStroke || 'transparent')
-          bodyEl.setAttribute('stroke-width', bodyEl.dataset.origStrokeWidth || '0')
-          bodyEl.setAttribute('rx', bodyEl.dataset.origRx || '0')
-          bodyEl.setAttribute('ry', bodyEl.dataset.origRx || '0')
-          delete bodyEl.dataset.origFill
-          delete bodyEl.dataset.origStroke
-          delete bodyEl.dataset.origStrokeWidth
-          delete bodyEl.dataset.origRx
+      if (bgEl) {
+        if (visible) {
+          if (size.width > 0 && size.height > 0) {
+            bgEl.setAttribute('width', `${size.width}`)
+            bgEl.setAttribute('height', `${size.height}`)
+            bgEl.setAttribute('x', '0')
+            bgEl.setAttribute('y', '0')
+          }
+          bgEl.setAttribute('fill', 'rgba(59, 130, 246, 0.08)')
+          bgEl.setAttribute('stroke', '#3b82f6')
+          bgEl.setAttribute('stroke-width', '1.5')
+          bgEl.setAttribute('rx', rx)
+          bgEl.setAttribute('ry', rx)
         } else {
-          bodyEl.setAttribute('fill', 'transparent')
-          bodyEl.setAttribute('stroke', 'transparent')
-          bodyEl.setAttribute('stroke-width', '0')
+          bgEl.setAttribute('fill', 'transparent')
+          bgEl.setAttribute('stroke', 'transparent')
+          bgEl.setAttribute('stroke-width', '0')
+        }
+      }
+
+      // 将触碰高亮同步施加在其可视主体 body 矩形上，确保 100% 呈现边框和浅蓝填充
+      if (bodyEl && (isMind || !bgEl)) {
+        if (visible) {
+          if (!bodyEl.dataset.origFill) {
+            bodyEl.dataset.origFill = bodyEl.getAttribute('fill') || 'transparent'
+            bodyEl.dataset.origStroke = bodyEl.getAttribute('stroke') || 'transparent'
+            bodyEl.dataset.origStrokeWidth = bodyEl.getAttribute('stroke-width') || '0'
+            bodyEl.dataset.origRx = bodyEl.getAttribute('rx') || '0'
+          }
+          bodyEl.setAttribute('fill', 'rgba(59, 130, 246, 0.08)')
+          bodyEl.setAttribute('stroke', '#3b82f6')
+          bodyEl.setAttribute('stroke-width', '1.5')
+          bodyEl.setAttribute('rx', rx)
+          bodyEl.setAttribute('ry', rx)
+        } else {
+          if (bodyEl.dataset.origFill !== undefined) {
+            bodyEl.setAttribute('fill', bodyEl.dataset.origFill)
+            bodyEl.setAttribute('stroke', bodyEl.dataset.origStroke || 'transparent')
+            bodyEl.setAttribute('stroke-width', bodyEl.dataset.origStrokeWidth || '0')
+            bodyEl.setAttribute('rx', bodyEl.dataset.origRx || '0')
+            bodyEl.setAttribute('ry', bodyEl.dataset.origRx || '0')
+            delete bodyEl.dataset.origFill
+            delete bodyEl.dataset.origStroke
+            delete bodyEl.dataset.origStrokeWidth
+            delete bodyEl.dataset.origRx
+          } else {
+            bodyEl.setAttribute('fill', 'transparent')
+            bodyEl.setAttribute('stroke', 'transparent')
+            bodyEl.setAttribute('stroke-width', '0')
+          }
         }
       }
     }
@@ -91,8 +94,11 @@ export function showNodePorts(
       if (!circle) return
       if (!visible) {
         circle.style.opacity = '0'
+        circle.style.pointerEvents = 'none'
       } else {
         circle.style.opacity = '1'
+        circle.style.pointerEvents = 'auto'
+        circle.style.cursor = 'crosshair'
         const portId =
           p.getAttribute('data-port') ||
           p.getAttribute('port') ||
@@ -104,7 +110,7 @@ export function showNodePorts(
           circle.setAttribute('stroke', '#2563eb')
           circle.setAttribute('stroke-width', '1')
         } else {
-          circle.setAttribute('r', '3.5')
+          circle.setAttribute('r', '4')
           circle.setAttribute('fill', '#ffffff')
           circle.setAttribute('stroke', '#3b82f6')
           circle.setAttribute('stroke-width', '1.5')

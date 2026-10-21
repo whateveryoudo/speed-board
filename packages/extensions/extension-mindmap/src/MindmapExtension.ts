@@ -10,7 +10,11 @@ import {
   setMindmapBranchStyle,
   updateMindmapLayout,
   moveMindmapNode,
+  toggleMindmapNodeCollapse,
+  setMindmapNodeCollapse,
   isMindmapNode,
+  updateMindmapNodeHandle,
+  activateMindmapNodeTextEdit,
 } from './commands/mindmapCommands'
 import { MindmapDragController } from './interaction/MindmapDragController'
 import type { MindmapExtensionOptions } from './types'
@@ -68,6 +72,68 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
             updateMindmapLayout(board, node.id)
           }
         })
+
+        // 监听脑图节点内置控制手柄的原生 DOM 点击事件 (+ / 收起 / 展开)
+        board.graph.on('node:click', ({ e, cell }) => {
+          const target = e.target as HTMLElement | null
+          if (!target) return
+
+          const actionEl = target.closest('[data-action]') as HTMLElement | null
+          if (!actionEl) return
+
+          const action = actionEl.getAttribute('data-action')
+          if (action === 'add-child') {
+            e.stopPropagation()
+            addMindmapChild(board, cell.id)
+            return
+          }
+          if (action === 'toggle-collapse') {
+            e.stopPropagation()
+            toggleMindmapNodeCollapse(board, cell.id)
+            board.graph.cleanSelection()
+            board.graph.select(cell)
+            return
+          }
+        })
+
+        // 脑图节点双击或触发编辑时，激活原生内置 contenteditable 就地打字 (0 像素抖动)
+        board.graph.on('node:dblclick', ({ node }) => {
+          if (isMindmapNode(node)) {
+            activateMindmapNodeTextEdit(board, node)
+          }
+        })
+
+        board.graph.on('node:start-edit', ({ node, initialChar }: any) => {
+          if (isMindmapNode(node)) {
+            activateMindmapNodeTextEdit(board, node, initialChar)
+          }
+        })
+
+        // 选区变化时正向同步脑图节点选中状态样式与手柄 HTML
+        board.graph.on('selection:changed', ({ selected, unselected }) => {
+          if (selected) {
+            for (const cell of selected) {
+              if (cell.isNode() && isMindmapNode(cell)) {
+                const view = board.graph.findViewByCell(cell)
+                if (view?.container) {
+                  view.container.classList.add('is-mindmap-selected')
+                }
+                updateMindmapNodeHandle(board.graph, cell)
+              }
+            }
+          }
+          if (unselected) {
+            for (const cell of unselected) {
+              if (cell.isNode() && isMindmapNode(cell)) {
+                const view = board.graph.findViewByCell(cell)
+                if (view?.container) {
+                  view.container.classList.remove('is-mindmap-selected')
+                }
+                updateMindmapNodeHandle(board.graph, cell)
+              }
+            }
+          }
+        })
       },
       onDestroy: () => {
         this.dragController?.destroy()
@@ -89,19 +155,30 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
           deleteMindmapBranch(ctx.board, targetId)
           return true
         },
-        moveMindmapNode: (draggedId: string, targetId: string, position: 'child' | 'before' | 'after') => () => {
-          return moveMindmapNode(ctx.board, draggedId, targetId, position)
+        moveMindmapNode: (opts: any, targetId?: string, position?: any) => () => {
+          if (typeof opts === 'object' && opts && opts.draggedId) {
+            return moveMindmapNode(ctx.board, opts.draggedId, opts.targetId, opts.position)
+          }
+          return moveMindmapNode(ctx.board, opts, targetId!, position!)
         },
-        setMindmapStructure: (rootId: string, structure: any) => () => {
-          setMindmapStructure(ctx.board, rootId, structure)
+        setMindmapStructure: (rootId?: any, structure?: any) => () => {
+          if (rootId) setMindmapStructure(ctx.board, rootId, structure)
           return true
         },
-        setMindmapBranchStyle: (nodeId: string, config: any) => () => {
-          setMindmapBranchStyle(ctx.board, nodeId, config)
+        setMindmapBranchStyle: (nodeId?: any, config?: any) => () => {
+          if (nodeId) setMindmapBranchStyle(ctx.board, nodeId, config)
           return true
         },
-        updateMindmapLayout: (rootOrChildId: string) => () => {
-          updateMindmapLayout(ctx.board, rootOrChildId)
+        updateMindmapLayout: (rootOrChildId?: any) => () => {
+          if (rootOrChildId) updateMindmapLayout(ctx.board, rootOrChildId)
+          return true
+        },
+        toggleMindmapNodeCollapse: (nodeId?: any) => () => {
+          if (nodeId) toggleMindmapNodeCollapse(ctx.board, nodeId)
+          return true
+        },
+        setMindmapNodeCollapse: (nodeId?: any, collapsed?: any) => () => {
+          if (nodeId) setMindmapNodeCollapse(ctx.board, nodeId, !!collapsed)
           return true
         },
       }),

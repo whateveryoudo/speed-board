@@ -16,8 +16,12 @@ export type QuickToolbarItem =
   | 'bold'         // 粗体切换 (纯文本节点)
   | 'align'        // 多选对齐
   | 'distribute'   // 多选分布
+  | 'arrange'      // 多选对齐与分布 (1:1 语雀白板二级气泡)
   | 'group'        // 成组 / 解组
   | 'open-panel'   // 打开/聚焦右侧深度设置面板 (🎛)
+  | 'mindmap-layout'
+  | 'mindmap-branch'
+  | 'mindmap-shape'
 
 export type PanelTabKey = 'style' | 'text' | 'arrange'
 
@@ -130,7 +134,7 @@ export const textSchema: NodeSchema = {
 export const multipleSchema: NodeSchema = {
   type: 'multiple',
   label: '多选',
-  quickToolbar: ['align', 'distribute', 'group', 'open-panel'],
+  quickToolbar: ['arrange', 'group', 'open-panel'],
   panel: {
     tabs: ['arrange'],
     sections: {
@@ -139,11 +143,33 @@ export const multipleSchema: NodeSchema = {
   },
 }
 
-/** 7. 思维导图 (Mindmap) —— 1:1 对齐语雀白板结构与分支设置 */
+/** 7. 组合成组状态 (Group Node) —— 成组后不需要排列，仅提供取消成组 */
+export const groupSchema: NodeSchema = {
+  type: 'group',
+  label: '组合',
+  quickToolbar: ['group', 'open-panel'],
+  panel: {
+    tabs: ['arrange'],
+    sections: {
+      arrange: ['arrange-layer', 'arrange-group'],
+    },
+  },
+}
+
+/** 8. 思维导图 (Mindmap) —— 1:1 对齐语雀白板结构与分支设置 */
 export const mindmapSchema: NodeSchema = {
   type: 'mindmap',
   label: '思维导图',
-  quickToolbar: ['mindmap-layout', 'mindmap-branch', 'mindmap-shape', 'text', 'link', 'open-panel'],
+  quickToolbar: [
+    'mindmap-layout',
+    'mindmap-branch',
+    'mindmap-shape',
+    'fill',
+    'stroke',
+    'text',
+    'link',
+    'open-panel',
+  ],
   panel: {
     tabs: ['style', 'text', 'arrange'],
     sections: {
@@ -161,6 +187,7 @@ export const schemaRegistry: Record<string, NodeSchema> = {
   vector: vectorSchema,
   text: textSchema,
   multiple: multipleSchema,
+  group: groupSchema,
   mindmap: mindmapSchema,
 }
 
