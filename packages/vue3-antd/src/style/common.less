@@ -70,6 +70,16 @@ div.x6-widget-transform-rotate {
   height: 0 !important;
 }
 
+// 文本与导图节点内部绝不渲染任何 X6 默认连接桩 (消除黑圈)
+.x6-node[data-shape='speed-text-node'] .x6-port,
+.x6-node[data-shape='speed-mindmap-node'] .x6-port,
+.x6-node[data-shape='speed-mindmap-root'] .x6-port,
+.x6-node[data-shape='text-block'] .x6-port {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 // 1:1 语雀白板图元变换框与旋转触发手柄 (X6 Transform Widget & Selection)
 .speed-board {
   // 彻底隐藏 X6 Selection 插件默认的多选外层大边框（1:1 语雀白板多选无外层大框，只保留各个图元各自的选框）

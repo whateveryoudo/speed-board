@@ -505,6 +505,16 @@ export class Board {
     })
 
     this.graph.on('node:selected', ({ node }) => {
+      // 只有普通矢量图形 (Shape) 节点才需要连接桩；文本、便签、思维导图、手绘路径绝不添加连接桩
+      if (!this.isShapeNode(node) || this.isTextNode(node)) {
+        // 如果曾误加过连接桩，立即彻底移除
+        const ports = node.getPorts()
+        if (ports && ports.length > 0) {
+          node.removePorts()
+        }
+        return
+      }
+
       const ports = node.getPorts()
       if (!ports || ports.length === 0) {
         node.addPorts([
