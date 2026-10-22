@@ -4,11 +4,13 @@
     :class="{
       'is-single-selected': isSingleSelected,
       'is-multi-selected': isMultiSelected,
+      'is-text-selected': isTextSelected,
       'is-mindmap-selected': isMindmapSelected,
       'is-mindmap-capsule': isMindmapCapsule,
       'is-mindmap-rect': isMindmapRect,
       'is-mindmap-root': isMindmapRoot,
       'is-mindmap-none': isMindmapNone,
+      'is-inline-editing': isInlineEditing,
     }"
   >
     <!-- 顶部状态栏与悬浮控制组 (左上历史撤销 + 右上视口控制与折叠按钮) -->
@@ -53,10 +55,11 @@
 
       <!-- 画布图元浮动快捷工具栏 (1:1 语雀白板 Bubble Toolbar) -->
       <FloatingToolbarHost
+        v-show="!isTyping && !pendingPlacement && !isLineDragging && !isDragging && drawConfig.mode === 'select'"
         ref="floatingToolbarRef"
         :board="boardInstance"
         :container-el="canvasWrapperRef"
-        :visible="!pendingPlacement && !isDragging && drawConfig.mode === 'select'"
+        :is-typing="isTyping"
         @open-panel="showSettingsPanel = true"
         @open-link-overlay="onOpenLinkOverlay"
       />
@@ -70,6 +73,49 @@
         :focus-link="textOverlayFocusLink"
         @change="onTextOverlayChange"
         @confirm="onTextOverlayConfirm"
+      />
+
+      <!-- 语雀白板 1:1 文本选框内就地输入编辑器 (双击文本图元就地打字输入) -->
+      <InlineTextEditor
+        ref="inlineEditorRef"
+        v-model:visible="isInlineEditing"
+        v-model:active-node="activeInlineNode"
+        :initial-char="inlineInitialChar"
+        :board="boardInstance"
+        :canvas-wrapper="canvasWrapperRef"
+        @close="onInlineEditorClose"
+        @typing="isTyping = $event"
+      />
+
+      <!-- 4 个连接桩点（Ports）与快捷连接延伸手柄 (1:1 语雀白板交互) -->
+      <ShapeAnchorPorts
+        :board="boardInstance"
+        :selected-node="selectedShapeNode"
+        :canvas-wrapper="canvasWrapperRef"
+        :visible="drawConfig.mode === 'select' && !isInlineEditing && !isLineDragging && !pendingPlacement && !isDragging"
+      />
+
+      <!-- 思维导图分支延伸手柄与加号按钮 (1:1 语雀白板交互) -->
+      <MindmapBranchHandle
+        :board="boardInstance"
+        :selected-node="selectedMindmapNode"
+        :canvas-wrapper="canvasWrapperRef"
+        :visible="drawConfig.mode === 'select' && !isInlineEditing && !isLineDragging && !pendingPlacement && !isDragging"
+      />
+
+      <!-- 手绘与矢量交互覆盖层 (画笔/矢量钢笔/连线激活时在顶层捕获并实时渲染) -->
+      <DrawingOverlay
+        ref="drawingOverlayRef"
+        :board="boardInstance"
+        :draw-config="drawConfig"
+        :vector-fill-color="vectorFillColor"
+        :vector-stroke-color="vectorStrokeColor"
+        :vector-stroke-width="vectorStrokeWidth"
+        :vector-stroke-dash="vectorStrokeDash"
+        :vector-opacity="vectorOpacity"
+        @update:mode="drawConfig.mode = $event"
+        @is-line-dragging-change="isLineDragging = $event"
+        @finish-vector="showSettingsPanel = true"
       />
 
       <!-- 语雀白板 1:1 鼠标跟随放置预览图层 (Ghost Placement Overlay) -->
@@ -88,6 +134,9 @@
 import { ref, shallowRef, computed, nextTick, onMounted, watch, onUnmounted } from 'vue'
 import {
   BoardCanvas,
+  DrawingOverlay,
+  InlineTextEditor,
+  ShapeAnchorPorts,
   PlacementOverlay,
   type BoardOptions,
   type DrawConfig,
@@ -99,6 +148,7 @@ import TopToolbar from './TopToolbar.vue'
 import StyleSettingsPanel from './StyleSettingsPanel.vue'
 import TextOverlayEditor from './TextOverlayEditor.vue'
 import FloatingToolbarHost from './floatingToolbar/FloatingToolbarHost.vue'
+import MindmapBranchHandle from './MindmapBranchHandle.vue'
 import { MindmapExtension, isMindmapNode } from '@speed-board/extension-mindmap'
 import { useCellAttributes } from '../composables/useCellAttributes'
 import type { IconProvider } from '../data/defaultIcons'
@@ -143,11 +193,29 @@ const { cleanup: cleanupAntdCssVars } = useAntdCssVars()
 const boardInstance = shallowRef<Board | null>(null)
 const canvasWrapperRef = ref<HTMLDivElement | null>(null)
 
-// 触发就地文字编辑 (完全下沉至 Core 引擎，调用 in-node contenteditable 原生编辑)
+// 就地文本编辑状态 (InlineTextEditor)
+const inlineEditorRef = ref<any>(null)
+const isInlineEditing = ref(false)
+const activeInlineNode = shallowRef<any>(null)
+const inlineInitialChar = ref('')
+const isTyping = ref(false)
+const isLineDragging = ref(false)
+const drawingOverlayRef = ref<any>(null)
+
+// 触发就地文字编辑
 const startInlineTextEdit = (node: any, initialChar?: string) => {
   if (!boardInstance.value || !node) return
   showTextOverlay.value = false
-  boardInstance.value.activateTextEdit(node, initialChar)
+  activeInlineNode.value = node
+  inlineInitialChar.value = initialChar || ''
+  isInlineEditing.value = true
+}
+
+const onInlineEditorClose = () => {
+  isInlineEditing.value = false
+  activeInlineNode.value = null
+  inlineInitialChar.value = ''
+  isTyping.value = false
 }
 
 // 链接专用 Overlay 面板状态
@@ -223,7 +291,16 @@ const onTextOverlayConfirm = (payload: { text: string; link: string }) => {
 }
 
 const setupTextListeners = (board: Board) => {
+  board.graph.on('node:dblclick', ({ node }: any) => {
+    if (board.isTextNode(node) || board.isShapeNode(node)) {
+      startInlineTextEdit(node)
+    }
+  })
+
   const onBlank = () => {
+    if (isInlineEditing.value) {
+      inlineEditorRef.value?.finish()
+    }
     board.graph.cleanSelection()
     showTextOverlay.value = false
   }
@@ -232,6 +309,9 @@ const setupTextListeners = (board: Board) => {
   board.graph.on('blank:click', onBlank)
 
   board.graph.on('node:click', ({ node }: any) => {
+    if (isInlineEditing.value && node !== activeInlineNode.value) {
+      inlineEditorRef.value?.finish()
+    }
     if (showTextOverlay.value && node !== activeLinkNode.value) {
       showTextOverlay.value = false
     }
@@ -285,6 +365,10 @@ const onCanvasWrapperPointerDown = (e: PointerEvent) => {
     !target.closest('.x6-node') &&
     !target.closest('.x6-edge')
   ) {
+    if (isInlineEditing.value) {
+      inlineEditorRef.value?.finish()
+    }
+    boardInstance.value?.drawingController.clearVectorPreview()
     boardInstance.value?.graph.cleanSelection()
     showTextOverlay.value = false
   }
@@ -297,6 +381,12 @@ const isMultiSelected = computed(() => selectedCount.value > 1)
 const selectedShapeNode = shallowRef<any>(null)
 const selectedMindmapNode = shallowRef<any>(null)
 const isMindmapSelected = computed(() => !!selectedMindmapNode.value)
+const isTextSelected = computed(() => {
+  if (!isSingleSelected.value || !boardInstance.value) return false
+  const selected = boardInstance.value.graph.getSelectedCells()
+  if (selected.length !== 1) return false
+  return boardInstance.value.isTextNode(selected[0])
+})
 
 const mindmapShapeStyle = useCellAttributes<string>(
   () => boardInstance.value,
@@ -340,6 +430,30 @@ const setupSelectionListeners = (board: Board) => {
       (isMindmapNode(selectedNodes[0]) || selectedNodes[0].getData()?.type === 'mindmap-node')
         ? selectedNodes[0]
         : null
+
+    nextTick(() => {
+      const transformWidgets = board.container.querySelectorAll('.x6-widget-transform')
+      transformWidgets.forEach((w) => {
+        if (!single) {
+          ;(w as HTMLElement).style.display = 'none'
+        } else {
+          const node = selectedNodes[0]
+          const type = node.getData()?.type
+          const noRotate =
+            type === 'mindmap-node' ||
+            type === 'text' ||
+            type === 'group' ||
+            node.getData()?.isGroup ||
+            node.shape === 'speed-text-node' ||
+            node.shape === 'speed-freehand-path'
+          w.classList.toggle('no-rotate', noRotate)
+          const rotateHandle = w.querySelector('.x6-widget-transform-rotate') as HTMLElement
+          if (rotateHandle) {
+            rotateHandle.style.display = noRotate ? 'none' : 'block'
+          }
+        }
+      })
+    })
   })
 }
 
@@ -356,8 +470,8 @@ const onBoardCreated = (board: Board) => {
     showSettingsPanel.value = true
   }
 
-  board.graph.on('node:start-edit', ({ node }: { node: any }) => {
-    startInlineTextEdit(node)
+  board.graph.on('node:start-edit', ({ node, initialChar }: { node: any; initialChar?: string }) => {
+    startInlineTextEdit(node, initialChar)
   })
 
   emit('created', board)

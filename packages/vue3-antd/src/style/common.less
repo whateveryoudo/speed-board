@@ -222,6 +222,11 @@
     }
   }
 
+  // 文本图元、思维导图、多选与无旋转权限节点：彻底隐藏旋转圆点/手柄
+  &.is-text-selected .x6-widget-transform-rotate,
+  &.is-mindmap-selected .x6-widget-transform-rotate,
+  &.is-multi-selected .x6-widget-transform-rotate,
+  &:not(.is-single-selected) .x6-widget-transform-rotate,
   .x6-widget-transform.no-rotate .x6-widget-transform-rotate {
     display: none !important;
   }
@@ -561,12 +566,18 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    padding: 0 8px;
+    padding: 0 10px;
+    white-space: nowrap !important;
+    min-width: 60px;
+    width: max-content !important;
     border: 1.5px dashed #3b82f6;
     background: rgba(239, 246, 255, 0.7);
     color: #262626;
     border-radius: 4px;
     box-sizing: border-box;
+    span {
+      white-space: nowrap;
+    }
   }
 
   .placement-ghost-shape {

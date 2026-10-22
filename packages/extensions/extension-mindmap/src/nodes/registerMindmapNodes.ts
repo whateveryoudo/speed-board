@@ -9,7 +9,6 @@ export function registerMindmapNodes(): void {
     'speed-mindmap-root',
     {
       inherit: 'rect',
-      zIndex: 10,
       markup: [
         {
           tagName: 'rect',
@@ -24,24 +23,8 @@ export function registerMindmapNodes(): void {
           selector: 'underline',
         },
         {
-          tagName: 'foreignObject',
-          selector: 'textFo',
-          children: [
-            {
-              tagName: 'div',
-              selector: 'textWrap',
-            },
-          ],
-        },
-        {
-          tagName: 'g',
-          selector: 'handleGroup',
-          children: [
-            {
-              tagName: 'foreignObject',
-              selector: 'handleFo',
-            },
-          ],
+          tagName: 'text',
+          selector: 'label',
         },
       ],
       attrs: {
@@ -74,51 +57,18 @@ export function registerMindmapNodes(): void {
           fill: '#3b82f6',
           stroke: 'none',
         },
-        textFo: {
-          x: 12,
-          y: 0,
-          refWidth: '100%',
-          refWidth2: -24,
-          refHeight: '100%',
-          style: {
-            overflow: 'hidden',
-          },
-        },
-        textWrap: {
-          class: 'mindmap-node-text',
-          style: {
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            color: '#1f2937',
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            outline: 'none',
-            wordBreak: 'break-word',
-            userSelect: 'none',
-            cursor: 'default',
-            lineHeight: '1.4',
-            textAlign: 'center',
-          },
-          html: '思维导图',
-        },
-        handleGroup: {
-          refX: '100%',
+        label: {
+          text: '思维导图',
+          fontSize: 16,
+          fontWeight: 'bold',
+          fill: '#1f2937',
+          textAnchor: 'middle',
+          textVerticalAnchor: 'middle',
+          refX: '50%',
           refY: '50%',
-        },
-        handleFo: {
-          x: 0,
-          y: -12,
-          width: 80,
-          height: 24,
-          style: {
-            overflow: 'visible',
-          },
-          html: '',
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          pointerEvents: 'none',
         },
       },
       ports: {
@@ -132,7 +82,7 @@ export function registerMindmapNodes(): void {
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 opacity: 0,
-                magnet: 'passive',
+                magnet: true,
               },
             },
           },
@@ -145,7 +95,7 @@ export function registerMindmapNodes(): void {
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 opacity: 0,
-                magnet: 'passive',
+                magnet: true,
               },
             },
           },
@@ -158,7 +108,7 @@ export function registerMindmapNodes(): void {
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 opacity: 0,
-                magnet: 'passive',
+                magnet: true,
               },
             },
           },
@@ -171,7 +121,7 @@ export function registerMindmapNodes(): void {
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 opacity: 0,
-                magnet: 'passive',
+                magnet: true,
               },
             },
           },
@@ -192,7 +142,6 @@ export function registerMindmapNodes(): void {
     'speed-mindmap-node',
     {
       inherit: 'rect',
-      zIndex: 10,
       markup: [
         {
           tagName: 'rect',
@@ -207,24 +156,8 @@ export function registerMindmapNodes(): void {
           selector: 'underline',
         },
         {
-          tagName: 'foreignObject',
-          selector: 'textFo',
-          children: [
-            {
-              tagName: 'div',
-              selector: 'textWrap',
-            },
-          ],
-        },
-        {
-          tagName: 'g',
-          selector: 'handleGroup',
-          children: [
-            {
-              tagName: 'foreignObject',
-              selector: 'handleFo',
-            },
-          ],
+          tagName: 'text',
+          selector: 'label',
         },
       ],
       attrs: {
@@ -255,50 +188,17 @@ export function registerMindmapNodes(): void {
           fill: '#8b5cf6',
           stroke: 'none',
         },
-        textFo: {
-          x: 8,
-          y: 0,
-          refWidth: '100%',
-          refWidth2: -16,
-          refHeight: '100%',
-          style: {
-            overflow: 'hidden',
-          },
-        },
-        textWrap: {
-          class: 'mindmap-node-text',
-          style: {
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            fontSize: '14px',
-            color: '#1f2937',
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            outline: 'none',
-            wordBreak: 'break-word',
-            userSelect: 'none',
-            cursor: 'default',
-            lineHeight: '1.4',
-            textAlign: 'left',
-          },
-          html: '分支主题',
-        },
-        handleGroup: {
-          refX: '100%',
+        label: {
+          text: '分支主题',
+          fontSize: 14,
+          fill: '#1f2937',
+          textAnchor: 'start',
+          textVerticalAnchor: 'middle',
+          refX: 8,
           refY: '50%',
-        },
-        handleFo: {
-          x: 0,
-          y: -12,
-          width: 80,
-          height: 24,
-          style: {
-            overflow: 'visible',
-          },
-          html: '',
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          pointerEvents: 'none',
         },
       },
       ports: {
@@ -312,7 +212,7 @@ export function registerMindmapNodes(): void {
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 opacity: 0,
-                magnet: 'passive',
+                magnet: true,
               },
             },
           },
@@ -325,7 +225,7 @@ export function registerMindmapNodes(): void {
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 opacity: 0,
-                magnet: 'passive',
+                magnet: true,
               },
             },
           },
@@ -338,7 +238,7 @@ export function registerMindmapNodes(): void {
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 opacity: 0,
-                magnet: 'passive',
+                magnet: true,
               },
             },
           },
@@ -351,7 +251,7 @@ export function registerMindmapNodes(): void {
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 opacity: 0,
-                magnet: 'passive',
+                magnet: true,
               },
             },
           },

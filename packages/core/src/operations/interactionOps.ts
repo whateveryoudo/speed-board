@@ -84,9 +84,6 @@ export function initAllCanvasInteractions(board: Board): () => void {
         board.showNodePorts(prevSelectedShapeNode, false)
       }
       prevSelectedShapeNode = singleNode
-      if (singleNode) {
-        board.showNodePorts(singleNode, true)
-      }
     }
 
     const isMulti = (selected || []).length > 1

@@ -596,7 +596,7 @@ const startTextPlacement = () => {
   const measured = measureTextWidth(text, '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif')
   emit('start-placement', {
     type: 'text',
-    width: Math.max(40, measured + 18),
+    width: Math.max(64, measured + 24),
     height: 32,
     textConfig: {
       text,

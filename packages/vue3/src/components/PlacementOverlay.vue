@@ -20,9 +20,11 @@
           v-if="props.pendingPlacement.type === 'text'"
           class="placement-ghost-text"
           :style="{
-            width: `${props.pendingPlacement.width * currentZoom}px`,
+            minWidth: `${Math.max(60, props.pendingPlacement.width) * currentZoom}px`,
+            width: 'max-content',
             height: `${props.pendingPlacement.height * currentZoom}px`,
             fontSize: `${14 * currentZoom}px`,
+            whiteSpace: 'nowrap',
           }"
         >
           <span>{{ props.pendingPlacement.textConfig?.text || '文本' }}</span>
@@ -350,12 +352,18 @@ const onPointerUp = (e: PointerEvent) => {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    padding: 0 8px;
+    padding: 0 10px;
+    white-space: nowrap !important;
+    min-width: 60px;
+    width: max-content !important;
     border: 1.5px dashed #3b82f6;
     background: rgba(239, 246, 255, 0.7);
     color: #262626;
     border-radius: 4px;
     box-sizing: border-box;
+    span {
+      white-space: nowrap;
+    }
   }
 
   .placement-ghost-shape {

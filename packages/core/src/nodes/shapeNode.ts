@@ -17,16 +17,6 @@ export function registerShapeNode(): void {
           selector: 'shapeBody',
         },
         {
-          tagName: 'foreignObject',
-          selector: 'textFo',
-          children: [
-            {
-              tagName: 'div',
-              selector: 'textWrap',
-            },
-          ],
-        },
-        {
           tagName: 'text',
           selector: 'label',
         },
@@ -48,39 +38,7 @@ export function registerShapeNode(): void {
           pointerEvents: 'none',
           overflow: 'visible',
         },
-        textFo: {
-          x: 8,
-          y: 8,
-          refWidth: '100%',
-          refWidth2: -16,
-          refHeight: '100%',
-          refHeight2: -16,
-          style: {
-            overflow: 'hidden',
-          },
-        },
-        textWrap: {
-          class: 'speed-node-text',
-          html: '',
-          style: {
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            color: '#1f2937',
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            outline: 'none',
-            wordBreak: 'break-word',
-            whiteSpace: 'pre-wrap',
-            userSelect: 'none',
-            cursor: 'default',
-          },
-        },
         label: {
-          display: 'none',
           text: '',
           fontSize: 14,
           fill: '#1f2937',
@@ -88,6 +46,7 @@ export function registerShapeNode(): void {
           textVerticalAnchor: 'middle',
           refX: '50%',
           refY: '50%',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
           pointerEvents: 'none',
         },
       },

@@ -425,6 +425,9 @@ export class DrawingController {
       this.lineStartPt = null
     }
 
+    if (this.drawingMode === 'vector' && mode !== 'vector') {
+      this.clearVectorPreview()
+    }
     this.drawingMode = mode
 
     if (options?.color !== undefined) {

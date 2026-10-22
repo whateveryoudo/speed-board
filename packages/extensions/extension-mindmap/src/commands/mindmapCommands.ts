@@ -318,8 +318,8 @@ export function insertMindmap(board: Board, options: InsertMindmapOptions): stri
     width: initWidth,
     height: 42,
     attrs: {
-      textWrap: {
-        html: initText,
+      label: {
+        text: initText,
       },
     },
     data: {
@@ -421,8 +421,8 @@ export function addMindmapChild(board: Board, parentNodeId?: string): string | n
       width: childWidth,
       height: 32,
       attrs: {
-        textWrap: {
-          html: childText,
+        label: {
+          text: childText,
         },
         underline: {
           display: 'none',
