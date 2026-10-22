@@ -224,6 +224,16 @@ const startInlineTextEdit = (node: any, initialChar?: string) => {
   activeInlineNode.value = node
   inlineInitialChar.value = initialChar || ''
   isInlineEditing.value = true
+
+  nextTick(() => {
+    const widgets = boardInstance.value?.container.querySelectorAll(
+      '.x6-widget-transform, .x6-widget-transform-rotate'
+    )
+    widgets?.forEach((w) => {
+      ;(w as HTMLElement).style.setProperty('display', 'none', 'important')
+      ;(w as HTMLElement).style.setProperty('visibility', 'hidden', 'important')
+    })
+  })
 }
 
 const onInlineEditorClose = () => {
@@ -834,8 +844,8 @@ const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 't' || e.key === 'T') {
       onStartPlacement({
         type: 'text',
-        width: 100,
-        height: 36,
+        width: 36,
+        height: 28,
         textConfig: {
           text: '文本',
           fontSize: 14,

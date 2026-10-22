@@ -46,12 +46,12 @@ export function computeInlineEditorLayout(
     let w = Math.round(bbox.width * scale)
     let h = Math.round(bbox.height * scale)
 
-    if (!isPureText && targetElem && typeof targetElem.getBoundingClientRect === 'function') {
+    if (targetElem && typeof targetElem.getBoundingClientRect === 'function') {
       const cellRect = targetElem.getBoundingClientRect()
       if (
-        cellRect.width >= 20 &&
+        cellRect.width >= 10 &&
         cellRect.width < wrapperRect.width * 0.85 &&
-        cellRect.height >= 16 &&
+        cellRect.height >= 10 &&
         cellRect.height < wrapperRect.height * 0.85
       ) {
         if (angle === 0) {
@@ -90,7 +90,7 @@ export function computeInlineEditorLayout(
         h = Math.max(h, Math.round((lineCount * lineH + 14) * scale))
       }
     } else {
-      w = Math.max(w, Math.round(40 * scale))
+      w = Math.max(w, Math.round(isPureText ? 28 * scale : 40 * scale))
       h = Math.max(h, Math.round(24 * scale))
       if (lineCount > 1 && isPureText) {
         h = Math.max(h, Math.round((lineCount * lineH + 8) * scale))
@@ -114,9 +114,9 @@ export function computeInlineEditorLayout(
     if (isMindmapBranch) {
       defaultAlign = 'left'
     } else if (isPureText) {
-      defaultAlign = data.align || 'center'
+      defaultAlign = 'center'
     }
-    const align = data.align || defaultAlign
+    const align = isPureText ? 'center' : (data.align || defaultAlign)
     const verticalAlign = data.verticalAlign || 'middle'
 
     // 考虑边框 1.5px，可用高度为 innerH = h - 3
@@ -132,8 +132,11 @@ export function computeInlineEditorLayout(
 
     let paddingLeft = 0
     let paddingRight = 0
-    if (align === 'left') {
-      const basePadding = isMindmapBranch ? 8 : (isPureText ? 4 : 12)
+    if (isPureText) {
+      paddingLeft = 0
+      paddingRight = 0
+    } else if (align === 'left') {
+      const basePadding = isMindmapBranch ? 8 : 12
       paddingLeft = Math.max(0, Math.round(basePadding * scale - 1.5))
       paddingRight = Math.max(0, Math.round(4 * scale))
     } else if (align === 'right') {

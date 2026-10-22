@@ -96,11 +96,13 @@ export function updateTextNode(
       node.setAttrByPath('label/refY', '50%')
     }
   } else {
-    const align = options.align || data.align || 'left'
+    const isPureText = node.shape === 'speed-text-node' || data.type === 'text'
+    const defaultAlign = isPureText ? 'center' : 'left'
+    const align = options.align || data.align || defaultAlign
     if (align === 'left' || align === 'justify') {
       node.setAttrByPath('label/textAnchor', 'start')
       node.removeAttrByPath('label/refDx')
-      node.setAttrByPath('label/refX', 8)
+      node.setAttrByPath('label/refX', isPureText ? 4 : 8)
     } else if (align === 'center') {
       node.setAttrByPath('label/textAnchor', 'middle')
       node.removeAttrByPath('label/refDx')
@@ -108,14 +110,14 @@ export function updateTextNode(
     } else if (align === 'right') {
       node.setAttrByPath('label/textAnchor', 'end')
       node.removeAttrByPath('label/refX')
-      node.setAttrByPath('label/refDx', -8)
+      node.setAttrByPath('label/refDx', isPureText ? -4 : -8)
     }
 
     const verticalAlign = options.verticalAlign || data.verticalAlign || 'middle'
     if (verticalAlign === 'top') {
       node.setAttrByPath('label/textVerticalAnchor', 'top')
       node.removeAttrByPath('label/refDy')
-      node.setAttrByPath('label/refY', 8)
+      node.setAttrByPath('label/refY', isPureText ? 4 : 8)
     } else if (verticalAlign === 'middle') {
       node.setAttrByPath('label/textVerticalAnchor', 'middle')
       node.removeAttrByPath('label/refDy')
@@ -123,7 +125,7 @@ export function updateTextNode(
     } else if (verticalAlign === 'bottom') {
       node.setAttrByPath('label/textVerticalAnchor', 'bottom')
       node.removeAttrByPath('label/refY')
-      node.setAttrByPath('label/refDy', -8)
+      node.setAttrByPath('label/refDy', isPureText ? -4 : -8)
     }
   }
 
@@ -144,8 +146,10 @@ export function updateTextNode(
       const measuredW = measureTextWidth(maxLine, font)
       const minWidth = 28
       const minHeight = 28
-      const calcWidth = Math.max(minWidth, Math.round(measuredW + 12))
-      const calcHeight = Math.max(minHeight, Math.round(lines.length * fs * 1.45 + 8))
+      const isPureText = node.shape === 'speed-text-node' || data.type === 'text'
+      const paddingW = isPureText ? 8 : 12
+      const calcWidth = Math.max(minWidth, Math.round(measuredW + paddingW))
+      const calcHeight = Math.max(minHeight, Math.round(lines.length * fs * 1.45 + (lines.length > 1 ? 8 : 4)))
       node.setSize(calcWidth, calcHeight)
     }
   }

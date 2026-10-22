@@ -519,6 +519,18 @@ export class Board {
     this.graph.on('selection:changed', () => {
       this.syncSelectionBoxesTransform()
     })
+    this.graph.on('node:click', () => {
+      this.syncSelectionBoxesTransform()
+    })
+    this.graph.on('cell:click', () => {
+      this.syncSelectionBoxesTransform()
+    })
+    this.graph.on('blank:click', () => {
+      this.syncSelectionBoxesTransform()
+    })
+    this.graph.on('blank:mousedown', () => {
+      this.syncSelectionBoxesTransform()
+    })
     this.graph.on('cell:change:data', () => {
       this.syncSelectionBoxesTransform()
     })

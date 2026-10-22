@@ -59,6 +59,17 @@
   }
 }
 
+// 全局默认彻底隐藏 X6 自带的黑色旋转手柄圆圈，防止任何状态泄露
+.x6-widget-transform-rotate,
+div.x6-widget-transform-rotate {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 // 1:1 语雀白板图元变换框与旋转触发手柄 (X6 Transform Widget & Selection)
 .speed-board {
   // 彻底隐藏 X6 Selection 插件默认的多选外层大边框（1:1 语雀白板多选无外层大框，只保留各个图元各自的选框）
@@ -291,12 +302,14 @@
   }
 
   // 编辑态中：彻底隐藏思维导图与节点的 transform/selection 选框及手柄，杜绝与顶层编辑框产生双重边框与手柄重影错位
-  &.is-inline-editing {
-    .x6-widget-transform {
+  &.is-inline-editing,
+  .is-inline-editing {
+    .x6-widget-transform,
+    .x6-widget-selection,
+    .x6-widget-transform-rotate {
       display: none !important;
-    }
-    .x6-widget-selection {
-      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
     }
   }
 }
