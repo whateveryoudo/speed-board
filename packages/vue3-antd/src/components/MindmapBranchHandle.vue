@@ -44,7 +44,7 @@
         </div>
       </template>
 
-      <!-- 情况 B：已展开且有子节点 (非根) -> 同时显示收起按钮 (-) 与添加按钮 (+) -->
+      <!-- 情况 B：已展开且有子节点 (非根) -> 同时显示收起按钮 (<) 与添加按钮 (+) -->
       <template v-else-if="hasChildren && !isCollapsed && !isRoot">
         <div
           class="branch-collapse-btn"
@@ -53,9 +53,19 @@
           title="收起分支"
           @click.stop="onToggleCollapse"
         >
-          <!-- 减号收起图标 -->
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-            <path fill-rule="evenodd" d="M2 8a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 8Z" />
+          <!-- 箭头收起图标 -->
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            :style="{ transform: handleSide === 'left' ? 'rotate(180deg)' : 'none' }"
+          >
+            <path d="M10 3.5L5.5 8l4.5 4.5" />
           </svg>
         </div>
         <div

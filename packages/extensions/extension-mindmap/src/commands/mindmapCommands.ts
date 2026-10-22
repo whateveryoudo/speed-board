@@ -976,14 +976,24 @@ export function getMindmapNodeHandleHTML(graph: Graph, node: Node): string {
   }
 
   if (hasChildren && !isCollapsed && !isRoot) {
-    // 情况 B：展开状态且有子节点 -> 显示收起按钮 (-) 与添加按钮 (+)
+    // 情况 B：展开状态且有子节点 -> 显示收起按钮 (<) 与添加按钮 (+)
     return `
       <div class="mindmap-native-handle ${side} is-expanded" data-node-id="${node.id}">
         <div class="branch-anchor-dot" style="background-color: ${branchColor}"></div>
         <div class="branch-stub-line is-expanded-with-children ${side}" style="background-color: ${branchColor}"></div>
         <div class="branch-collapse-btn ${side}" style="background-color: ${branchColor}" data-action="toggle-collapse" title="收起分支">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-            <path fill-rule="evenodd" d="M2 8a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 8Z" />
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="transform: ${side === 'left' ? 'rotate(180deg)' : 'none'}"
+          >
+            <path d="M10 3.5L5.5 8l4.5 4.5" />
           </svg>
         </div>
         <div class="branch-add-btn is-secondary ${side}" data-action="add-child" title="添加分支 (Enter)">
