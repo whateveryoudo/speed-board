@@ -63,8 +63,8 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
       const fs = options.fontSize || 14
       const font = `${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
       const measuredW = measureTextWidth(textVal, font)
-      const w = options.width ?? Math.max(28, Math.round(measuredW + 8))
-      const h = options.height ?? 28
+      const w = options.width ?? Math.max(64, Math.round(measuredW + 24))
+      const h = options.height ?? 32
       node = board.graph.addNode({
         shape: 'speed-text-node',
         x,

@@ -265,9 +265,21 @@ export function activateNodeTextEdit(
     return
   }
 
+  // 隐藏变换手柄 (4 个蓝点)，避免手柄遮挡就地打字 (1:1 语雀)
+  const setTransformVisibility = (visible: boolean) => {
+    const transformWidgets = board.container.querySelectorAll<HTMLElement>('.x6-widget-transform')
+    transformWidgets.forEach((w) => {
+      w.style.display = visible ? '' : 'none'
+    })
+  }
+
+  setTransformVisibility(false)
+
   textEl.setAttribute('contenteditable', 'true')
   textEl.style.userSelect = 'text'
   textEl.style.cursor = 'text'
+  textEl.style.outline = 'none'
+  textEl.style.whiteSpace = 'pre'
   textEl.focus()
 
   if (initialChar) {
@@ -298,6 +310,7 @@ export function activateNodeTextEdit(
     textEl.removeAttribute('contenteditable')
     textEl.style.userSelect = 'none'
     textEl.style.cursor = 'default'
+    setTransformVisibility(true)
 
     const rawText = textEl.innerText.trim()
     const isMind = node.getData()?.type === 'mindmap-node'
@@ -323,9 +336,12 @@ export function activateNodeTextEdit(
     if (node.shape === 'speed-text-node') {
       const fs = node.getData()?.fontSize || 14
       const font = `${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
-      const measuredW = measureTextWidth(rawText || '文本', font)
-      const newW = Math.max(28, Math.round(measuredW + 8))
-      node.resize(newW, 28)
+      const lines = (rawText || '文本').split('\n')
+      const maxLine = lines.reduce((max, line) => (line.length > max.length ? line : max), '')
+      const measuredW = measureTextWidth(maxLine, font)
+      const newW = Math.max(64, Math.round(measuredW + 24))
+      const newH = Math.max(32, lines.length * Math.round(fs * 1.5))
+      node.resize(newW, newH)
     }
   }
 

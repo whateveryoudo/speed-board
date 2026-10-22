@@ -1059,6 +1059,14 @@ export function activateMindmapNodeTextEdit(
     return
   }
 
+  const setTransformVisibility = (visible: boolean) => {
+    const transformWidgets = board.container.querySelectorAll<HTMLElement>('.x6-widget-transform')
+    transformWidgets.forEach((w) => {
+      w.style.display = visible ? '' : 'none'
+    })
+  }
+  setTransformVisibility(false)
+
   textEl.setAttribute('contenteditable', 'true')
   textEl.style.userSelect = 'text'
   textEl.style.cursor = 'text'
@@ -1101,6 +1109,7 @@ export function activateMindmapNodeTextEdit(
     textEl.removeAttribute('contenteditable')
     textEl.style.userSelect = 'none'
     textEl.style.cursor = 'default'
+    setTransformVisibility(true)
 
     const rawText = textEl.innerText.trim()
     const data = (node.getData() || {}) as MindmapNodeData

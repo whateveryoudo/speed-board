@@ -62,8 +62,7 @@ export function registerTextNode(): void {
             fontFamily:
               '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif',
             outline: 'none',
-            wordBreak: 'break-word',
-            whiteSpace: 'pre-wrap',
+            whiteSpace: 'pre',
             userSelect: 'none',
             cursor: 'default',
             margin: '0px',
@@ -150,8 +149,7 @@ export function registerTextNode(): void {
             fontFamily:
               '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif',
             outline: 'none',
-            wordBreak: 'break-word',
-            whiteSpace: 'pre-wrap',
+            whiteSpace: 'pre',
             userSelect: 'none',
             cursor: 'default',
             margin: '0px',
