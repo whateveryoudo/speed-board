@@ -150,12 +150,9 @@ export function registerMindmapNodes(): void {
             position: 'left',
             attrs: {
               circle: {
-                r: 3.5,
-                stroke: '#3b82f6',
-                strokeWidth: 1.5,
-                fill: '#ffffff',
+                r: 0,
                 opacity: 0,
-                magnet: true,
+                magnet: false,
               },
             },
           },
@@ -163,38 +160,9 @@ export function registerMindmapNodes(): void {
             position: 'right',
             attrs: {
               circle: {
-                r: 3.5,
-                stroke: '#3b82f6',
-                strokeWidth: 1.5,
-                fill: '#ffffff',
+                r: 0,
                 opacity: 0,
-                magnet: true,
-              },
-            },
-          },
-          top: {
-            position: 'top',
-            attrs: {
-              circle: {
-                r: 3.5,
-                stroke: '#3b82f6',
-                strokeWidth: 1.5,
-                fill: '#ffffff',
-                opacity: 0,
-                magnet: true,
-              },
-            },
-          },
-          bottom: {
-            position: 'bottom',
-            attrs: {
-              circle: {
-                r: 3.5,
-                stroke: '#3b82f6',
-                strokeWidth: 1.5,
-                fill: '#ffffff',
-                opacity: 0,
-                magnet: true,
+                magnet: false,
               },
             },
           },
@@ -202,8 +170,6 @@ export function registerMindmapNodes(): void {
         items: [
           { id: 'left', group: 'left' },
           { id: 'right', group: 'right' },
-          { id: 'top', group: 'top' },
-          { id: 'bottom', group: 'bottom' },
         ],
       },
     },
@@ -313,7 +279,7 @@ export function registerMindmapNodes(): void {
             lineHeight: '1.4',
             textAlign: 'left',
             margin: '0px',
-            padding: '0px',
+            padding: '0px 0px 4px 8px',
             boxSizing: 'border-box',
           },
           html: '分支主题',
@@ -349,54 +315,28 @@ export function registerMindmapNodes(): void {
       ports: {
         groups: {
           left: {
-            position: 'left',
+            position: {
+              name: 'left',
+              args: { dy: 13 },
+            },
             attrs: {
               circle: {
-                r: 3.5,
-                stroke: '#3b82f6',
-                strokeWidth: 1.5,
-                fill: '#ffffff',
+                r: 0,
                 opacity: 0,
-                magnet: true,
+                magnet: false,
               },
             },
           },
           right: {
-            position: 'right',
-            attrs: {
-              circle: {
-                r: 3.5,
-                stroke: '#3b82f6',
-                strokeWidth: 1.5,
-                fill: '#ffffff',
-                opacity: 0,
-                magnet: true,
-              },
+            position: {
+              name: 'right',
+              args: { dy: 13 },
             },
-          },
-          top: {
-            position: 'top',
             attrs: {
               circle: {
-                r: 3.5,
-                stroke: '#3b82f6',
-                strokeWidth: 1.5,
-                fill: '#ffffff',
+                r: 0,
                 opacity: 0,
-                magnet: true,
-              },
-            },
-          },
-          bottom: {
-            position: 'bottom',
-            attrs: {
-              circle: {
-                r: 3.5,
-                stroke: '#3b82f6',
-                strokeWidth: 1.5,
-                fill: '#ffffff',
-                opacity: 0,
-                magnet: true,
+                magnet: false,
               },
             },
           },
@@ -404,8 +344,6 @@ export function registerMindmapNodes(): void {
         items: [
           { id: 'left', group: 'left' },
           { id: 'right', group: 'right' },
-          { id: 'top', group: 'top' },
-          { id: 'bottom', group: 'bottom' },
         ],
       },
     },

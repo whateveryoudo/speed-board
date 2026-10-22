@@ -227,16 +227,21 @@ const {
   shouldShow: props.shouldShow,
 })
 
-// 当工具栏隐藏或选中节点改变时，关闭所有二级气泡
+// 当工具栏隐藏或选中节点集合真实发生变化时，关闭所有二级气泡
 watch(visible, (v) => {
   if (!v) {
     closePopover()
   }
 })
 
-watch(selectedCells, () => {
-  closePopover()
-})
+watch(
+  () => selectedCells.value.map((c) => c.id).sort().join(','),
+  (newVal, oldVal) => {
+    if (newVal !== oldVal) {
+      closePopover()
+    }
+  }
+)
 
 watch(
   () => props.visible,

@@ -172,16 +172,18 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
     })
 
     // 同步节点形状样式 (下划线 / 胶囊 / 卡片矩形 / 纯文本)
-    const shapeStyle = currentData.shapeStyle || (currentData.isRoot ? 'rect' : 'none')
+    const shapeStyle = currentData.shapeStyle || (currentData.isRoot ? 'rect' : 'underline')
     const primaryColor = currentData.branch?.color || '#3b82f6'
 
-    if (shapeStyle === 'underline') {
+    if (shapeStyle === 'underline' || shapeStyle === 'none') {
       node.setAttrByPath('body/fill', 'transparent')
       node.setAttrByPath('body/stroke', 'transparent')
       node.setAttrByPath('body/strokeWidth', 0)
       node.setAttrByPath('underline/display', 'block')
       node.setAttrByPath('underline/fill', primaryColor)
       node.setAttrByPath('underline/stroke', 'none')
+      node.setPortProp?.('left', 'args', { dy: 13 })
+      node.setPortProp?.('right', 'args', { dy: 13 })
     } else if (shapeStyle === 'capsule') {
       const rx = currentData.isRoot ? 21 : 16
       node.setAttrByPath('body/rx', rx)
@@ -190,6 +192,8 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       node.setAttrByPath('body/stroke', currentData.stroke || primaryColor)
       node.setAttrByPath('body/strokeWidth', currentData.strokeWidth || 1.5)
       node.setAttrByPath('underline/display', 'none')
+      node.setPortProp?.('left', 'args', { dy: 0 })
+      node.setPortProp?.('right', 'args', { dy: 0 })
     } else if (shapeStyle === 'rect') {
       node.setAttrByPath('body/rx', currentData.isRoot ? 8 : 6)
       node.setAttrByPath('body/ry', currentData.isRoot ? 8 : 6)
@@ -197,11 +201,8 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       node.setAttrByPath('body/stroke', currentData.stroke || (currentData.isRoot ? '#e5e7eb' : primaryColor))
       node.setAttrByPath('body/strokeWidth', currentData.strokeWidth || 1.5)
       node.setAttrByPath('underline/display', 'none')
-    } else if (shapeStyle === 'none') {
-      node.setAttrByPath('body/fill', 'transparent')
-      node.setAttrByPath('body/stroke', 'transparent')
-      node.setAttrByPath('body/strokeWidth', 0)
-      node.setAttrByPath('underline/display', 'none')
+      node.setPortProp?.('left', 'args', { dy: 0 })
+      node.setPortProp?.('right', 'args', { dy: 0 })
     }
 
     // 同步节点内置控制手柄 (+ / 收起 / 折叠数字徽标)
@@ -245,14 +246,10 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       edge.setSource({
         cell: edgeInfo.source,
         port: sourcePort,
-        anchor: { name: 'center' },
-        connectionPoint: { name: 'anchor' },
       })
       edge.setTarget({
         cell: edgeInfo.target,
         port: targetPort,
-        anchor: { name: 'center' },
-        connectionPoint: { name: 'anchor' },
       })
       edge.setAttrByPath('line/stroke', strokeColor)
       edge.setAttrByPath('line/strokeWidth', strokeWidth)
@@ -266,14 +263,10 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
         source: {
           cell: edgeInfo.source,
           port: sourcePort,
-          anchor: { name: 'center' },
-          connectionPoint: { name: 'anchor' },
         },
         target: {
           cell: edgeInfo.target,
           port: targetPort,
-          anchor: { name: 'center' },
-          connectionPoint: { name: 'anchor' },
         },
         attrs: {
           line: {
@@ -425,7 +418,9 @@ export function addMindmapChild(board: Board, parentNodeId?: string): string | n
           text: childText,
         },
         underline: {
-          display: 'none',
+          display: 'block',
+          fill: branchColor,
+          stroke: 'none',
         },
       },
       data: {
@@ -436,7 +431,7 @@ export function addMindmapChild(board: Board, parentNodeId?: string): string | n
         depth: (parentData.depth ?? 0) + 1,
         order: nextOrder,
         text: childText,
-        shapeStyle: 'none',
+        shapeStyle: 'underline',
         branch: {
           color: branchColor,
           width: 3,

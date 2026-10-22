@@ -74,16 +74,6 @@
         @confirm="onTextOverlayConfirm"
       />
 
-      <!-- 4 个连接桩点（Ports）与快捷连接延伸手柄 (1:1 语雀白板交互) -->
-      <ShapeAnchorPorts
-        :board="boardInstance"
-        :selected-node="selectedShapeOrTextNode"
-        :canvas-wrapper="canvasWrapperRef"
-        :visible="drawConfig.mode === 'select' && !isDragging && !pendingPlacement"
-        @anchor-click="onAnchorClick"
-        @anchor-drag-start="onAnchorDragStart"
-      />
-
       <!-- 锚点快捷生成与自动补线 Popover (1:1 语雀白板快捷面板) -->
       <QuickShapeConnectPopover
         :visible="showQuickConnect"
@@ -110,7 +100,6 @@ import { ref, shallowRef, computed, nextTick, onMounted, watch, onUnmounted } fr
 import {
   BoardCanvas,
   PlacementOverlay,
-  ShapeAnchorPorts,
   type BoardOptions,
   type DrawConfig,
 } from '@speed-board/vue3'
@@ -339,7 +328,6 @@ const selectedMindmapNode = shallowRef<any>(null)
 const isShapeSelected = computed(() => !!selectedShapeNode.value)
 const isTextSelected = computed(() => !!selectedTextNode.value)
 const isMindmapSelected = computed(() => !!selectedMindmapNode.value)
-const selectedShapeOrTextNode = computed(() => selectedShapeNode.value || selectedTextNode.value)
 
 // 4 锚点延伸补线与快捷图形生成状态
 const showQuickConnect = ref(false)
@@ -412,19 +400,6 @@ const onAnchorClick = (payload: {
     y: Math.max(10, posY),
   }
   showQuickConnect.value = true
-}
-
-const onAnchorDragStart = (payload: {
-  direction: 'top' | 'right' | 'bottom' | 'left'
-  point: any
-  event: PointerEvent
-}) => {
-  const node = selectedShapeOrTextNode.value
-  if (!node || !boardInstance.value) return
-  boardInstance.value.drawingController.startLineFromPort(node, payload.direction, {
-    clientX: payload.event.clientX,
-    clientY: payload.event.clientY,
-  })
 }
 
 const onQuickConnectClose = () => {

@@ -101,15 +101,17 @@ export function registerShapeNode(): void {
       ports: {
         groups: {
           top: {
-            position: 'top',
+            position: {
+              name: 'top',
+              args: { dy: -8 },
+            },
             attrs: {
               circle: {
                 r: 4.5,
-                magnet: false,
+                magnet: true,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
-                opacity: 0,
                 style: {
                   cursor: 'crosshair',
                   transition: 'opacity 0.15s ease, transform 0.15s ease',
@@ -118,15 +120,17 @@ export function registerShapeNode(): void {
             },
           },
           right: {
-            position: 'right',
+            position: {
+              name: 'right',
+              args: { dx: 8 },
+            },
             attrs: {
               circle: {
                 r: 4.5,
-                magnet: false,
+                magnet: true,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
-                opacity: 0,
                 style: {
                   cursor: 'crosshair',
                   transition: 'opacity 0.15s ease, transform 0.15s ease',
@@ -135,15 +139,17 @@ export function registerShapeNode(): void {
             },
           },
           bottom: {
-            position: 'bottom',
+            position: {
+              name: 'bottom',
+              args: { dy: 8 },
+            },
             attrs: {
               circle: {
                 r: 4.5,
-                magnet: false,
+                magnet: true,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
-                opacity: 0,
                 style: {
                   cursor: 'crosshair',
                   transition: 'opacity 0.15s ease, transform 0.15s ease',
@@ -152,15 +158,17 @@ export function registerShapeNode(): void {
             },
           },
           left: {
-            position: 'left',
+            position: {
+              name: 'left',
+              args: { dx: -8 },
+            },
             attrs: {
               circle: {
                 r: 4.5,
-                magnet: false,
+                magnet: true,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
-                opacity: 0,
                 style: {
                   cursor: 'crosshair',
                   transition: 'opacity 0.15s ease, transform 0.15s ease',
