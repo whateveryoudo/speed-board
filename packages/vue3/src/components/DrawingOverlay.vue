@@ -228,6 +228,15 @@ const emit = defineEmits<{
   (e: 'update:mode', mode: 'select' | 'pencil' | 'marker' | 'eraser' | 'vector' | 'line'): void
   (e: 'isLineDraggingChange', isDragging: boolean): void
   (e: 'finishVector'): void
+  (
+    e: 'lineFinishedOnBlank',
+    payload: {
+      edge: any
+      clientPos: { x: number; y: number }
+      sourceNodeId?: string
+      sourcePort?: string
+    }
+  ): void
 }>()
 
 const overlaySvgRef = ref<SVGSVGElement | null>(null)
@@ -621,13 +630,22 @@ const onOverlayPointerUp = (e: PointerEvent) => {
           }
         }
 
-        props.board.addLine({
+        const edge = props.board.addLine({
           type: props.drawConfig.lineType || 'straight',
           source: finalStart,
           target: finalEnd,
           stroke: '#374151',
           strokeWidth: 2,
         })
+
+        if (!lineEndSnapped.value && !endPortFallback && lineEndPoint.value) {
+          emit('lineFinishedOnBlank', {
+            edge,
+            clientPos: { x: lineEndPoint.value.clientX, y: lineEndPoint.value.clientY },
+            sourceNodeId: typeof finalStart === 'object' ? finalStart.cell : undefined,
+            sourcePort: typeof finalStart === 'object' ? finalStart.port : undefined,
+          })
+        }
       }
     }
     isLineDragging.value = false
@@ -771,8 +789,31 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
 })
 
+const startLineFromAnchor = (
+  node: any,
+  portId: string,
+  clientPos: { clientX: number; clientY: number }
+) => {
+  const wrapperRect = overlaySvgRef.value?.getBoundingClientRect()
+  if (!wrapperRect) return
+  emit('update:mode', 'line')
+  props.board?.setDrawingMode('line')
+  isLineDragging.value = true
+  const ox = clientPos.clientX - wrapperRect.left
+  const oy = clientPos.clientY - wrapperRect.top
+  lineStartPoint.value = {
+    ox,
+    oy,
+    clientX: clientPos.clientX,
+    clientY: clientPos.clientY,
+  }
+  lineEndPoint.value = { ...lineStartPoint.value }
+  lineStartSnapped.value = { cell: node.id, port: portId }
+}
+
 defineExpose({
   getOverlaySvg: () => overlaySvgRef.value,
+  startLineFromAnchor,
   cancelLineDragging,
   cancelVectorDrawing,
   closeVectorPolygon,

@@ -142,11 +142,11 @@ export function updateTextNode(
       const font = `${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
       const maxLine = lines.reduce((max: string, line: string) => (line.length > max.length ? line : max), '')
       const measuredW = measureTextWidth(maxLine, font)
-      const minWidth = 36
-      const minHeight = 32
-      const calcWidth = Math.max(minWidth, measuredW + 18)
-      const calcHeight = Math.max(minHeight, lines.length * fs * 1.45 + 10)
-      node.setSize(Math.round(calcWidth), Math.round(calcHeight))
+      const minWidth = 28
+      const minHeight = 28
+      const calcWidth = Math.max(minWidth, Math.round(measuredW + 12))
+      const calcHeight = Math.max(minHeight, Math.round(lines.length * fs * 1.45 + 8))
+      node.setSize(calcWidth, calcHeight)
     }
   }
 }

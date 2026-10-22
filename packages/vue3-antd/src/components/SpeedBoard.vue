@@ -4,6 +4,7 @@
     :class="{
       'is-single-selected': isSingleSelected,
       'is-multi-selected': isMultiSelected,
+      'is-shape-selected': isShapeSelected,
       'is-text-selected': isTextSelected,
       'is-mindmap-selected': isMindmapSelected,
       'is-mindmap-capsule': isMindmapCapsule,
@@ -93,6 +94,17 @@
         :selected-node="selectedShapeNode"
         :canvas-wrapper="canvasWrapperRef"
         :visible="drawConfig.mode === 'select' && !isInlineEditing && !isLineDragging && !pendingPlacement && !isDragging"
+        @anchor-click="onAnchorClick"
+        @anchor-drag-start="onAnchorDragStart"
+      />
+
+      <!-- 锚点快捷生成与自动补线 Popover (1:1 语雀白板快捷面板) -->
+      <QuickShapeConnectPopover
+        :visible="showQuickConnect"
+        :x="quickConnectPos.x"
+        :y="quickConnectPos.y"
+        @select="onQuickConnectShapeSelect"
+        @close="showQuickConnect = false"
       />
 
       <!-- 思维导图分支延伸手柄与加号按钮 (1:1 语雀白板交互) -->
@@ -116,6 +128,7 @@
         @update:mode="drawConfig.mode = $event"
         @is-line-dragging-change="isLineDragging = $event"
         @finish-vector="showSettingsPanel = true"
+        @line-finished-on-blank="onLineFinishedOnBlank"
       />
 
       <!-- 语雀白板 1:1 鼠标跟随放置预览图层 (Ghost Placement Overlay) -->
@@ -149,9 +162,11 @@ import StyleSettingsPanel from './StyleSettingsPanel.vue'
 import TextOverlayEditor from './TextOverlayEditor.vue'
 import FloatingToolbarHost from './floatingToolbar/FloatingToolbarHost.vue'
 import MindmapBranchHandle from './MindmapBranchHandle.vue'
+import QuickShapeConnectPopover from './QuickShapeConnectPopover.vue'
 import { MindmapExtension, isMindmapNode } from '@speed-board/extension-mindmap'
 import { useCellAttributes } from '../composables/useCellAttributes'
 import type { IconProvider } from '../data/defaultIcons'
+import type { ShapeDefinition } from '../data/shapeLibrary'
 import '../style/index.less'
 
 defineOptions({
@@ -371,6 +386,7 @@ const onCanvasWrapperPointerDown = (e: PointerEvent) => {
     boardInstance.value?.drawingController.clearVectorPreview()
     boardInstance.value?.graph.cleanSelection()
     showTextOverlay.value = false
+    showQuickConnect.value = false
   }
 }
 
@@ -379,14 +395,163 @@ const isSingleSelected = ref(false)
 const selectedCount = ref(0)
 const isMultiSelected = computed(() => selectedCount.value > 1)
 const selectedShapeNode = shallowRef<any>(null)
+const selectedTextNode = shallowRef<any>(null)
 const selectedMindmapNode = shallowRef<any>(null)
+const isShapeSelected = computed(() => !!selectedShapeNode.value)
+const isTextSelected = computed(() => !!selectedTextNode.value)
 const isMindmapSelected = computed(() => !!selectedMindmapNode.value)
-const isTextSelected = computed(() => {
-  if (!isSingleSelected.value || !boardInstance.value) return false
-  const selected = boardInstance.value.graph.getSelectedCells()
-  if (selected.length !== 1) return false
-  return boardInstance.value.isTextNode(selected[0])
-})
+
+// 4 锚点延伸补线与快捷图形生成状态
+const showQuickConnect = ref(false)
+const quickConnectPos = ref({ x: 0, y: 0 })
+const quickConnectDirection = ref<'top' | 'right' | 'bottom' | 'left'>('right')
+const activeAnchorEdge = shallowRef<any>(null)
+
+const onAnchorClick = (payload: {
+  direction: 'top' | 'right' | 'bottom' | 'left'
+  point: { x: number; y: number }
+}) => {
+  const { direction, point } = payload
+  quickConnectDirection.value = direction
+  if (!selectedShapeNode.value || !boardInstance.value) return
+
+  const sourceNode = selectedShapeNode.value
+  const sourcePos = sourceNode.position()
+  const sourceSize = sourceNode.size()
+
+  let targetGraphPt = { x: sourcePos.x, y: sourcePos.y }
+  if (direction === 'right') {
+    targetGraphPt = { x: sourcePos.x + sourceSize.width + 120, y: sourcePos.y + sourceSize.height / 2 }
+  } else if (direction === 'left') {
+    targetGraphPt = { x: sourcePos.x - 120, y: sourcePos.y + sourceSize.height / 2 }
+  } else if (direction === 'bottom') {
+    targetGraphPt = { x: sourcePos.x + sourceSize.width / 2, y: sourcePos.y + sourceSize.height + 100 }
+  } else if (direction === 'top') {
+    targetGraphPt = { x: sourcePos.x + sourceSize.width / 2, y: sourcePos.y - 100 }
+  }
+
+  // 1. 点击锚点立即自动生成深色黑色连线并挂载（默认 Elbow 正交折线 + 箭头）
+  const edge = boardInstance.value.addLine({
+    type: 'elbow',
+    source: { cell: sourceNode.id, port: direction },
+    target: targetGraphPt,
+    stroke: '#374151',
+    strokeWidth: 2,
+  })
+  activeAnchorEdge.value = edge
+
+  // 2. 计算快捷连接选择器弹窗坐标（放置在延伸线终点附近）
+  let posX = point.x
+  let posY = point.y
+  if (direction === 'right') posX += 110
+  else if (direction === 'left') posX -= 260
+  else if (direction === 'bottom') posY += 90
+  else if (direction === 'top') posY -= 220
+
+  quickConnectPos.value = {
+    x: Math.max(10, posX),
+    y: Math.max(10, posY),
+  }
+  showQuickConnect.value = true
+}
+
+const onAnchorDragStart = (payload: {
+  direction: 'top' | 'right' | 'bottom' | 'left'
+  point: any
+  event: PointerEvent
+}) => {
+  if (!selectedShapeNode.value) return
+  showQuickConnect.value = false
+  quickConnectDirection.value = payload.direction
+  drawingOverlayRef.value?.startLineFromAnchor(
+    selectedShapeNode.value,
+    payload.direction,
+    { clientX: payload.event.clientX, clientY: payload.event.clientY }
+  )
+}
+
+const onLineFinishedOnBlank = (payload: {
+  edge: any
+  clientPos: { x: number; y: number }
+  sourceNodeId?: string
+  sourcePort?: string
+}) => {
+  activeAnchorEdge.value = payload.edge
+  if (payload.sourcePort && ['top', 'right', 'bottom', 'left'].includes(payload.sourcePort)) {
+    quickConnectDirection.value = payload.sourcePort as any
+  }
+  if (canvasWrapperRef.value) {
+    const wrapperRect = canvasWrapperRef.value.getBoundingClientRect()
+    quickConnectPos.value = {
+      x: Math.max(10, payload.clientPos.x - wrapperRect.left + 10),
+      y: Math.max(10, payload.clientPos.y - wrapperRect.top + 10),
+    }
+    showQuickConnect.value = true
+  }
+}
+
+const onQuickConnectShapeSelect = (shape: ShapeDefinition) => {
+  if (!boardInstance.value) return
+  const sourceNode = selectedShapeNode.value
+  const sourcePos = sourceNode ? sourceNode.position() : { x: 0, y: 0 }
+  const sourceSize = sourceNode ? sourceNode.size() : { width: 100, height: 80 }
+  const sourceData = sourceNode ? (sourceNode.getData() || {}) : {}
+  const dir = quickConnectDirection.value
+
+  const targetWidth = 100
+  const targetHeight = 80
+  let targetX = sourcePos.x
+  let targetY = sourcePos.y
+  let targetPort = 'left'
+
+  if (dir === 'right') {
+    targetX = sourcePos.x + sourceSize.width + 120
+    targetY = sourcePos.y + (sourceSize.height - targetHeight) / 2
+    targetPort = 'left'
+  } else if (dir === 'left') {
+    targetX = sourcePos.x - 120 - targetWidth
+    targetY = sourcePos.y + (sourceSize.height - targetHeight) / 2
+    targetPort = 'right'
+  } else if (dir === 'bottom') {
+    targetX = sourcePos.x + (sourceSize.width - targetWidth) / 2
+    targetY = sourcePos.y + sourceSize.height + 100
+    targetPort = 'top'
+  } else if (dir === 'top') {
+    targetX = sourcePos.x + (sourceSize.width - targetWidth) / 2
+    targetY = sourcePos.y - 100 - targetHeight
+    targetPort = 'bottom'
+  }
+
+  // 如果是在拖拽释放处
+  if (activeAnchorEdge.value && activeAnchorEdge.value.getTargetPoint) {
+    const targetPt = activeAnchorEdge.value.getTargetPoint()
+    if (targetPt) {
+      targetX = Math.round(targetPt.x - targetWidth / 2)
+      targetY = Math.round(targetPt.y - targetHeight / 2)
+    }
+  }
+
+  const newNode = boardInstance.value.addShape({
+    shape: shape.id as any,
+    x: targetX,
+    y: targetY,
+    width: targetWidth,
+    height: targetHeight,
+    fill: sourceData.fill || '#ffffff',
+    stroke: sourceData.stroke || '#374151',
+    strokeWidth: sourceData.strokeWidth || 2,
+  })
+
+  if (activeAnchorEdge.value && newNode) {
+    activeAnchorEdge.value.setTarget({ cell: newNode.id, port: targetPort })
+  }
+
+  showQuickConnect.value = false
+  if (newNode) {
+    boardInstance.value.graph.cleanSelection()
+    boardInstance.value.graph.select(newNode)
+  }
+}
 
 const mindmapShapeStyle = useCellAttributes<string>(
   () => boardInstance.value,
@@ -425,11 +590,13 @@ const setupSelectionListeners = (board: Board) => {
     const single = selectedNodes.length === 1
     isSingleSelected.value = single
     selectedShapeNode.value = single && board.isShapeNode(selectedNodes[0]) ? selectedNodes[0] : null
+    selectedTextNode.value = single && board.isTextNode(selectedNodes[0]) ? selectedNodes[0] : null
     selectedMindmapNode.value =
       single &&
       (isMindmapNode(selectedNodes[0]) || selectedNodes[0].getData()?.type === 'mindmap-node')
         ? selectedNodes[0]
         : null
+    showQuickConnect.value = false
 
     nextTick(() => {
       const transformWidgets = board.container.querySelectorAll('.x6-widget-transform')

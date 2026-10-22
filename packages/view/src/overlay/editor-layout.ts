@@ -46,7 +46,7 @@ export function computeInlineEditorLayout(
     let w = Math.round(bbox.width * scale)
     let h = Math.round(bbox.height * scale)
 
-    if (targetElem && typeof targetElem.getBoundingClientRect === 'function') {
+    if (!isPureText && targetElem && typeof targetElem.getBoundingClientRect === 'function') {
       const cellRect = targetElem.getBoundingClientRect()
       if (
         cellRect.width >= 20 &&
@@ -111,8 +111,10 @@ export function computeInlineEditorLayout(
     else if (isStrike) textDecoration = 'line-through'
 
     let defaultAlign: 'left' | 'center' | 'right' = 'center'
-    if (isMindmapBranch || isPureText) {
+    if (isMindmapBranch) {
       defaultAlign = 'left'
+    } else if (isPureText) {
+      defaultAlign = data.align || 'center'
     }
     const align = data.align || defaultAlign
     const verticalAlign = data.verticalAlign || 'middle'
@@ -131,15 +133,15 @@ export function computeInlineEditorLayout(
     let paddingLeft = 0
     let paddingRight = 0
     if (align === 'left') {
-      const basePadding = isMindmapBranch ? 8 : 12
+      const basePadding = isMindmapBranch ? 8 : (isPureText ? 4 : 12)
       paddingLeft = Math.max(0, Math.round(basePadding * scale - 1.5))
       paddingRight = Math.max(0, Math.round(4 * scale))
     } else if (align === 'right') {
       paddingLeft = Math.max(0, Math.round(4 * scale))
       paddingRight = Math.max(0, Math.round(12 * scale - 1.5))
     } else {
-      paddingLeft = Math.max(0, Math.round(4 * scale))
-      paddingRight = Math.max(0, Math.round(4 * scale))
+      paddingLeft = 0
+      paddingRight = 0
     }
 
     let borderRadius = '4px'

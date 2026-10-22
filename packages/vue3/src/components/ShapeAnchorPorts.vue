@@ -5,7 +5,7 @@
       class="shape-anchor-btn port-top"
       :style="{ left: `${anchorPoints.top.x}px`, top: `${anchorPoints.top.y}px` }"
       title="延伸补线"
-      @click.stop="onAnchorClick('top', anchorPoints.top)"
+      @pointerdown.stop.prevent="onAnchorPointerDown('top', anchorPoints.top, $event)"
     >
       <span class="anchor-dot" />
       <span class="anchor-arrow">
@@ -20,7 +20,7 @@
       class="shape-anchor-btn port-right"
       :style="{ left: `${anchorPoints.right.x}px`, top: `${anchorPoints.right.y}px` }"
       title="延伸补线"
-      @click.stop="onAnchorClick('right', anchorPoints.right)"
+      @pointerdown.stop.prevent="onAnchorPointerDown('right', anchorPoints.right, $event)"
     >
       <span class="anchor-dot" />
       <span class="anchor-arrow">
@@ -35,7 +35,7 @@
       class="shape-anchor-btn port-bottom"
       :style="{ left: `${anchorPoints.bottom.x}px`, top: `${anchorPoints.bottom.y}px` }"
       title="延伸补线"
-      @click.stop="onAnchorClick('bottom', anchorPoints.bottom)"
+      @pointerdown.stop.prevent="onAnchorPointerDown('bottom', anchorPoints.bottom, $event)"
     >
       <span class="anchor-dot" />
       <span class="anchor-arrow">
@@ -50,7 +50,7 @@
       class="shape-anchor-btn port-left"
       :style="{ left: `${anchorPoints.left.x}px`, top: `${anchorPoints.left.y}px` }"
       title="延伸补线"
-      @click.stop="onAnchorClick('left', anchorPoints.left)"
+      @pointerdown.stop.prevent="onAnchorPointerDown('left', anchorPoints.left, $event)"
     >
       <span class="anchor-dot" />
       <span class="anchor-arrow">
@@ -90,6 +90,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'anchor-click', payload: { direction: PortDirection; point: AnchorPointData }): void
+  (e: 'anchor-drag-start', payload: { direction: PortDirection; point: AnchorPointData; event: PointerEvent }): void
 }>()
 
 const anchorTick = ref(0)
@@ -108,6 +109,32 @@ const onAnchorClick = (direction: PortDirection, pt: AnchorPointData) => {
   quickConnectPos.value = computeQuickConnectOffset({ x: pt.x, y: pt.y }, direction)
   showQuickConnect.value = true
   emit('anchor-click', { direction, point: pt })
+}
+
+const onAnchorPointerDown = (direction: PortDirection, pt: AnchorPointData, e: PointerEvent) => {
+  const startX = e.clientX
+  const startY = e.clientY
+  let isDrag = false
+
+  const onPointerMove = (moveEvt: PointerEvent) => {
+    if (!isDrag && Math.hypot(moveEvt.clientX - startX, moveEvt.clientY - startY) > 3) {
+      isDrag = true
+      emit('anchor-drag-start', { direction, point: pt, event: moveEvt })
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+  }
+
+  const onPointerUp = () => {
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+    if (!isDrag) {
+      onAnchorClick(direction, pt)
+    }
+  }
+
+  window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
 }
 
 const syncTick = () => {
