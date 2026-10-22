@@ -85,7 +85,7 @@ export function registerMindmapNodes(): void {
           refWidth2: -24,
           refHeight: '100%',
           style: {
-            overflow: 'hidden',
+            overflow: 'visible',
           },
         },
         textWrap: {
@@ -104,7 +104,7 @@ export function registerMindmapNodes(): void {
             fontFamily:
               '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif',
             outline: 'none',
-            wordBreak: 'break-word',
+            whiteSpace: 'pre',
             userSelect: 'none',
             cursor: 'default',
             lineHeight: '1.4',
@@ -289,7 +289,7 @@ export function registerMindmapNodes(): void {
           refWidth2: -16,
           refHeight: '100%',
           style: {
-            overflow: 'hidden',
+            overflow: 'visible',
           },
         },
         textWrap: {
@@ -307,7 +307,7 @@ export function registerMindmapNodes(): void {
             fontFamily:
               '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif',
             outline: 'none',
-            wordBreak: 'break-word',
+            whiteSpace: 'pre',
             userSelect: 'none',
             cursor: 'default',
             lineHeight: '1.4',

@@ -74,6 +74,16 @@
         @confirm="onTextOverlayConfirm"
       />
 
+      <!-- 4 个连接桩点（Ports）与快捷连接延伸手柄 (1:1 语雀白板交互) -->
+      <ShapeAnchorPorts
+        :board="boardInstance"
+        :selected-node="selectedShapeOrTextNode"
+        :canvas-wrapper="canvasWrapperRef"
+        :visible="drawConfig.mode === 'select' && !isDragging && !pendingPlacement"
+        @anchor-click="onAnchorClick"
+        @anchor-drag-start="onAnchorDragStart"
+      />
+
       <!-- 锚点快捷生成与自动补线 Popover (1:1 语雀白板快捷面板) -->
       <QuickShapeConnectPopover
         :visible="showQuickConnect"
@@ -100,6 +110,7 @@ import { ref, shallowRef, computed, nextTick, onMounted, watch, onUnmounted } fr
 import {
   BoardCanvas,
   PlacementOverlay,
+  ShapeAnchorPorts,
   type BoardOptions,
   type DrawConfig,
 } from '@speed-board/vue3'
@@ -328,6 +339,7 @@ const selectedMindmapNode = shallowRef<any>(null)
 const isShapeSelected = computed(() => !!selectedShapeNode.value)
 const isTextSelected = computed(() => !!selectedTextNode.value)
 const isMindmapSelected = computed(() => !!selectedMindmapNode.value)
+const selectedShapeOrTextNode = computed(() => selectedShapeNode.value || selectedTextNode.value)
 
 // 4 锚点延伸补线与快捷图形生成状态
 const showQuickConnect = ref(false)
@@ -400,6 +412,19 @@ const onAnchorClick = (payload: {
     y: Math.max(10, posY),
   }
   showQuickConnect.value = true
+}
+
+const onAnchorDragStart = (payload: {
+  direction: 'top' | 'right' | 'bottom' | 'left'
+  point: any
+  event: PointerEvent
+}) => {
+  const node = selectedShapeOrTextNode.value
+  if (!node || !boardInstance.value) return
+  boardInstance.value.drawingController.startLineFromPort(node, payload.direction, {
+    clientX: payload.event.clientX,
+    clientY: payload.event.clientY,
+  })
 }
 
 const onQuickConnectClose = () => {
@@ -552,6 +577,9 @@ const setupSelectionListeners = (board: Board) => {
           const type = node.getData()?.type
           const noRotate =
             type === 'mindmap-node' ||
+            isMindmapNode(node) ||
+            node.shape === 'speed-mindmap-root' ||
+            node.shape === 'speed-mindmap-node' ||
             type === 'text' ||
             type === 'group' ||
             node.getData()?.isGroup ||
@@ -712,7 +740,7 @@ const onToolbarModeChange = (payload: {
 
 // 键盘快捷键交互 (Type-to-edit 选中即输入, Enter/Tab 脑图增分支, Esc 取消放置, T 激活文本放置)
 const onKeyDown = (e: KeyboardEvent) => {
-  if (boardInstance.value && Board.activeBoard !== boardInstance.value) {
+  if (boardInstance.value && Board.activeBoard && Board.activeBoard !== boardInstance.value) {
     return
   }
 
@@ -741,6 +769,7 @@ const onKeyDown = (e: KeyboardEvent) => {
   if (singleSelected && (e.key === 'Enter' || e.key === 'Tab')) {
     const isMindmap =
       (selectedMindmapNode.value && selectedMindmapNode.value.id === singleSelected.id) ||
+      isMindmapNode(singleSelected) ||
       singleSelected.getData()?.type === 'mindmap-node'
     if (isMindmap) {
       e.preventDefault()
@@ -772,6 +801,7 @@ const onKeyDown = (e: KeyboardEvent) => {
     const isEditable =
       board.isTextNode(singleSelected) ||
       board.isShapeNode(singleSelected) ||
+      isMindmapNode(singleSelected) ||
       singleSelected.getData()?.type === 'mindmap-node'
     if (isEditable) {
       e.preventDefault()

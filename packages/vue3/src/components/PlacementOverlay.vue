@@ -312,10 +312,6 @@ const dropAtEvent = (e: PointerEvent) => {
     graph.select(node)
     graph.trigger('selection:changed', { selected: [node] })
 
-    if (item.type === 'text') {
-      emit('startInlineTextEdit', node)
-    }
-
     emit('place', { item, node })
   }
 }

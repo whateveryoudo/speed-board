@@ -21,28 +21,29 @@ export function computePortPositions(
 
     const cx = cellRect.left - wrapperRect.left + cellRect.width / 2
     const cy = cellRect.top - wrapperRect.top + cellRect.height / 2
+    const offset = 14
 
     return {
       top: {
         x: cx,
-        y: cellRect.top - wrapperRect.top,
+        y: cellRect.top - wrapperRect.top - offset,
         ox: cellRect.left + cellRect.width / 2,
         oy: cellRect.top,
       },
       right: {
-        x: cellRect.right - wrapperRect.left,
+        x: cellRect.right - wrapperRect.left + offset,
         y: cy,
         ox: cellRect.right,
         oy: cellRect.top + cellRect.height / 2,
       },
       bottom: {
         x: cx,
-        y: cellRect.bottom - wrapperRect.top,
+        y: cellRect.bottom - wrapperRect.top + offset,
         ox: cellRect.left + cellRect.width / 2,
         oy: cellRect.bottom,
       },
       left: {
-        x: cellRect.left - wrapperRect.left,
+        x: cellRect.left - wrapperRect.left - offset,
         y: cy,
         ox: cellRect.left,
         oy: cellRect.top + cellRect.height / 2,

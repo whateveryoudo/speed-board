@@ -356,7 +356,7 @@ export class Board {
       multiple: true,
       rubberband: true,
       movable: true,
-      showNodeSelectionBox: true,
+      showNodeSelectionBox: false,
       pointerEvents: 'none',
     })
     this.graph.use(this.selectionPlugin)
