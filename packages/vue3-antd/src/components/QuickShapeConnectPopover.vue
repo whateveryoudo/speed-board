@@ -7,44 +7,48 @@
     @mousedown.stop
   >
     <!-- 最近使用 -->
-    <div class="quick-section">
-      <div class="quick-title">最近使用</div>
-      <div class="quick-grid recent-grid">
+    <div class="shape-group-section">
+      <div class="shape-group-header">
+        <span class="group-title">最近使用</span>
+      </div>
+      <div class="shape-grid">
         <a-tooltip
           v-for="shape in recentShapes"
           :key="shape.id"
           :title="shape.name"
           placement="top"
-          :mouse-enter-delay="0.3"
+          :mouse-enter-delay="0.25"
           :arrow="false"
         >
           <button
-            class="quick-shape-btn"
+            class="shape-item-btn"
             @click="onSelect(shape)"
           >
-            <div class="quick-svg" v-html="getShapeIconSvg(shape)" />
+            <div class="shape-svg-wrapper" v-html="getShapeIconSvg(shape)" />
           </button>
         </a-tooltip>
       </div>
     </div>
 
     <!-- 基础图形 -->
-    <div class="quick-section">
-      <div class="quick-title">基础图形</div>
-      <div class="quick-grid basic-grid">
+    <div class="shape-group-section">
+      <div class="shape-group-header">
+        <span class="group-title">基础图形</span>
+      </div>
+      <div class="shape-grid">
         <a-tooltip
           v-for="shape in basicShapes"
           :key="shape.id"
           :title="shape.name"
           placement="top"
-          :mouse-enter-delay="0.3"
+          :mouse-enter-delay="0.25"
           :arrow="false"
         >
           <button
-            class="quick-shape-btn"
+            class="shape-item-btn"
             @click="onSelect(shape)"
           >
-            <div class="quick-svg" v-html="getShapeIconSvg(shape)" />
+            <div class="shape-svg-wrapper" v-html="getShapeIconSvg(shape)" />
           </button>
         </a-tooltip>
       </div>
@@ -53,11 +57,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
+import { Tooltip as ATooltip } from 'ant-design-vue'
 import {
   SHAPE_GROUPS,
   getShapeById,
   getShapeIconSvg,
+  getRecentShapeIds,
+  recordRecentShape,
   type ShapeDefinition,
 } from '../data/shapeLibrary'
 
@@ -77,23 +84,10 @@ const popupStyle = computed(() => ({
   top: `${props.y}px`,
 }))
 
-// 默认最近使用列表 (若 localStorage 未存则使用经典 5 种)
-const RECENT_KEY = 'SPEED_BOARD_RECENT_SHAPES'
-const defaultRecentIds = ['process-arrow', 'rect', 'cross', 'star', 'rounded-rect']
-
-const getRecentIds = (): string[] => {
-  try {
-    const raw = localStorage.getItem(RECENT_KEY)
-    if (raw) {
-      const arr = JSON.parse(raw)
-      if (Array.isArray(arr) && arr.length > 0) return arr
-    }
-  } catch {}
-  return defaultRecentIds
-}
-
+// 最近使用图形列表（与左侧工具栏形状选择器完全共享同步）
 const recentShapes = computed<ShapeDefinition[]>(() => {
-  const ids = getRecentIds()
+  void props.visible
+  const ids = getRecentShapeIds()
   return ids.map((id) => getShapeById(id)).filter(Boolean) as ShapeDefinition[]
 })
 
@@ -104,13 +98,7 @@ const basicShapes = computed<ShapeDefinition[]>(() => {
 })
 
 const onSelect = (shape: ShapeDefinition) => {
-  // 记录到最近使用
-  try {
-    const current = getRecentIds().filter((id) => id !== shape.id)
-    current.unshift(shape.id)
-    localStorage.setItem(RECENT_KEY, JSON.stringify(current.slice(0, 5)))
-  } catch {}
-
+  recordRecentShape(shape.id)
   emit('select', shape)
 }
 </script>
@@ -119,12 +107,12 @@ const onSelect = (shape: ShapeDefinition) => {
 .quick-shape-connect-popover {
   position: absolute;
   z-index: 1000;
-  width: 250px;
-  background-color: var(--speed-board-bg, var(--ant-color-bg-elevated, #ffffff));
-  border-radius: var(--speed-board-radius-lg, 8px);
-  padding: 10px 12px;
+  width: 256px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
+  border: 1px solid #f0f0f0;
   user-select: none;
   animation: fadeIn 0.15s ease-out;
 
@@ -139,67 +127,66 @@ const onSelect = (shape: ShapeDefinition) => {
     }
   }
 
-  .quick-section {
-    margin-bottom: 10px;
+  .shape-group-section {
+    margin-bottom: 12px;
 
     &:last-child {
       margin-bottom: 0;
     }
 
-    .quick-title {
-      font-size: 12px;
-      color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
-      margin-bottom: 6px;
-      font-weight: 500;
+    .shape-group-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+
+      .group-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: #262626;
+      }
     }
 
-    .quick-grid {
+    // 与左侧 ShapePickerPopover 完全一致的 6 列栅格网格
+    .shape-grid {
       display: grid;
-      gap: 3px;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 2px;
 
-      &.recent-grid {
-        grid-template-columns: repeat(5, 1fr);
-      }
-
-      &.basic-grid {
-        grid-template-columns: repeat(6, 1fr);
-      }
-
-      .quick-shape-btn {
-        width: 34px;
-        height: 34px;
-        background: transparent;
+      .shape-item-btn {
+        width: 30px;
+        height: 30px;
         border: 1px solid transparent;
-        border-radius: 5px;
+        background: transparent;
+        border-radius: 4px;
         padding: 0;
         margin: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: var(--speed-board-text-secondary, var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65)));
+        color: #595959;
         transition: all 0.15s ease;
 
         &:hover {
-          background-color: var(--speed-board-hover-bg, var(--ant-control-item-bg-hover, rgba(0, 0, 0, 0.04)));
-          color: var(--speed-board-text, var(--ant-color-text, rgba(0, 0, 0, 0.88)));
-          border-color: var(--speed-board-border, var(--ant-color-border-secondary, #e5e7eb));
-          transform: scale(1.08);
+          background-color: #f5f5f5;
+          color: #262626;
+          transform: scale(1.05);
         }
 
         &:active {
           transform: scale(0.96);
         }
 
-        .quick-svg {
+        .shape-svg-wrapper {
           display: flex;
           align-items: center;
           justify-content: center;
           pointer-events: none;
 
-          :deep(svg) {
-            width: 20px;
-            height: 20px;
+          :deep(svg),
+          svg {
+            width: 30px;
+            height: 30px;
           }
         }
       }

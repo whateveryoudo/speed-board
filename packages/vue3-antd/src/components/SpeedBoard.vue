@@ -104,7 +104,7 @@
         :x="quickConnectPos.x"
         :y="quickConnectPos.y"
         @select="onQuickConnectShapeSelect"
-        @close="showQuickConnect = false"
+        @close="onQuickConnectClose"
       />
 
       <!-- 思维导图分支延伸手柄与加号按钮 (1:1 语雀白板交互) -->
@@ -466,8 +466,20 @@ const onAnchorDragStart = (payload: {
   drawingOverlayRef.value?.startLineFromAnchor(
     selectedShapeNode.value,
     payload.direction,
-    { clientX: payload.event.clientX, clientY: payload.event.clientY }
+    payload.point,
+    payload.event
   )
+}
+
+const onQuickConnectClose = () => {
+  showQuickConnect.value = false
+  if (activeAnchorEdge.value) {
+    const target = (activeAnchorEdge.value as any)?.getTarget?.()
+    if (!target || !target.cell) {
+      boardInstance.value?.graph.removeCell(activeAnchorEdge.value)
+    }
+    activeAnchorEdge.value = null
+  }
 }
 
 const onLineFinishedOnBlank = (payload: {
@@ -544,6 +556,7 @@ const onQuickConnectShapeSelect = (shape: ShapeDefinition) => {
 
   if (activeAnchorEdge.value && newNode) {
     activeAnchorEdge.value.setTarget({ cell: newNode.id, port: targetPort })
+    activeAnchorEdge.value = null
   }
 
   showQuickConnect.value = false

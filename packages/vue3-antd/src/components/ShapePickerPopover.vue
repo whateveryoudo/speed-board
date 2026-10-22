@@ -93,6 +93,7 @@ import {
 import {
   SHAPE_GROUPS,
   getShapeIconSvg,
+  recordRecentShape,
   type ShapeDefinition,
 } from '../data/shapeLibrary'
 
@@ -205,6 +206,7 @@ const onShapePointerDown = (e: PointerEvent, shape: ShapeDefinition) => {
     if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) {
       dragging = true
       justDraggedShape = true
+      recordRecentShape(shape.id)
       emit('select', shape)
     }
   }
@@ -225,6 +227,7 @@ const onShapePointerDown = (e: PointerEvent, shape: ShapeDefinition) => {
 
 const onSelectShape = (shape: ShapeDefinition) => {
   if (justDraggedShape) return
+  recordRecentShape(shape.id)
   emit('select', shape)
 }
 </script>

@@ -92,7 +92,7 @@
     </g>
 
     <!-- 3. 连线工具拖拽实时引线与箭头预览 (折线/直线/曲线) -->
-    <g v-if="props.drawConfig.mode === 'line' && isLineDragging && lineStartPoint && lineEndPoint">
+    <g v-if="(props.drawConfig.mode === 'line' || isLineDragging) && isLineDragging && lineStartPoint && lineEndPoint">
       <defs>
         <marker
           id="speed-line-preview-arrow"
@@ -262,6 +262,7 @@ watch(isLineDragging, (val) => {
 
 const isDrawingActive = computed(() => {
   return (
+    isLineDragging.value ||
     props.drawConfig.mode === 'pencil' ||
     props.drawConfig.mode === 'marker' ||
     props.drawConfig.mode === 'vector' ||
@@ -400,6 +401,7 @@ const onOverlayPointerDown = (e: PointerEvent) => {
     activeSnapPort.value = null
     activeBorderSlidePoint.value = null
     hoverBorderSlidePoint.value = null
+    bindLineDraggingWindowEvents()
     return
   }
 
@@ -429,150 +431,124 @@ const onOverlayPointerDown = (e: PointerEvent) => {
   livePathD.value = `M ${ox.toFixed(1)} ${oy.toFixed(1)} l 0.01 0.01`
 }
 
-const onOverlayPointerMove = (e: PointerEvent) => {
-  if (!overlaySvgRef.value) return
-  const rect = overlaySvgRef.value.getBoundingClientRect()
-  const ox = e.clientX - rect.left
-  const oy = e.clientY - rect.top
+const handleLinePointerMove = (e: PointerEvent) => {
+  const wrapperRect =
+    overlaySvgRef.value?.parentElement?.getBoundingClientRect() ||
+    overlaySvgRef.value?.getBoundingClientRect()
+  if (!wrapperRect) return
+  const ox = e.clientX - wrapperRect.left
+  const oy = e.clientY - wrapperRect.top
 
-  if (props.drawConfig.mode === 'line') {
-    const graph = props.board?.graph
-    if (graph) {
-      const localPt = graph.clientToLocal(e.clientX, e.clientY)
-      const portResult = findClosestPort(localPt, 22)
-      const contactNode = portResult ? portResult.node : null
-      const activePortId = portResult?.isCenterPort ? portResult.port : undefined
+  const graph = props.board?.graph
+  if (graph) {
+    const localPt = graph.clientToLocal(e.clientX, e.clientY)
+    const portResult = findClosestPort(localPt, 22)
+    const contactNode = portResult ? portResult.node : null
+    const activePortId = portResult?.isCenterPort ? portResult.port : undefined
 
-      if (contactNode !== hoveredPortNode.value) {
-        const keepStartCellId = isLineDragging.value && lineStartSnapped.value ? (lineStartSnapped.value as any).cell : null
-        if (hoveredPortNode.value && hoveredPortNode.value.id !== keepStartCellId) {
-          props.board?.showNodePorts(hoveredPortNode.value, false)
-        }
-        if (contactNode) {
-          props.board?.showNodePorts(contactNode, true, activePortId)
-        }
-        hoveredPortNode.value = contactNode
-      } else if (contactNode) {
+    if (contactNode !== hoveredPortNode.value) {
+      const keepStartCellId = isLineDragging.value && lineStartSnapped.value ? (lineStartSnapped.value as any).cell : null
+      if (hoveredPortNode.value && hoveredPortNode.value.id !== keepStartCellId) {
+        props.board?.showNodePorts(hoveredPortNode.value, false)
+      }
+      if (contactNode) {
         props.board?.showNodePorts(contactNode, true, activePortId)
       }
+      hoveredPortNode.value = contactNode
+    } else if (contactNode) {
+      props.board?.showNodePorts(contactNode, true, activePortId)
+    }
 
-      if (isLineDragging.value && lineStartPoint.value) {
-        const isSameAsStart =
-          portResult &&
-          lineStartSnapped.value &&
-          (lineStartSnapped.value as any).cell === portResult.node.id &&
-          ((portResult.isCenterPort && (lineStartSnapped.value as any).port === portResult.port) ||
-            (!portResult.isCenterPort && Math.hypot(ox - lineStartPoint.value.ox, oy - lineStartPoint.value.oy) < 16))
+    if (isLineDragging.value && lineStartPoint.value) {
+      const isSameAsStart =
+        portResult &&
+        lineStartSnapped.value &&
+        (lineStartSnapped.value as any).cell === portResult.node.id &&
+        ((portResult.isCenterPort && (lineStartSnapped.value as any).port === portResult.port) ||
+          (!portResult.isCenterPort && Math.hypot(ox - lineStartPoint.value.ox, oy - lineStartPoint.value.oy) < 16))
 
-        if (portResult && !isSameAsStart) {
-          if (portResult.isCenterPort && portResult.port) {
-            lineEndSnapped.value = { cell: portResult.node.id, port: portResult.port }
-            activeBorderSlidePoint.value = null
-          } else {
-            lineEndSnapped.value = {
-              cell: portResult.node.id,
-              anchor: {
-                name: portResult.edge,
-                args: {
-                  dx: portResult.edge === 'top' || portResult.edge === 'bottom' ? (portResult.delta ?? portResult.offset) : 0,
-                  dy: portResult.edge === 'left' || portResult.edge === 'right' ? (portResult.delta ?? portResult.offset) : 0,
-                  rotate: true,
-                },
-              },
-            }
-            activeBorderSlidePoint.value = portResult.screenPoint
-          }
-          lineEndPoint.value = portResult.screenPoint
-        } else {
-          lineEndSnapped.value = null
+      if (portResult && !isSameAsStart) {
+        if (portResult.isCenterPort && portResult.port) {
+          lineEndSnapped.value = { cell: portResult.node.id, port: portResult.port }
           activeBorderSlidePoint.value = null
-
-          let curOx = ox
-          let curOy = oy
-          let curClientX = e.clientX
-          let curClientY = e.clientY
-
-          const dx = ox - lineStartPoint.value.ox
-          const dy = oy - lineStartPoint.value.oy
-          const absDx = Math.abs(dx)
-          const absDy = Math.abs(dy)
-          const dist = Math.hypot(dx, dy)
-
-          if (props.drawConfig.lineType === 'straight' || e.shiftKey) {
-            const threshold = 18
-            if (e.shiftKey) {
-              if (absDy < absDx * 0.414) {
-                curOy = lineStartPoint.value.oy
-                curClientY = lineStartPoint.value.clientY
-              } else if (absDx < absDy * 0.414) {
-                curOx = lineStartPoint.value.ox
-                curClientX = lineStartPoint.value.clientX
-              } else {
-                const size = Math.max(absDx, absDy)
-                curOx = lineStartPoint.value.ox + Math.sign(dx) * size
-                curOy = lineStartPoint.value.oy + Math.sign(dy) * size
-                curClientX = lineStartPoint.value.clientX + Math.sign(dx) * size
-                curClientY = lineStartPoint.value.clientY + Math.sign(dy) * size
-              }
-            } else if (dist > 12) {
-              if (absDy <= threshold) {
-                curOy = lineStartPoint.value.oy
-                curClientY = lineStartPoint.value.clientY
-              } else if (absDx <= threshold) {
-                curOx = lineStartPoint.value.ox
-                curClientX = lineStartPoint.value.clientX
-              }
-            }
+        } else {
+          lineEndSnapped.value = {
+            cell: portResult.node.id,
+            anchor: {
+              name: portResult.edge,
+              args: {
+                dx: portResult.edge === 'top' || portResult.edge === 'bottom' ? (portResult.delta ?? portResult.offset) : 0,
+                dy: portResult.edge === 'left' || portResult.edge === 'right' ? (portResult.delta ?? portResult.offset) : 0,
+                rotate: true,
+              },
+            },
           }
+          activeBorderSlidePoint.value = portResult.screenPoint
+        }
+        lineEndPoint.value = portResult.screenPoint
+      } else {
+        lineEndSnapped.value = null
+        activeBorderSlidePoint.value = null
 
-          lineEndPoint.value = {
-            ox: curOx,
-            oy: curOy,
-            clientX: curClientX,
-            clientY: curClientY,
+        let curOx = ox
+        let curOy = oy
+        let curClientX = e.clientX
+        let curClientY = e.clientY
+
+        const dx = ox - lineStartPoint.value.ox
+        const dy = oy - lineStartPoint.value.oy
+        const absDx = Math.abs(dx)
+        const absDy = Math.abs(dy)
+        const dist = Math.hypot(dx, dy)
+
+        if (props.drawConfig.lineType === 'straight' || e.shiftKey) {
+          const threshold = 18
+          if (e.shiftKey) {
+            if (absDy < absDx * 0.414) {
+              curOy = lineStartPoint.value.oy
+              curClientY = lineStartPoint.value.clientY
+            } else if (absDx < absDy * 0.414) {
+              curOx = lineStartPoint.value.ox
+              curClientX = lineStartPoint.value.clientX
+            } else {
+              const size = Math.max(absDx, absDy)
+              curOx = lineStartPoint.value.ox + Math.sign(dx) * size
+              curOy = lineStartPoint.value.oy + Math.sign(dy) * size
+              curClientX = lineStartPoint.value.clientX + Math.sign(dx) * size
+              curClientY = lineStartPoint.value.clientY + Math.sign(dy) * size
+            }
+          } else if (dist > 12) {
+            if (absDy <= threshold) {
+              curOy = lineStartPoint.value.oy
+              curClientY = lineStartPoint.value.clientY
+            } else if (absDx <= threshold) {
+              curOx = lineStartPoint.value.ox
+              curClientX = lineStartPoint.value.clientX
+            }
           }
         }
-      } else if (!isLineDragging.value) {
-        if (portResult && !portResult.isCenterPort) {
-          hoverBorderSlidePoint.value = portResult.screenPoint
-        } else {
-          hoverBorderSlidePoint.value = null
+
+        lineEndPoint.value = {
+          ox: curOx,
+          oy: curOy,
+          clientX: curClientX,
+          clientY: curClientY,
         }
       }
+    } else if (!isLineDragging.value) {
+      if (portResult && !portResult.isCenterPort) {
+        hoverBorderSlidePoint.value = portResult.screenPoint
+      } else {
+        hoverBorderSlidePoint.value = null
+      }
     }
-    return
   }
-
-  if (props.drawConfig.mode === 'vector') {
-    cursorPos.value = { ox, oy }
-    if (vectorPoints.value.length >= 3) {
-      const startPt = vectorPoints.value[0]
-      const dx = ox - startPt.ox
-      const dy = oy - startPt.oy
-      isNearStart.value = dx * dx + dy * dy <= 16 * 16
-    } else {
-      isNearStart.value = false
-    }
-    return
-  }
-
-  if (!isDrawing.value) return
-
-  const last = livePoints.value[livePoints.value.length - 1]
-  if (last) {
-    const dx = ox - last.x
-    const dy = oy - last.y
-    if (dx * dx + dy * dy < 4) return
-  }
-
-  livePoints.value.push({ x: ox, y: oy })
-  clientPoints.value.push({ x: e.clientX, y: e.clientY })
-  livePathD.value = pointsToSvgPath(livePoints.value)
 }
 
-const onOverlayPointerUp = (e: PointerEvent) => {
-  if (props.drawConfig.mode === 'line') {
-    if (isLineDragging.value && lineStartPoint.value && lineEndPoint.value && props.board) {
+const finishLineDragging = (e: PointerEvent) => {
+  unbindLineDraggingWindowEvents()
+  try {
+    if (lineStartPoint.value && lineEndPoint.value && props.board) {
       const p1 = lineStartPoint.value
       const p2 = lineEndPoint.value
       const dist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY)
@@ -648,6 +624,7 @@ const onOverlayPointerUp = (e: PointerEvent) => {
         }
       }
     }
+  } finally {
     isLineDragging.value = false
     lineStartPoint.value = null
     lineEndPoint.value = null
@@ -660,6 +637,79 @@ const onOverlayPointerUp = (e: PointerEvent) => {
     props.board?.hideAllPorts()
     emit('update:mode', 'select')
     props.board?.setDrawingMode('select')
+  }
+}
+
+const onWindowLinePointerMove = (e: PointerEvent) => {
+  if (!isLineDragging.value) return
+  handleLinePointerMove(e)
+}
+
+const onWindowLinePointerUp = (e: PointerEvent) => {
+  if (!isLineDragging.value) {
+    unbindLineDraggingWindowEvents()
+    return
+  }
+  finishLineDragging(e)
+}
+
+const bindLineDraggingWindowEvents = () => {
+  unbindLineDraggingWindowEvents()
+  window.addEventListener('pointermove', onWindowLinePointerMove)
+  window.addEventListener('pointerup', onWindowLinePointerUp)
+  window.addEventListener('pointercancel', onWindowLinePointerUp)
+}
+
+const unbindLineDraggingWindowEvents = () => {
+  window.removeEventListener('pointermove', onWindowLinePointerMove)
+  window.removeEventListener('pointerup', onWindowLinePointerUp)
+  window.removeEventListener('pointercancel', onWindowLinePointerUp)
+}
+
+const onOverlayPointerMove = (e: PointerEvent) => {
+  if (!overlaySvgRef.value) return
+
+  if (props.drawConfig.mode === 'line') {
+    handleLinePointerMove(e)
+    return
+  }
+
+  const rect = overlaySvgRef.value.getBoundingClientRect()
+  const ox = e.clientX - rect.left
+  const oy = e.clientY - rect.top
+
+  if (props.drawConfig.mode === 'vector') {
+    cursorPos.value = { ox, oy }
+    if (vectorPoints.value.length >= 3) {
+      const startPt = vectorPoints.value[0]
+      const dx = ox - startPt.ox
+      const dy = oy - startPt.oy
+      isNearStart.value = dx * dx + dy * dy <= 16 * 16
+    } else {
+      isNearStart.value = false
+    }
+    return
+  }
+
+  if (!isDrawing.value) return
+
+  const last = livePoints.value[livePoints.value.length - 1]
+  if (last) {
+    const dx = ox - last.x
+    const dy = oy - last.y
+    if (dx * dx + dy * dy < 4) return
+  }
+
+  livePoints.value.push({ x: ox, y: oy })
+  clientPoints.value.push({ x: e.clientX, y: e.clientY })
+  livePathD.value = pointsToSvgPath(livePoints.value)
+}
+
+const onOverlayPointerUp = (e: PointerEvent) => {
+  if (props.drawConfig.mode === 'line') {
+    if (isLineDragging.value) {
+      finishLineDragging(e)
+    }
     return
   }
 
@@ -738,6 +788,7 @@ const closeVectorPolygon = () => {
 }
 
 const cancelLineDragging = () => {
+  unbindLineDraggingWindowEvents()
   isLineDragging.value = false
   lineStartPoint.value = null
   lineEndPoint.value = null
@@ -786,29 +837,72 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  unbindLineDraggingWindowEvents()
   window.removeEventListener('keydown', onKeyDown)
 })
 
 const startLineFromAnchor = (
   node: any,
-  portId: string,
-  clientPos: { clientX: number; clientY: number }
+  direction: 'top' | 'right' | 'bottom' | 'left',
+  point?: { x: number; y: number; ox: number; oy: number },
+  event?: PointerEvent
 ) => {
-  const wrapperRect = overlaySvgRef.value?.getBoundingClientRect()
-  if (!wrapperRect) return
+  const wrapperRect =
+    overlaySvgRef.value?.parentElement?.getBoundingClientRect() ||
+    overlaySvgRef.value?.getBoundingClientRect()
+  const wrapperLeft = wrapperRect ? wrapperRect.left : 0
+  const wrapperTop = wrapperRect ? wrapperRect.top : 0
+
   emit('update:mode', 'line')
   props.board?.setDrawingMode('line')
   isLineDragging.value = true
-  const ox = clientPos.clientX - wrapperRect.left
-  const oy = clientPos.clientY - wrapperRect.top
-  lineStartPoint.value = {
-    ox,
-    oy,
-    clientX: clientPos.clientX,
-    clientY: clientPos.clientY,
+
+  const portId = node?.hasPort?.(`port-${direction}`) ? `port-${direction}` : direction
+
+  let startX = point ? point.x : 0
+  let startY = point ? point.y : 0
+  let startClientX = point ? point.ox : 0
+  let startClientY = point ? point.oy : 0
+
+  if (!point && props.board) {
+    const nodePos = node.position()
+    const nodeSize = node.size()
+    const graph = props.board.graph
+    let localAnchorX = nodePos.x + nodeSize.width / 2
+    let localAnchorY = nodePos.y + nodeSize.height / 2
+    if (direction === 'top') localAnchorY = nodePos.y
+    else if (direction === 'bottom') localAnchorY = nodePos.y + nodeSize.height
+    else if (direction === 'left') localAnchorX = nodePos.x
+    else if (direction === 'right') localAnchorX = nodePos.x + nodeSize.width
+    const clientPt = graph.localToClient(localAnchorX, localAnchorY)
+    startClientX = clientPt.x
+    startClientY = clientPt.y
+    startX = startClientX - wrapperLeft
+    startY = startClientY - wrapperTop
   }
-  lineEndPoint.value = { ...lineStartPoint.value }
+
+  lineStartPoint.value = {
+    ox: startX,
+    oy: startY,
+    clientX: startClientX,
+    clientY: startClientY,
+  }
+
+  const curClientX = event ? event.clientX : startClientX
+  const curClientY = event ? event.clientY : startClientY
+  lineEndPoint.value = {
+    ox: curClientX - wrapperLeft,
+    oy: curClientY - wrapperTop,
+    clientX: curClientX,
+    clientY: curClientY,
+  }
+
   lineStartSnapped.value = { cell: node.id, port: portId }
+  activeSnapPort.value = null
+  activeBorderSlidePoint.value = null
+  hoverBorderSlidePoint.value = null
+
+  bindLineDraggingWindowEvents()
 }
 
 defineExpose({
@@ -819,3 +913,44 @@ defineExpose({
   closeVectorPolygon,
 })
 </script>
+
+<style scoped>
+.speed-drawing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 50;
+  pointer-events: all;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.speed-drawing-overlay.is-vector-mode {
+  cursor: crosshair;
+}
+
+.speed-drawing-overlay.is-line-mode {
+  cursor: crosshair;
+}
+
+.snap-start-pulse {
+  animation: snapPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes snapPulse {
+  0% {
+    r: 6px;
+    opacity: 0.9;
+  }
+  50% {
+    r: 10px;
+    opacity: 0.4;
+  }
+  100% {
+    r: 6px;
+    opacity: 0.9;
+  }
+}
+</style>
