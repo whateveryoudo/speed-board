@@ -80,14 +80,19 @@ export function buildMindmapTree(graph: Graph, rootNode: Node): MindmapTreeNode 
   for (const n of nodes) {
     const data = n.getData() as MindmapNodeData
     const bbox = n.getBBox()
-    const text = data.text || '分支主题'
-    const dynamicW = calculateMindmapNodeWidth(text, !!data.isRoot)
-    const nodeWidth = bbox.width ? Math.max(bbox.width, dynamicW) : dynamicW
+    const text = data.text || (data.isRoot ? '思维导图' : '分支主题')
+    const hasManualSize = !!data.manualSize
+    const nodeWidth = hasManualSize
+      ? (typeof data.manualSize === 'object' && data.manualSize.width ? data.manualSize.width : bbox.width)
+      : calculateMindmapNodeWidth(text, !!data.isRoot)
+    const nodeHeight = hasManualSize
+      ? (typeof data.manualSize === 'object' && data.manualSize.height ? data.manualSize.height : (data.isRoot ? 42 : 32))
+      : (data.isRoot ? 42 : 32)
     nodeMap.set(n.id, {
       id: n.id,
       text,
       width: nodeWidth,
-      height: data.isRoot ? 42 : 32,
+      height: nodeHeight,
       depth: data.depth ?? 0,
       side: data.side,
       collapsed: data.collapsed,
@@ -161,19 +166,39 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
     if (!node) continue
 
     node.position(nLayout.x, nLayout.y)
+    node.setSize(nLayout.width, nLayout.height)
     node.setZIndex(10)
     const currentData = (node.getData() || {}) as MindmapNodeData
     const nodeText = currentData.text || (currentData.isRoot ? '思维导图' : '分支主题')
     node.setAttrByPath('textWrap/html', nodeText)
+    if (currentData.manualSize) {
+      node.setAttrByPath('textWrap/style/whiteSpace', 'pre-wrap')
+      node.setAttrByPath('textWrap/style/wordBreak', 'break-all')
+    } else {
+      node.setAttrByPath('textWrap/style/whiteSpace', 'pre')
+      node.setAttrByPath('textWrap/style/wordBreak', 'normal')
+    }
     node.setData({
       ...currentData,
       side: nLayout.side,
       depth: nLayout.depth,
     })
 
-    // 同步节点形状样式 (下划线 / 胶囊 / 卡片矩形 / 纯文本)
-    const shapeStyle = currentData.shapeStyle || (currentData.isRoot ? 'rect' : 'underline')
+    // 同步节点形状样式 (下划线 / 胶囊 / 卡片矩形 / 纯文本，默认统一为 rect 卡片矩形)
+    const shapeStyle = currentData.shapeStyle || 'rect'
     const primaryColor = currentData.branch?.color || '#3b82f6'
+
+    const ensurePort = (portId: 'left' | 'right', dy: number) => {
+      if (node.hasPort?.(portId)) {
+        node.setPortProp?.(portId, 'args', { dy })
+      } else {
+        node.addPort?.({
+          id: portId,
+          group: portId,
+          args: { dy },
+        })
+      }
+    }
 
     if (shapeStyle === 'underline' || shapeStyle === 'none') {
       node.setAttrByPath('body/fill', 'transparent')
@@ -182,8 +207,8 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       node.setAttrByPath('underline/display', 'block')
       node.setAttrByPath('underline/fill', primaryColor)
       node.setAttrByPath('underline/stroke', 'none')
-      node.setPortProp?.('left', 'args', { dy: 13 })
-      node.setPortProp?.('right', 'args', { dy: 13 })
+      ensurePort('left', 13)
+      ensurePort('right', 13)
     } else if (shapeStyle === 'capsule') {
       const rx = currentData.isRoot ? 21 : 16
       node.setAttrByPath('body/rx', rx)
@@ -192,8 +217,8 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       node.setAttrByPath('body/stroke', currentData.stroke || primaryColor)
       node.setAttrByPath('body/strokeWidth', currentData.strokeWidth || 1.5)
       node.setAttrByPath('underline/display', 'none')
-      node.setPortProp?.('left', 'args', { dy: 0 })
-      node.setPortProp?.('right', 'args', { dy: 0 })
+      ensurePort('left', 0)
+      ensurePort('right', 0)
     } else if (shapeStyle === 'rect') {
       node.setAttrByPath('body/rx', currentData.isRoot ? 8 : 6)
       node.setAttrByPath('body/ry', currentData.isRoot ? 8 : 6)
@@ -201,8 +226,8 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       node.setAttrByPath('body/stroke', currentData.stroke || (currentData.isRoot ? '#e5e7eb' : primaryColor))
       node.setAttrByPath('body/strokeWidth', currentData.strokeWidth || 1.5)
       node.setAttrByPath('underline/display', 'none')
-      node.setPortProp?.('left', 'args', { dy: 0 })
-      node.setPortProp?.('right', 'args', { dy: 0 })
+      ensurePort('left', 0)
+      ensurePort('right', 0)
     }
 
     // 同步节点内置控制手柄 (+ / 收起 / 折叠数字徽标)
@@ -322,6 +347,7 @@ export function insertMindmap(board: Board, options: InsertMindmapOptions): stri
       depth: 0,
       structure: options.structure || 'right',
       text: options.text || '思维导图',
+      shapeStyle: 'rect',
       branch: {
         isRainbow: true,
         width: 3,
@@ -335,6 +361,11 @@ export function insertMindmap(board: Board, options: InsertMindmapOptions): stri
   graph.cleanSelection()
   graph.select(rootNode)
   graph.trigger('selection:changed', { selected: [rootNode] })
+
+  setTimeout(() => {
+    graph.trigger('node:start-edit', { node: rootNode })
+  }, 30)
+
   return rootId
 }
 
@@ -418,9 +449,16 @@ export function addMindmapChild(board: Board, parentNodeId?: string): string | n
           text: childText,
         },
         underline: {
-          display: 'block',
-          fill: branchColor,
-          stroke: 'none',
+          display: 'none',
+        },
+        body: {
+          refWidth: '100%',
+          refHeight: '100%',
+          rx: 6,
+          ry: 6,
+          fill: '#ffffff',
+          stroke: branchColor,
+          strokeWidth: 1.5,
         },
       },
       data: {
@@ -431,7 +469,7 @@ export function addMindmapChild(board: Board, parentNodeId?: string): string | n
         depth: (parentData.depth ?? 0) + 1,
         order: nextOrder,
         text: childText,
-        shapeStyle: 'underline',
+        shapeStyle: 'rect',
         branch: {
           color: branchColor,
           width: 3,
@@ -441,10 +479,12 @@ export function addMindmapChild(board: Board, parentNodeId?: string): string | n
     })
 
   updateMindmapLayout(board, mindmapId)
-  graph.cleanSelection()
-  graph.select(childNode)
-  graph.trigger('selection:changed', { selected: [childNode] })
-  graph.trigger('node:start-edit', { node: childNode })
+  setTimeout(() => {
+    graph.cleanSelection()
+    graph.select(childNode)
+    graph.trigger('selection:changed', { selected: [childNode] })
+    graph.trigger('node:start-edit', { node: childNode })
+  }, 20)
   return childId
 }
 
@@ -1000,7 +1040,12 @@ export function getMindmapNodeHandleHTML(graph: Graph, node: Node): string {
     `.trim()
   }
 
-  // 情况 C：根节点或叶子节点 -> 显示添加按钮 (+)
+  if (isRoot && hasChildren) {
+    // 根节点已有子分支时，不在此侧连线上叠放加号，保持主干连线清爽无遮挡
+    return ''
+  }
+
+  // 情况 C：无子节点的根节点或叶子节点 -> 显示添加按钮 (+)
   return `
     <div class="mindmap-native-handle ${side}" data-node-id="${node.id}">
       <div class="branch-anchor-dot" style="background-color: ${branchColor}"></div>
@@ -1022,8 +1067,15 @@ export function updateMindmapNodeHandle(graph: Graph, node: Node): void {
   const data = (node.getData() || {}) as MindmapNodeData
   const isLeft = data.side === 'left'
 
+  const isUnderline = !data.isRoot && data.shapeStyle === 'underline'
   node.setAttrByPath('handleGroup/refX', isLeft ? 0 : '100%')
-  node.setAttrByPath('handleGroup/refY', '50%')
+  if (isUnderline) {
+    node.setAttrByPath('handleGroup/refY', '100%')
+    node.setAttrByPath('handleGroup/refY2', -1.5)
+  } else {
+    node.setAttrByPath('handleGroup/refY', '50%')
+    node.removeAttrByPath('handleGroup/refY2')
+  }
   node.setAttrByPath('handleFo/x', isLeft ? -80 : 0)
   node.setAttrByPath('handleFo/y', -12)
   node.setAttrByPath('handleFo/width', 80)
@@ -1044,53 +1096,149 @@ export function activateMindmapNodeTextEdit(
 ): void {
   const graph = board.graph
   const view = graph.findViewByCell(node)
-  if (!view || !view.container) return
-
-  const textEl = view.container.querySelector('.mindmap-node-text') as HTMLDivElement | null
-  if (!textEl) return
-
-  // 避免重复挂载监听
-  if (textEl.getAttribute('contenteditable') === 'true') {
+  if (!view || !view.container) {
+    requestAnimationFrame(() => {
+      activateMindmapNodeTextEdit(board, node, initialChar)
+    })
     return
   }
 
-  const setTransformVisibility = (visible: boolean) => {
+  const textEl = view.container.querySelector('.mindmap-node-text') as HTMLDivElement | null
+  if (!textEl) {
+    requestAnimationFrame(() => {
+      activateMindmapNodeTextEdit(board, node, initialChar)
+    })
+    return
+  }
+
+  // 避免重复挂载监听
+  if (textEl.getAttribute('data-editing') === 'true') {
+    if (initialChar) {
+      textEl.innerText = initialChar
+      const range = document.createRange()
+      const sel = window.getSelection()
+      range.selectNodeContents(textEl)
+      range.collapse(false)
+      sel?.removeAllRanges()
+      sel?.addRange(range)
+    }
+    return
+  }
+  textEl.setAttribute('data-editing', 'true')
+
+  const setTransformEditing = (editing: boolean) => {
     const transformWidgets = board.container.querySelectorAll<HTMLElement>('.x6-widget-transform')
     transformWidgets.forEach((w) => {
-      w.style.display = visible ? '' : 'none'
+      w.classList.toggle('is-text-editing', editing)
+      const resizes = w.querySelectorAll<HTMLElement>('.x6-widget-transform-resize, .x6-widget-transform-rotate')
+      resizes.forEach((r) => {
+        r.style.display = editing ? 'none' : ''
+      })
     })
+    const speedBoard = board.container.closest('.speed-board')
+    if (speedBoard) {
+      speedBoard.classList.toggle('is-inline-editing', editing)
+    }
   }
-  setTransformVisibility(false)
+  setTransformEditing(true)
+  graph.trigger('node:edit:start', { node })
 
   textEl.setAttribute('contenteditable', 'true')
+  textEl.setAttribute('tabindex', '-1')
   textEl.style.userSelect = 'text'
   textEl.style.cursor = 'text'
-  textEl.focus()
+  textEl.style.outline = 'none'
 
-  if (initialChar) {
-    textEl.innerText = initialChar
-    const range = document.createRange()
-    const sel = window.getSelection()
-    range.selectNodeContents(textEl)
-    range.collapse(false)
-    sel?.removeAllRanges()
-    sel?.addRange(range)
+  const initialData = (node.getData() || {}) as MindmapNodeData
+  const hasManualSize = !!initialData.manualSize
+  if (hasManualSize) {
+    textEl.style.whiteSpace = 'pre-wrap'
+    textEl.style.wordBreak = 'break-all'
   } else {
-    // 双击或新建时全选文字，敲键盘即可直接完全替换
-    const range = document.createRange()
-    const sel = window.getSelection()
-    range.selectNodeContents(textEl)
-    sel?.removeAllRanges()
-    sel?.addRange(range)
+    textEl.style.whiteSpace = 'pre'
+    textEl.style.wordBreak = 'normal'
   }
+
+  const stopProp = (e: Event) => {
+    e.stopPropagation()
+  }
+  textEl.addEventListener('pointerdown', stopProp)
+  textEl.addEventListener('mousedown', stopProp)
+  textEl.addEventListener('mouseup', stopProp)
+  textEl.addEventListener('click', stopProp)
+  textEl.addEventListener('dblclick', stopProp)
+
+  const defaultPlaceholder = initialData.isRoot ? '思维导图' : '分支主题'
+  let isFirstType = !initialData.text || initialData.text === defaultPlaceholder
+
+  const onCompositionStart = () => {
+    if (isFirstType) {
+      textEl.innerText = ''
+      isFirstType = false
+    }
+  }
+
+  const onBeforeInput = (e: InputEvent) => {
+    if (isFirstType && e.inputType === 'insertText') {
+      textEl.innerText = ''
+      isFirstType = false
+    }
+  }
+
+  textEl.addEventListener('compositionstart', onCompositionStart)
+  textEl.addEventListener('beforeinput', onBeforeInput as any)
+
+  requestAnimationFrame(() => {
+    textEl.focus()
+
+    if (initialChar) {
+      textEl.innerText = initialChar
+      isFirstType = false
+      const range = document.createRange()
+      const sel = window.getSelection()
+      range.selectNodeContents(textEl)
+      range.collapse(false)
+      sel?.removeAllRanges()
+      sel?.addRange(range)
+      onInput()
+    } else {
+      // 默认全选占位文字，打字直接全量替换
+      const range = document.createRange()
+      const sel = window.getSelection()
+      range.selectNodeContents(textEl)
+      sel?.removeAllRanges()
+      sel?.addRange(range)
+    }
+  })
 
   let finished = false
   const onInput = () => {
     const rawText = textEl.innerText
-    const data = (node.getData() || {}) as MindmapNodeData
-    const isRoot = !!data.isRoot
-    const calcW = calculateMindmapNodeWidth(rawText || (isRoot ? '思维导图' : '分支主题'), isRoot)
-    node.setSize(calcW, node.size().height)
+    const currData = (node.getData() || {}) as MindmapNodeData
+    const isRoot = !!currData.isRoot
+    const manual = !!currData.manualSize
+
+    if (manual) {
+      textEl.style.whiteSpace = 'pre-wrap'
+      textEl.style.wordBreak = 'break-all'
+      const manualWidth = typeof currData.manualSize === 'object' && currData.manualSize.width
+        ? currData.manualSize.width
+        : node.size().width
+      const scrollH = textEl.scrollHeight
+      const baseHeight = isRoot ? 42 : 32
+      const targetHeight = Math.max(baseHeight, scrollH + 8)
+      node.setSize(manualWidth, targetHeight)
+    } else {
+      textEl.style.whiteSpace = 'pre'
+      textEl.style.wordBreak = 'normal'
+      const calcW = calculateMindmapNodeWidth(rawText || (isRoot ? '思维导图' : '分支主题'), isRoot)
+      const lines = rawText.split('\n')
+      const baseHeight = isRoot ? 42 : 32
+      const lineH = (isRoot ? 16 : 14) * 1.45
+      const targetHeight = lines.length > 1 ? Math.round(lines.length * lineH + 14) : baseHeight
+      node.setSize(calcW, targetHeight)
+    }
+    board.syncSelectionBoxesTransform()
   }
 
   const commitEdit = () => {
@@ -1100,31 +1248,50 @@ export function activateMindmapNodeTextEdit(
     textEl.removeEventListener('keydown', onKeyDown)
     textEl.removeEventListener('input', onInput)
     textEl.removeEventListener('blur', onBlur)
+    textEl.removeEventListener('pointerdown', stopProp)
+    textEl.removeEventListener('mousedown', stopProp)
+    textEl.removeEventListener('mouseup', stopProp)
+    textEl.removeEventListener('click', stopProp)
+    textEl.removeEventListener('dblclick', stopProp)
+    textEl.removeEventListener('compositionstart', onCompositionStart)
+    textEl.removeEventListener('beforeinput', onBeforeInput as any)
 
-    textEl.removeAttribute('contenteditable')
+    textEl.removeAttribute('data-editing')
+    textEl.setAttribute('contenteditable', 'false')
     textEl.style.userSelect = 'none'
     textEl.style.cursor = 'default'
-    setTransformVisibility(true)
+    setTransformEditing(false)
+    graph.trigger('node:edit:end', { node })
 
     const rawText = textEl.innerText.trim()
-    const data = (node.getData() || {}) as MindmapNodeData
-    const newText = rawText === '' ? (data.isRoot ? '思维导图' : '分支主题') : rawText
+    const currData = (node.getData() || {}) as MindmapNodeData
+    const newText = rawText === '' ? (currData.isRoot ? '思维导图' : '分支主题') : rawText
 
     textEl.innerText = newText
     node.setData({
-      ...data,
+      ...currData,
       text: newText,
     })
 
-    const isRoot = !!data.isRoot
-    const calcW = calculateMindmapNodeWidth(newText, isRoot)
-    const lines = newText.split('\n')
-    const baseHeight = isRoot ? 42 : 32
-    const lineH = (isRoot ? 16 : 14) * 1.45
-    const targetHeight = lines.length > 1 ? Math.round(lines.length * lineH + 14) : baseHeight
-
-    node.setSize(calcW, targetHeight)
-    updateMindmapLayout(board, data.mindmapId)
+    const isRoot = !!currData.isRoot
+    const manual = !!currData.manualSize
+    if (manual) {
+      const manualWidth = typeof currData.manualSize === 'object' && currData.manualSize.width
+        ? currData.manualSize.width
+        : node.size().width
+      const scrollH = textEl.scrollHeight
+      const baseHeight = isRoot ? 42 : 32
+      const targetHeight = Math.max(baseHeight, scrollH + 8)
+      node.setSize(manualWidth, targetHeight)
+    } else {
+      const calcW = calculateMindmapNodeWidth(newText, isRoot)
+      const lines = newText.split('\n')
+      const baseHeight = isRoot ? 42 : 32
+      const lineH = (isRoot ? 16 : 14) * 1.45
+      const targetHeight = lines.length > 1 ? Math.round(lines.length * lineH + 14) : baseHeight
+      node.setSize(calcW, targetHeight)
+    }
+    updateMindmapLayout(board, currData.mindmapId)
   }
 
   const onKeyDown = (e: KeyboardEvent) => {

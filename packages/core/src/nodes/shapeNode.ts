@@ -101,77 +101,65 @@ export function registerShapeNode(): void {
       ports: {
         groups: {
           top: {
-            position: {
-              name: 'top',
-              args: { dy: -8 },
-            },
+            position: 'top',
             attrs: {
               circle: {
-                r: 4.5,
+                r: 5,
                 magnet: true,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 style: {
                   cursor: 'crosshair',
-                  transition: 'opacity 0.15s ease, transform 0.15s ease',
+                  transition: 'opacity 0.15s ease, transform 0.15s ease, r 0.15s ease',
                 },
               },
             },
           },
           right: {
-            position: {
-              name: 'right',
-              args: { dx: 8 },
-            },
+            position: 'right',
             attrs: {
               circle: {
-                r: 4.5,
+                r: 5,
                 magnet: true,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 style: {
                   cursor: 'crosshair',
-                  transition: 'opacity 0.15s ease, transform 0.15s ease',
+                  transition: 'opacity 0.15s ease, transform 0.15s ease, r 0.15s ease',
                 },
               },
             },
           },
           bottom: {
-            position: {
-              name: 'bottom',
-              args: { dy: 8 },
-            },
+            position: 'bottom',
             attrs: {
               circle: {
-                r: 4.5,
+                r: 5,
                 magnet: true,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 style: {
                   cursor: 'crosshair',
-                  transition: 'opacity 0.15s ease, transform 0.15s ease',
+                  transition: 'opacity 0.15s ease, transform 0.15s ease, r 0.15s ease',
                 },
               },
             },
           },
           left: {
-            position: {
-              name: 'left',
-              args: { dx: -8 },
-            },
+            position: 'left',
             attrs: {
               circle: {
-                r: 4.5,
+                r: 5,
                 magnet: true,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
                 style: {
                   cursor: 'crosshair',
-                  transition: 'opacity 0.15s ease, transform 0.15s ease',
+                  transition: 'opacity 0.15s ease, transform 0.15s ease, r 0.15s ease',
                 },
               },
             },

@@ -305,14 +305,33 @@ const dropAtEvent = (e: PointerEvent) => {
     })
   }
 
+  if (props.board) {
+    props.board.justPlacedTime = Date.now()
+  }
+
   cancel()
 
   if (node) {
-    graph.cleanSelection()
-    graph.select(node)
-    graph.trigger('selection:changed', { selected: [node] })
+    const selectNode = () => {
+      try {
+        graph.cleanSelection()
+        graph.select(node)
+        graph.trigger('selection:changed', { selected: [node] })
+        const tp = (props.board as any)?.transformPlugin
+        if (tp && !tp.widgets?.has(node)) {
+          tp.createWidget(node)
+        }
+        props.board?.syncSelectionBoxesTransform()
+      } catch {}
+    }
+
+    selectNode()
+    setTimeout(selectNode, 30)
+    setTimeout(selectNode, 100)
+    setTimeout(selectNode, 200)
 
     emit('place', { item, node })
+    emit('startInlineTextEdit', node)
   }
 }
 
@@ -321,7 +340,9 @@ const onPointerDown = (e: PointerEvent) => {
 }
 
 const onPointerUp = (e: PointerEvent) => {
-  dropAtEvent(e)
+  if (!hasDropped) {
+    dropAtEvent(e)
+  }
 }
 </script>
 

@@ -131,6 +131,7 @@ export function findClosestPort(
           node,
           edge: best.edge,
           port: best.isCenterPort ? `port-${best.edge}` : undefined,
+          localPoint: { x: finalX, y: finalY },
           point: { x: finalX, y: finalY },
           distance: best.dist,
           isCenterPort: best.isCenterPort,

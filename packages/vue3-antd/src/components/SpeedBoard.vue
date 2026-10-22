@@ -11,6 +11,7 @@
       'is-mindmap-rect': isMindmapRect,
       'is-mindmap-root': isMindmapRoot,
       'is-mindmap-none': isMindmapNone,
+      'is-inline-editing': isInlineEditing,
     }"
   >
     <!-- 顶部状态栏与悬浮控制组 (左上历史撤销 + 右上视口控制与折叠按钮) -->
@@ -89,6 +90,7 @@
         :canvas-wrapper="canvasWrapperRef"
         :pending-placement="pendingPlacement"
         @cancel="cancelPlacement"
+        @place="onPlacementComplete"
         @start-inline-text-edit="startInlineTextEdit"
       />
     </div>
@@ -159,6 +161,32 @@ const { cleanup: cleanupAntdCssVars } = useAntdCssVars()
 
 const boardInstance = shallowRef<Board | null>(null)
 const canvasWrapperRef = ref<HTMLDivElement | null>(null)
+let justPlacedTime = 0
+const isInlineEditing = ref(false)
+
+const onPlacementComplete = ({ item, node }: any) => {
+  justPlacedTime = Date.now()
+  if (boardInstance.value) {
+    boardInstance.value.justPlacedTime = Date.now()
+  }
+  if (node && boardInstance.value) {
+    const graph = boardInstance.value.graph
+    graph.cleanSelection()
+    graph.select(node)
+    graph.trigger('selection:changed', { selected: [node] })
+
+    const tp = (boardInstance.value as any).transformPlugin
+    if (tp && !tp.widgets?.has(node)) {
+      tp.createWidget(node)
+    }
+    boardInstance.value.syncSelectionBoxesTransform()
+
+    // 默认拖拽进去直接激活编辑态 (contenteditable="true" + 全选占位文字，实现直接输入直接替换)
+    nextTick(() => {
+      startInlineTextEdit(node)
+    })
+  }
+}
 
 // 触发就地文字编辑 (1:1 语雀 In-Canvas contenteditable，0 外部遮罩，0 像素抖动)
 const startInlineTextEdit = (node: any, initialChar?: string) => {
@@ -245,12 +273,18 @@ const onTextOverlayConfirm = (payload: { text: string; link: string }) => {
 
 const setupTextListeners = (board: Board) => {
   board.graph.on('node:dblclick', ({ node }: any) => {
-    if (board.isTextNode(node) || board.isShapeNode(node)) {
+    if (
+      board.isTextNode(node) ||
+      board.isShapeNode(node) ||
+      isMindmapNode(node) ||
+      node.getData()?.type === 'mindmap-node'
+    ) {
       startInlineTextEdit(node)
     }
   })
 
   const onBlank = () => {
+    if (Date.now() - justPlacedTime < 300) return
     board.graph.cleanSelection()
     showTextOverlay.value = false
   }
@@ -299,6 +333,7 @@ const isCanvasToolOrWidget = (target: HTMLElement | SVGElement | null): boolean 
 }
 
 const onCanvasWrapperPointerDown = (e: PointerEvent) => {
+  if (Date.now() - justPlacedTime < 300) return
   const target = e.target as HTMLElement
   if (!target) return
 
@@ -402,6 +437,19 @@ const onAnchorClick = (payload: {
   showQuickConnect.value = true
 }
 
+const onAnchorDragStart = (payload: {
+  direction: 'top' | 'right' | 'bottom' | 'left'
+  point: any
+  event: PointerEvent
+}) => {
+  const node = selectedShapeNode.value
+  if (!node || !boardInstance.value) return
+  boardInstance.value.drawingController.startLineFromPort(node, payload.direction, {
+    clientX: payload.event.clientX,
+    clientY: payload.event.clientY,
+  })
+}
+
 const onQuickConnectClose = () => {
   showQuickConnect.value = false
   if (activeAnchorEdge.value) {
@@ -501,7 +549,7 @@ const mindmapShapeStyle = useCellAttributes<string>(
   () => boardInstance.value,
   (cell) => {
     const data = cell.getData() as any
-    return data?.shapeStyle || (data?.isRoot ? 'rect' : 'none')
+    return data?.shapeStyle || 'rect'
   },
   'rect'
 )
@@ -548,6 +596,7 @@ const setupSelectionListeners = (board: Board) => {
         if (!single) {
           ;(w as HTMLElement).style.display = 'none'
         } else {
+          ;(w as HTMLElement).style.display = ''
           const node = selectedNodes[0]
           const type = node.getData()?.type
           const noRotate =
@@ -564,6 +613,13 @@ const setupSelectionListeners = (board: Board) => {
         }
       })
     })
+  })
+
+  board.graph.on('node:edit:start', () => {
+    isInlineEditing.value = true
+  })
+  board.graph.on('node:edit:end', () => {
+    isInlineEditing.value = false
   })
 }
 
@@ -732,8 +788,9 @@ const onKeyDown = (e: KeyboardEvent) => {
     (activeEl.tagName === 'INPUT' ||
       activeEl.tagName === 'TEXTAREA' ||
       (activeEl as HTMLElement).isContentEditable)
+  const isEditingInCanvas = !!boardInstance.value?.container.querySelector('[contenteditable="true"]')
 
-  if (isTyping || showTextOverlay.value || pendingPlacement.value) {
+  if (isTyping || isEditingInCanvas || showTextOverlay.value || pendingPlacement.value) {
     return
   }
 

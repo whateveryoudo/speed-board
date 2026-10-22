@@ -7,6 +7,7 @@ import {
   type VirtualElement,
   type Placement,
 } from '@floating-ui/dom'
+export type { Placement }
 import type { Board, Cell } from '@speed-board/core'
 
 export interface BubbleMenuContext {

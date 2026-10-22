@@ -133,6 +133,7 @@ export class Board {
   public scrollerPlugin?: Scroller
   public selectionPlugin?: Selection
   public transformPlugin?: Transform
+  public justPlacedTime = 0
   public keyboardPlugin?: Keyboard
   public clipboardPlugin?: Clipboard
   public historyPlugin?: History
@@ -512,7 +513,17 @@ export class Board {
     })
 
     this.graph.on('node:selected', ({ node }) => {
-      // 只有普通矢量图形 (Shape) 节点才需要连接桩；文本、便签、思维导图、手绘路径绝不添加连接桩
+      const data = node.getData() as any
+      // 思维导图节点拥有自身用于分支连线的专用端口 (left/right)，绝对禁止移除或篡改其连接桩
+      if (
+        data?.type === 'mindmap-node' ||
+        node.shape === 'speed-mindmap-root' ||
+        node.shape === 'speed-mindmap-node'
+      ) {
+        return
+      }
+
+      // 只有普通矢量图形 (Shape) 节点才需要连接桩；文本、便签、手绘路径绝不添加连接桩
       if (!this.isShapeNode(node) || this.isTextNode(node)) {
         // 如果曾误加过连接桩，立即彻底移除
         const ports = node.getPorts()
@@ -533,8 +544,44 @@ export class Board {
       }
     })
 
-    this.graph.on('selection:changed', () => {
+    this.graph.on('selection:changed', ({ selected, removed }: any) => {
       this.syncSelectionBoxesTransform()
+      const selectedNodes = (selected || []).filter((c: any) => c && c.isNode && c.isNode())
+      const singleNode = selectedNodes.length === 1 ? selectedNodes[0] : null
+
+      // 单选图元时确保 Transform 变换框及手柄立即就绪；非单选或多选时清空
+      const tp = this.transformPlugin as any
+      if (tp) {
+        if (singleNode) {
+          const isFreehand = singleNode.shape === 'speed-freehand-path'
+          if (!isFreehand) {
+            if (!tp.widgets?.has(singleNode)) {
+              tp.createWidget(singleNode)
+            }
+          } else {
+            tp.clearWidgets()
+          }
+        } else {
+          tp.clearWidgets()
+        }
+      }
+
+      if (selected) {
+        selected.forEach((c: any) => {
+          if (c && c.isNode && c.isNode()) {
+            const v = this.graph.findViewByCell(c)
+            v?.container?.classList.add('x6-node-selected')
+          }
+        })
+      }
+      if (removed) {
+        removed.forEach((c: any) => {
+          if (c && c.isNode && c.isNode()) {
+            const v = this.graph.findViewByCell(c)
+            v?.container?.classList.remove('x6-node-selected')
+          }
+        })
+      }
     })
     this.graph.on('node:click', () => {
       this.syncSelectionBoxesTransform()

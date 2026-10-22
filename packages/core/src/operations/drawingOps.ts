@@ -219,14 +219,14 @@ export class DrawingController {
           ((portResult.isCenterPort && this.lineStartSnapped.port === portResult.port) ||
             (!portResult.isCenterPort && Math.hypot(curPt.x - this.lineStartPt.x, curPt.y - this.lineStartPt.y) < 16))
 
-        let targetPt = curPt
+        let targetPt: { x: number; y: number } = curPt
         if (portResult && !isSameAsStart) {
           if (portResult.isCenterPort && portResult.port) {
             this.lineEndSnapped = { cell: portResult.node.id, port: portResult.port }
           } else {
             this.lineEndSnapped = null
           }
-          targetPt = portResult.point
+          targetPt = portResult.point || portResult.localPoint
         } else {
           this.lineEndSnapped = null
         }

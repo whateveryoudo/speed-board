@@ -273,7 +273,7 @@ export function syncSelectionBoxesTransform(board: Board) {
       })
     }
 
-    // 同时同步 Transform 单选变换框的圆角，防止胶囊节点与矩形选框产生四角间隙
+    // 同时同步 Transform 单选变换框的圆角与边界尺寸，防止选框与节点产生四角间隙或缩放延迟
     const transformWidgets = board.container.querySelectorAll('.x6-widget-transform')
     transformWidgets.forEach((widget) => {
       const selectedCells = board.graph.getSelectedCells()
@@ -291,5 +291,16 @@ export function syncSelectionBoxesTransform(board: Board) {
         }
       }
     })
+
+    const tp = (board as any).transformPlugin
+    if (tp) {
+      const selected = board.graph.getSelectedCells()
+      if (selected.length === 1 && selected[0].isNode()) {
+        const node = selected[0]
+        if (tp.widgets?.has(node)) {
+          tp.widgets.get(node)?.update?.()
+        }
+      }
+    }
   })
 }

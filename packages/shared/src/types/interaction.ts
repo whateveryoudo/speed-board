@@ -13,11 +13,12 @@ export interface DrawConfig {
 export interface PortSnapResult {
   node: any
   isCenterPort: boolean
-  port?: PortDirection
+  port?: PortDirection | string
   edge: PortDirection
   offset: number
   delta?: number
   localPoint: Point
+  point?: Point
   screenPoint: ScreenPoint
   distance: number
 }

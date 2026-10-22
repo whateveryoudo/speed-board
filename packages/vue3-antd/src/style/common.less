@@ -90,11 +90,12 @@
   }
 
   // 多选状态下：彻底隐藏所有 Transform 变换框及手柄（避免多选时残留单个图元的缩放圆点与旋转手柄，1:1 对齐语雀）
-  &:not(.is-single-selected) .x6-widget-transform {
+  &.is-multiple-selected .x6-widget-transform {
     display: none !important;
   }
 
   .x6-widget-transform {
+    pointer-events: none !important;
     border: 1.5px solid var(--speed-board-selection, var(--ant-color-primary, #1677ff)) !important;
     border-radius: 0 !important;
     padding: 0 !important;
@@ -108,6 +109,7 @@
 
     // 四角缩放圆形手柄
     .x6-widget-transform-resize {
+      pointer-events: auto !important;
       width: 8px !important;
       height: 8px !important;
       border-radius: 50% !important;
@@ -240,7 +242,6 @@
     .x6-widget-transform {
       border: 1.5px solid #1677ff !important;
       border-radius: 6px !important;
-      transition: border-radius 0.12s ease;
 
       .x6-widget-transform-resize {
         display: none !important;
@@ -269,9 +270,13 @@
     }
   }
 
-  // 编辑态中：彻底隐藏思维导图与节点的 transform/selection 选框及手柄，杜绝与顶层编辑框产生双重边框与手柄重影错位
-  &.is-inline-editing {
-    .x6-widget-transform {
+  // 编辑态中：保留蓝色选中边框，仅隐藏缩放手柄与旋转手柄，确保输入文字过程中选中效果不丢失
+  &.is-inline-editing,
+  .is-text-editing {
+    .x6-widget-transform-resize {
+      display: none !important;
+    }
+    .x6-widget-transform-rotate {
       display: none !important;
     }
     .x6-widget-selection {
@@ -280,7 +285,7 @@
   }
 }
 
-// X6 原生连接桩 (Ports)：hover 或选中时展示呼吸圆圈，鼠标悬浮放大 (1:1 语雀白板原生交互)
+// X6 原生连接桩 (Ports)：白色圆圈指示点，hover 或选中时展示，鼠标悬浮放大并高亮 (1:1 语雀白板原生交互)
 .x6-port {
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -289,22 +294,26 @@
   circle {
     r: 4.5px;
     fill: #ffffff;
-    stroke: #3b82f6;
+    stroke: var(--speed-board-selection, var(--ant-color-primary, #1677ff));
     stroke-width: 1.5px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
     transition: all 0.15s ease;
+    transform-origin: center;
   }
 
   &:hover circle {
-    r: 6px;
-    stroke: #2563eb;
+    r: 6.5px;
+    stroke: #ffffff;
     stroke-width: 2px;
-    fill: #ffffff;
+    fill: var(--speed-board-selection, var(--ant-color-primary, #1677ff));
+    filter: drop-shadow(0 2px 6px rgba(22, 119, 255, 0.5));
   }
 }
 
 // 鼠标悬停到普通节点或单选时，原生显示连接桩
 .x6-node:not([data-shape^="speed-mindmap"]):hover .x6-port,
-.x6-node-selected:not([data-shape^="speed-mindmap"]) .x6-port {
+.x6-node-selected:not([data-shape^="speed-mindmap"]) .x6-port,
+.is-shape-selected .x6-node-selected .x6-port {
   opacity: 1;
 }
 
@@ -545,21 +554,6 @@
   }
 }
 
-// 原生 X6 连接桩 (Ports) 悬停与吸附动效 (1:1 语雀白板外观)
-.x6-port {
-  circle {
-    transition: transform 0.15s ease, r 0.15s ease, fill 0.15s ease;
-    transform-origin: center;
-
-    &:hover {
-      r: 5.5px !important;
-      fill: #2563eb !important;
-      stroke: #ffffff !important;
-      stroke-width: 1.5px !important;
-      cursor: crosshair;
-    }
-  }
-}
 
 // 鼠标跟随虚影放置图层样式
 .speed-placement-overlay {

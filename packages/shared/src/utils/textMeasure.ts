@@ -52,6 +52,6 @@ export function calculateMindmapNodeWidth(text: string, isRoot = false): number 
     return Math.max(90, textWidth + 32)
   }
 
-  // 分支节点：左边 refX=8 (8px)，文字右侧留 10px 间隙直接衔接子分支/加号，不再多余空置
-  return Math.max(48, textWidth + 18)
+  // 分支节点：文字左右各留 10px 呼吸间距，直接衔接子分支/加号，确保加号绝不遮挡文字
+  return Math.max(56, textWidth + 20)
 }

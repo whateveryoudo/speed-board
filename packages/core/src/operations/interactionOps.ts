@@ -84,6 +84,18 @@ export function initAllCanvasInteractions(board: Board): () => void {
         board.showNodePorts(prevSelectedShapeNode, false)
       }
       prevSelectedShapeNode = singleNode
+      if (singleNode) {
+        board.showNodePorts(singleNode, true)
+      }
+    } else if (singleNode) {
+      board.showNodePorts(singleNode, true)
+    }
+
+    if (singleNode) {
+      const transformPlugin = (board as any).transformPlugin
+      if (transformPlugin && !transformPlugin.widgets.has(singleNode)) {
+        transformPlugin.createWidget(singleNode)
+      }
     }
 
     const isMulti = (selected || []).length > 1
@@ -414,11 +426,7 @@ export function initAllCanvasInteractions(board: Board): () => void {
 
   // 4. 双击与键盘就地文本编辑
   const onNodeDblClick = ({ node }: any) => {
-    if (
-      board.isTextNode(node) ||
-      board.isShapeNode(node) ||
-      node.getData()?.type === 'mindmap-node'
-    ) {
+    if (board.isTextNode(node) || board.isShapeNode(node)) {
       activateNodeTextEdit(board, node)
     }
   }

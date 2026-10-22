@@ -32,7 +32,7 @@ export const SHAPE_GROUPS: ShapeGroup[] = [
         "name": "矩形",
         "group": "basic",
         "groupName": "基础图形",
-        "svgBody": "<path stroke-linecap=\"butt\" stroke-linejoin=\"round\" d=\"M8.4,8L23.6,8C23.8209139,8,24,8.1790861,24,8.4L24,23.6C24,23.8209139,23.8209139,24,23.6,24L8.4,24C8.1790861,24,8,23.8209139,8,23.6L8,8.4C8,8.1790861,8.1790861,8,8.4,8Z\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"></path>"
+        "svgBody": "<path stroke-linecap=\"butt\" stroke-linejoin=\"round\" d=\"M8,8L24,8L24,24L8,24Z\" transform=\"matrix(1, 0, 0, 1, 0, 0)\"></path>"
       },
       {
         "id": "rounded-rect",
@@ -775,7 +775,7 @@ export function getShapeTightViewBox(svgHtml: string, shapeId?: string): string 
       measurer.removeChild(g);
 
       if (bbox.width > 0 && bbox.height > 0) {
-        const pad = 0.5;
+        const pad = 0;
         const vx = Math.round((bbox.x - pad) * 10) / 10;
         const vy = Math.round((bbox.y - pad) * 10) / 10;
         const vw = Math.round((bbox.width + pad * 2) * 10) / 10;
@@ -806,7 +806,7 @@ export function getShapeTightViewBox(svgHtml: string, shapeId?: string): string 
       const w = maxX - minX;
       const h = maxY - minY;
       if (w > 0 && h > 0) {
-        const pad = 0.5;
+        const pad = 0;
         const vx = Math.round((minX - pad) * 10) / 10;
         const vy = Math.round((minY - pad) * 10) / 10;
         const vw = Math.round((w + pad * 2) * 10) / 10;

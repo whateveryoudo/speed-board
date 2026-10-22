@@ -93,8 +93,13 @@ export function showNodePorts(
       const circle = p.querySelector<SVGCircleElement>('circle')
       if (!circle) return
       if (!visible) {
-        circle.style.opacity = '0'
-        circle.style.pointerEvents = 'none'
+        circle.style.removeProperty('opacity')
+        circle.style.removeProperty('pointer-events')
+        circle.style.removeProperty('cursor')
+        circle.setAttribute('r', '4.5')
+        circle.setAttribute('fill', '#ffffff')
+        circle.setAttribute('stroke', '#1677ff')
+        circle.setAttribute('stroke-width', '1.5')
       } else {
         circle.style.opacity = '1'
         circle.style.pointerEvents = 'auto'
@@ -105,14 +110,14 @@ export function showNodePorts(
           circle.getAttribute('port') ||
           circle.getAttribute('data-port')
         if (activePortId && portId === activePortId) {
-          circle.setAttribute('r', '5')
-          circle.setAttribute('fill', '#2563eb')
-          circle.setAttribute('stroke', '#2563eb')
-          circle.setAttribute('stroke-width', '1')
+          circle.setAttribute('r', '6.5')
+          circle.setAttribute('fill', '#1677ff')
+          circle.setAttribute('stroke', '#ffffff')
+          circle.setAttribute('stroke-width', '2')
         } else {
-          circle.setAttribute('r', '4')
+          circle.setAttribute('r', '4.5')
           circle.setAttribute('fill', '#ffffff')
-          circle.setAttribute('stroke', '#3b82f6')
+          circle.setAttribute('stroke', '#1677ff')
           circle.setAttribute('stroke-width', '1.5')
         }
       }

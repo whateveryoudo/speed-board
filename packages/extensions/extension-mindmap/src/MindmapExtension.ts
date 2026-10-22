@@ -69,7 +69,15 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
         board.graph.on('node:resized', ({ node }) => {
           resizingInitialY = null
           if (isMindmapNode(node)) {
-            updateMindmapLayout(board, node.id)
+            const size = node.size()
+            const data = (node.getData() || {}) as any
+            node.setData({
+              ...data,
+              manualSize: { width: size.width, height: size.height },
+            })
+            node.setAttrByPath('textWrap/style/whiteSpace', 'pre-wrap')
+            node.setAttrByPath('textWrap/style/wordBreak', 'break-all')
+            updateMindmapLayout(board, data.mindmapId || node.id)
           }
         })
 
@@ -110,7 +118,7 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
         })
 
         // 选区变化时正向同步脑图节点选中状态样式与手柄 HTML
-        board.graph.on('selection:changed', ({ selected, unselected }) => {
+        board.graph.on('selection:changed', ({ selected, removed }: any) => {
           if (selected) {
             for (const cell of selected) {
               if (cell.isNode() && isMindmapNode(cell)) {
@@ -122,8 +130,8 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
               }
             }
           }
-          if (unselected) {
-            for (const cell of unselected) {
+          if (removed) {
+            for (const cell of removed) {
               if (cell.isNode() && isMindmapNode(cell)) {
                 const view = board.graph.findViewByCell(cell)
                 if (view?.container) {
@@ -139,6 +147,17 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
         this.dragController?.destroy()
       },
       addCommands: (ctx) => ({
+        activateMindmapNodeTextEdit: (node?: any, initialChar?: string) => () => {
+          if (node) {
+            activateMindmapNodeTextEdit(ctx.board, node, initialChar)
+          } else {
+            const selected = ctx.board.graph.getSelectedCells().find((c) => isMindmapNode(c))
+            if (selected) {
+              activateMindmapNodeTextEdit(ctx.board, selected as any, initialChar)
+            }
+          }
+          return true
+        },
         insertMindmap: (options: any) => () => {
           insertMindmap(ctx.board, options)
           return true

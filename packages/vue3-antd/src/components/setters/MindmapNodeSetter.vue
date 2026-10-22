@@ -89,6 +89,13 @@
         @change="onStrokeWidthChange"
       />
     </div>
+
+    <!-- 4. 手动设置节点尺寸 -->
+    <div class="setter-row">
+      <a-checkbox :checked="isManualSize" @change="onManualSizeChange">
+        手动设置节点尺寸
+      </a-checkbox>
+    </div>
   </div>
 </template>
 
@@ -102,7 +109,7 @@ import {
   Checkbox as ACheckbox,
 } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
-import { PRESET_COLORS, type MindmapShapeStyle } from '@speed-board/shared'
+import { PRESET_COLORS, calculateMindmapNodeWidth, type MindmapShapeStyle } from '@speed-board/shared'
 
 const props = defineProps<{
   board: Board | null
@@ -151,7 +158,9 @@ const strokePreviewStyle = computed<Record<string, string>>(() => {
   return style
 })
 
-const isManualSize = ref(false)
+const isManualSize = computed(() => {
+  return !!cellData.value?.manualSize
+})
 
 const onShapeStyleChange = (style: MindmapShapeStyle) => {
   if (!selectedCell.value || !props.board) return
@@ -227,7 +236,38 @@ const onStrokeWidthChange = (val: any) => {
 }
 
 const onManualSizeChange = (e: any) => {
-  isManualSize.value = e.target.checked
+  if (!selectedCell.value || !props.board) return
+  const checked = e.target.checked
+  const node = selectedCell.value as any
+  const data = (node.getData() || {}) as any
+  const currentSize = node.size?.() || { width: 120, height: 32 }
+
+  if (checked) {
+    node.setData({
+      ...data,
+      manualSize: { width: currentSize.width, height: currentSize.height },
+    })
+    node.setAttrByPath?.('textWrap/style/whiteSpace', 'pre-wrap')
+    node.setAttrByPath?.('textWrap/style/wordBreak', 'break-all')
+  } else {
+    node.setData({
+      ...data,
+      manualSize: false,
+    })
+    node.setAttrByPath?.('textWrap/style/whiteSpace', 'pre')
+    node.setAttrByPath?.('textWrap/style/wordBreak', 'normal')
+
+    const isRoot = !!data.isRoot
+    const rawText = data.text || (isRoot ? '思维导图' : '分支主题')
+    const calcW = calculateMindmapNodeWidth(rawText, isRoot)
+    const lines = rawText.split('\n')
+    const baseHeight = isRoot ? 42 : 32
+    const lineH = (isRoot ? 16 : 14) * 1.45
+    const targetHeight = lines.length > 1 ? Math.round(lines.length * lineH + 14) : baseHeight
+    node.setSize?.(calcW, targetHeight)
+  }
+
+  ;(props.board as any).commands?.updateMindmapLayout?.(data.mindmapId || node.id)
 }
 </script>
 

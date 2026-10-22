@@ -79,17 +79,16 @@ export function registerMindmapNodes(): void {
           stroke: 'none',
         },
         textFo: {
-          x: 12,
+          x: 0,
           y: 0,
           refWidth: '100%',
-          refWidth2: -24,
           refHeight: '100%',
           style: {
             overflow: 'visible',
           },
         },
         textWrap: {
-          class: 'mindmap-node-text selection-transparent',
+          class: 'mindmap-node-text',
           contenteditable: 'false',
           spellcheck: 'false',
           style: {
@@ -110,7 +109,7 @@ export function registerMindmapNodes(): void {
             lineHeight: '1.4',
             textAlign: 'center',
             margin: '0px',
-            padding: '0px',
+            padding: '0px 16px',
             boxSizing: 'border-box',
           },
           html: '思维导图',
@@ -232,9 +231,13 @@ export function registerMindmapNodes(): void {
           pointerEvents: 'none',
         },
         body: {
-          fill: 'transparent',
-          stroke: 'transparent',
-          strokeWidth: 0,
+          refWidth: '100%',
+          refHeight: '100%',
+          rx: 6,
+          ry: 6,
+          fill: '#ffffff',
+          stroke: '#8b5cf6',
+          strokeWidth: 1.5,
           cursor: 'pointer',
         },
         underline: {
@@ -249,17 +252,16 @@ export function registerMindmapNodes(): void {
           stroke: 'none',
         },
         textFo: {
-          x: 8,
+          x: 0,
           y: 0,
           refWidth: '100%',
-          refWidth2: -16,
           refHeight: '100%',
           style: {
             overflow: 'visible',
           },
         },
         textWrap: {
-          class: 'mindmap-node-text selection-transparent',
+          class: 'mindmap-node-text',
           contenteditable: 'false',
           spellcheck: 'false',
           style: {
@@ -267,7 +269,7 @@ export function registerMindmapNodes(): void {
             height: '100%',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'flex-start',
+            justifyContent: 'center',
             fontSize: '14px',
             color: '#1f2937',
             fontFamily:
@@ -277,9 +279,9 @@ export function registerMindmapNodes(): void {
             userSelect: 'none',
             cursor: 'default',
             lineHeight: '1.4',
-            textAlign: 'left',
+            textAlign: 'center',
             margin: '0px',
-            padding: '0px 0px 4px 8px',
+            padding: '0px 12px',
             boxSizing: 'border-box',
           },
           html: '分支主题',
@@ -317,7 +319,7 @@ export function registerMindmapNodes(): void {
           left: {
             position: {
               name: 'left',
-              args: { dy: 13 },
+              args: { dy: 0 },
             },
             attrs: {
               circle: {
@@ -330,7 +332,7 @@ export function registerMindmapNodes(): void {
           right: {
             position: {
               name: 'right',
-              args: { dy: 13 },
+              args: { dy: 0 },
             },
             attrs: {
               circle: {

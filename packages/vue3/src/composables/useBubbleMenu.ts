@@ -14,8 +14,7 @@ import {
   type BubbleMenuViewOptions,
   type Placement,
 } from '@speed-board/view'
-import type { Board } from '@speed-board/core'
-import type { Cell } from '@antv/x6'
+import type { Board, Cell } from '@speed-board/core'
 
 export type { BubbleMenuContext, Placement }
 
