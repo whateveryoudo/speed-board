@@ -275,22 +275,9 @@ export function syncSelectionBoxesTransform(board: Board) {
 
     // 同时同步 Transform 单选变换框的圆角，防止胶囊节点与矩形选框产生四角间隙
     const transformWidgets = board.container.querySelectorAll('.x6-widget-transform')
-    const selectedCells = board.graph.getSelectedCells()
-    const single = selectedCells.length === 1 && selectedCells[0].isNode()
-    const isRegularShape = single && board.isShapeNode(selectedCells[0]) && !board.isTextNode(selectedCells[0])
-
-    // 非普通矢量图形（文本、思维导图、多选或未选中）一律彻底隐藏旋转黑圈手柄
-    const rotateHandles = board.container.querySelectorAll('.x6-widget-transform-rotate')
-    rotateHandles.forEach((handle) => {
-      if (!isRegularShape) {
-        ;(handle as HTMLElement).style.setProperty('display', 'none', 'important')
-        ;(handle as HTMLElement).style.setProperty('visibility', 'hidden', 'important')
-        ;(handle as HTMLElement).style.setProperty('opacity', '0', 'important')
-      }
-    })
-
     transformWidgets.forEach((widget) => {
-      if (single) {
+      const selectedCells = board.graph.getSelectedCells()
+      if (selectedCells.length === 1 && selectedCells[0].isNode()) {
         const cell = selectedCells[0]
         const data = (cell.getData() || {}) as any
         if (data?.type === 'mindmap-node') {

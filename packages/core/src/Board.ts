@@ -263,11 +263,13 @@ export class Board {
           if (!cell) return true
           const data = cell.getData?.()
           const shape = cell.shape
-          // 思维导图节点只支持被外部连线吸附接入，绝不允许作为起点主动拉线
+          // 思维导图与纯文本节点不支持作为连接起点主动拉线
           if (
             data?.type === 'mindmap-node' ||
+            data?.type === 'text' ||
             shape === 'speed-mindmap-root' ||
-            shape === 'speed-mindmap-node'
+            shape === 'speed-mindmap-node' ||
+            shape === 'speed-text-node'
           ) {
             return false
           }

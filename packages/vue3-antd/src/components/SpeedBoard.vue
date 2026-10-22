@@ -224,16 +224,6 @@ const startInlineTextEdit = (node: any, initialChar?: string) => {
   activeInlineNode.value = node
   inlineInitialChar.value = initialChar || ''
   isInlineEditing.value = true
-
-  nextTick(() => {
-    const widgets = boardInstance.value?.container.querySelectorAll(
-      '.x6-widget-transform, .x6-widget-transform-rotate'
-    )
-    widgets?.forEach((w) => {
-      ;(w as HTMLElement).style.setProperty('display', 'none', 'important')
-      ;(w as HTMLElement).style.setProperty('visibility', 'hidden', 'important')
-    })
-  })
 }
 
 const onInlineEditorClose = () => {
@@ -624,10 +614,6 @@ const setupSelectionListeners = (board: Board) => {
             node.shape === 'speed-text-node' ||
             node.shape === 'speed-freehand-path'
           w.classList.toggle('no-rotate', noRotate)
-          const rotateHandle = w.querySelector('.x6-widget-transform-rotate') as HTMLElement
-          if (rotateHandle) {
-            rotateHandle.style.display = noRotate ? 'none' : 'block'
-          }
         }
       })
     })
