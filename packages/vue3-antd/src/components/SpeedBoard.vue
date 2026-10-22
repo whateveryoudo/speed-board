@@ -164,7 +164,11 @@ const canvasWrapperRef = ref<HTMLDivElement | null>(null)
 const startInlineTextEdit = (node: any, initialChar?: string) => {
   if (!boardInstance.value || !node) return
   showTextOverlay.value = false
-  boardInstance.value.activateNodeTextEdit(node, initialChar)
+  if (node.getData()?.type === 'mindmap-node' || isMindmapNode(node)) {
+    activateMindmapNodeTextEdit(boardInstance.value, node, initialChar)
+  } else {
+    activateNodeTextEdit(boardInstance.value, node, initialChar)
+  }
 }
 
 // 链接专用 Overlay 面板状态

@@ -842,6 +842,10 @@ export class Board {
     activateNodeTextEdit(this, target, initialChar)
   }
 
+  public activateNodeTextEdit(node?: any, initialChar?: string) {
+    return this.activateTextEdit(node, initialChar)
+  }
+
   // 4. 连接与连线
   public showNodePorts(node: Node | string | null, visible: boolean, activePortId?: string, highlightBody?: boolean) {
     return showNodePorts(this, node, visible, activePortId, highlightBody)
