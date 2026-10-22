@@ -332,17 +332,8 @@ export function activateNodeTextEdit(
   }
 
   const onInput = () => {
-    const rawText = textEl.innerText
-    if (node.shape === 'speed-text-node') {
-      const fs = node.getData()?.fontSize || 14
-      const font = `${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
-      const lines = (rawText || '文本').split('\n')
-      const maxLine = lines.reduce((max, line) => (line.length > max.length ? line : max), '')
-      const measuredW = measureTextWidth(maxLine, font)
-      const newW = Math.max(64, Math.round(measuredW + 24))
-      const newH = Math.max(32, lines.length * Math.round(fs * 1.5))
-      node.resize(newW, newH)
-    }
+    // 打字过程中只让 DOM 文本自然流动，不触发 X6 node.resize() 以免重绘导致 contenteditable 元素失焦 (blur)
+    // 待 commitEdit (回车/失焦) 时再同步将计算尺寸提交到 X6 节点
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
