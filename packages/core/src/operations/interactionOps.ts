@@ -84,6 +84,11 @@ export function initAllCanvasInteractions(board: Board): () => void {
         board.showNodePorts(prevSelectedShapeNode, false)
       }
       prevSelectedShapeNode = singleNode
+      if (singleNode) {
+        board.showNodePorts(singleNode, true)
+      }
+    } else if (singleNode) {
+      board.showNodePorts(singleNode, true)
     }
 
     const isMulti = (selected || []).length > 1
@@ -347,6 +352,69 @@ export function initAllCanvasInteractions(board: Board): () => void {
     board.graph.off('batch:stop', onBatchStop)
     window.removeEventListener('pointermove', onArrowheadPointerMove)
     window.removeEventListener('pointerup', onArrowheadDragStop)
+  })
+
+  // 3. 点击连接桩弹出快捷连线面板与从连接桩拖拽拉线
+  let portDownInfo: { node: any; port: string; clientX: number; clientY: number } | null = null
+  let isPortDragging = false
+
+  const onPortPointerDown = ({ node, port, e }: any) => {
+    if (board.isShapeNode(node)) {
+      portDownInfo = {
+        node,
+        port: typeof port === 'string' ? port.replace(/^port-/, '') : port,
+        clientX: e.clientX,
+        clientY: e.clientY,
+      }
+      isPortDragging = false
+    }
+  }
+
+  const onPortGlobalPointerMove = (e: PointerEvent) => {
+    if (!portDownInfo) return
+    if (!isPortDragging) {
+      const dx = Math.abs(e.clientX - portDownInfo.clientX)
+      const dy = Math.abs(e.clientY - portDownInfo.clientY)
+      if (dx > 3 || dy > 3) {
+        isPortDragging = true
+        board.drawingController.startLineFromPort(
+          portDownInfo.node,
+          portDownInfo.port,
+          { clientX: e.clientX, clientY: e.clientY }
+        )
+      }
+    }
+  }
+
+  const onPortGlobalPointerUp = () => {
+    portDownInfo = null
+    setTimeout(() => {
+      isPortDragging = false
+    }, 50)
+  }
+
+  const onPortClick = ({ node, port, e }: any) => {
+    if (isPortDragging) return
+    if (board.isShapeNode(node)) {
+      e?.stopPropagation()
+      board.onPortQuickConnect?.({
+        node,
+        port: typeof port === 'string' ? port.replace(/^port-/, '') : port,
+        clientPos: { x: e.clientX, y: e.clientY },
+      })
+    }
+  }
+
+  board.graph.on('node:port:pointerdown', onPortPointerDown)
+  board.graph.on('node:port:click', onPortClick)
+  window.addEventListener('pointermove', onPortGlobalPointerMove)
+  window.addEventListener('pointerup', onPortGlobalPointerUp)
+
+  cleanupFns.push(() => {
+    board.graph.off('node:port:pointerdown', onPortPointerDown)
+    board.graph.off('node:port:click', onPortClick)
+    window.removeEventListener('pointermove', onPortGlobalPointerMove)
+    window.removeEventListener('pointerup', onPortGlobalPointerUp)
   })
 
   // 4. 双击与键盘就地文本编辑

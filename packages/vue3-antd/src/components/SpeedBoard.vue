@@ -11,7 +11,6 @@
       'is-mindmap-rect': isMindmapRect,
       'is-mindmap-root': isMindmapRoot,
       'is-mindmap-none': isMindmapNone,
-      'is-inline-editing': isInlineEditing,
     }"
   >
     <!-- 顶部状态栏与悬浮控制组 (左上历史撤销 + 右上视口控制与折叠按钮) -->
@@ -56,11 +55,10 @@
 
       <!-- 画布图元浮动快捷工具栏 (1:1 语雀白板 Bubble Toolbar) -->
       <FloatingToolbarHost
-        v-show="!isTyping && !pendingPlacement && !isLineDragging && !isDragging && drawConfig.mode === 'select'"
         ref="floatingToolbarRef"
         :board="boardInstance"
         :container-el="canvasWrapperRef"
-        :is-typing="isTyping"
+        :visible="!pendingPlacement && !isDragging && drawConfig.mode === 'select'"
         @open-panel="showSettingsPanel = true"
         @open-link-overlay="onOpenLinkOverlay"
       />
@@ -76,28 +74,6 @@
         @confirm="onTextOverlayConfirm"
       />
 
-      <!-- 语雀白板 1:1 文本选框内就地输入编辑器 (双击文本图元就地打字输入) -->
-      <InlineTextEditor
-        ref="inlineEditorRef"
-        v-model:visible="isInlineEditing"
-        v-model:active-node="activeInlineNode"
-        :initial-char="inlineInitialChar"
-        :board="boardInstance"
-        :canvas-wrapper="canvasWrapperRef"
-        @close="onInlineEditorClose"
-        @typing="isTyping = $event"
-      />
-
-      <!-- 4 个连接桩点（Ports）与快捷连接延伸手柄 (1:1 语雀白板交互) -->
-      <ShapeAnchorPorts
-        :board="boardInstance"
-        :selected-node="selectedShapeNode"
-        :canvas-wrapper="canvasWrapperRef"
-        :visible="drawConfig.mode === 'select' && !isInlineEditing && !isLineDragging && !pendingPlacement && !isDragging"
-        @anchor-click="onAnchorClick"
-        @anchor-drag-start="onAnchorDragStart"
-      />
-
       <!-- 锚点快捷生成与自动补线 Popover (1:1 语雀白板快捷面板) -->
       <QuickShapeConnectPopover
         :visible="showQuickConnect"
@@ -105,30 +81,6 @@
         :y="quickConnectPos.y"
         @select="onQuickConnectShapeSelect"
         @close="onQuickConnectClose"
-      />
-
-      <!-- 思维导图分支延伸手柄与加号按钮 (1:1 语雀白板交互) -->
-      <MindmapBranchHandle
-        :board="boardInstance"
-        :selected-node="selectedMindmapNode"
-        :canvas-wrapper="canvasWrapperRef"
-        :visible="drawConfig.mode === 'select' && !isInlineEditing && !isLineDragging && !pendingPlacement && !isDragging"
-      />
-
-      <!-- 手绘与矢量交互覆盖层 (画笔/矢量钢笔/连线激活时在顶层捕获并实时渲染) -->
-      <DrawingOverlay
-        ref="drawingOverlayRef"
-        :board="boardInstance"
-        :draw-config="drawConfig"
-        :vector-fill-color="vectorFillColor"
-        :vector-stroke-color="vectorStrokeColor"
-        :vector-stroke-width="vectorStrokeWidth"
-        :vector-stroke-dash="vectorStrokeDash"
-        :vector-opacity="vectorOpacity"
-        @update:mode="drawConfig.mode = $event"
-        @is-line-dragging-change="isLineDragging = $event"
-        @finish-vector="showSettingsPanel = true"
-        @line-finished-on-blank="onLineFinishedOnBlank"
       />
 
       <!-- 语雀白板 1:1 鼠标跟随放置预览图层 (Ghost Placement Overlay) -->
@@ -147,23 +99,23 @@
 import { ref, shallowRef, computed, nextTick, onMounted, watch, onUnmounted } from 'vue'
 import {
   BoardCanvas,
-  DrawingOverlay,
-  InlineTextEditor,
-  ShapeAnchorPorts,
   PlacementOverlay,
   type BoardOptions,
   type DrawConfig,
 } from '@speed-board/vue3'
-import { Board } from '@speed-board/core'
+import { Board, activateNodeTextEdit } from '@speed-board/core'
 import { useAntdCssVars } from 'speed-components-ui/hooks'
 import LeftToolbar, { type PendingPlacementItem, type BoardUploadConfig } from './LeftToolbar.vue'
 import TopToolbar from './TopToolbar.vue'
 import StyleSettingsPanel from './StyleSettingsPanel.vue'
 import TextOverlayEditor from './TextOverlayEditor.vue'
 import FloatingToolbarHost from './floatingToolbar/FloatingToolbarHost.vue'
-import MindmapBranchHandle from './MindmapBranchHandle.vue'
 import QuickShapeConnectPopover from './QuickShapeConnectPopover.vue'
-import { MindmapExtension, isMindmapNode } from '@speed-board/extension-mindmap'
+import {
+  MindmapExtension,
+  isMindmapNode,
+  activateMindmapNodeTextEdit,
+} from '@speed-board/extension-mindmap'
 import { useCellAttributes } from '../composables/useCellAttributes'
 import type { IconProvider } from '../data/defaultIcons'
 import type { ShapeDefinition } from '../data/shapeLibrary'
@@ -208,29 +160,11 @@ const { cleanup: cleanupAntdCssVars } = useAntdCssVars()
 const boardInstance = shallowRef<Board | null>(null)
 const canvasWrapperRef = ref<HTMLDivElement | null>(null)
 
-// 就地文本编辑状态 (InlineTextEditor)
-const inlineEditorRef = ref<any>(null)
-const isInlineEditing = ref(false)
-const activeInlineNode = shallowRef<any>(null)
-const inlineInitialChar = ref('')
-const isTyping = ref(false)
-const isLineDragging = ref(false)
-const drawingOverlayRef = ref<any>(null)
-
-// 触发就地文字编辑
+// 触发就地文字编辑 (1:1 语雀 In-Canvas contenteditable，0 外部遮罩，0 像素抖动)
 const startInlineTextEdit = (node: any, initialChar?: string) => {
   if (!boardInstance.value || !node) return
   showTextOverlay.value = false
-  activeInlineNode.value = node
-  inlineInitialChar.value = initialChar || ''
-  isInlineEditing.value = true
-}
-
-const onInlineEditorClose = () => {
-  isInlineEditing.value = false
-  activeInlineNode.value = null
-  inlineInitialChar.value = ''
-  isTyping.value = false
+  boardInstance.value.activateNodeTextEdit(node, initialChar)
 }
 
 // 链接专用 Overlay 面板状态
@@ -313,9 +247,6 @@ const setupTextListeners = (board: Board) => {
   })
 
   const onBlank = () => {
-    if (isInlineEditing.value) {
-      inlineEditorRef.value?.finish()
-    }
     board.graph.cleanSelection()
     showTextOverlay.value = false
   }
@@ -324,9 +255,6 @@ const setupTextListeners = (board: Board) => {
   board.graph.on('blank:click', onBlank)
 
   board.graph.on('node:click', ({ node }: any) => {
-    if (isInlineEditing.value && node !== activeInlineNode.value) {
-      inlineEditorRef.value?.finish()
-    }
     if (showTextOverlay.value && node !== activeLinkNode.value) {
       showTextOverlay.value = false
     }
@@ -348,7 +276,6 @@ const isCanvasToolOrWidget = (target: HTMLElement | SVGElement | null): boolean 
   return !!(
     target.closest('.floating-bubble-toolbar') ||
     target.closest('.style-settings-panel') ||
-    target.closest('.speed-inline-text-editor') ||
     target.closest('.ant-popover') ||
     target.closest('.ant-dropdown') ||
     target.closest('.ant-modal') ||
@@ -380,9 +307,6 @@ const onCanvasWrapperPointerDown = (e: PointerEvent) => {
     !target.closest('.x6-node') &&
     !target.closest('.x6-edge')
   ) {
-    if (isInlineEditing.value) {
-      inlineEditorRef.value?.finish()
-    }
     boardInstance.value?.drawingController.clearVectorPreview()
     boardInstance.value?.graph.cleanSelection()
     showTextOverlay.value = false
@@ -408,14 +332,16 @@ const quickConnectDirection = ref<'top' | 'right' | 'bottom' | 'left'>('right')
 const activeAnchorEdge = shallowRef<any>(null)
 
 const onAnchorClick = (payload: {
+  node?: any
   direction: 'top' | 'right' | 'bottom' | 'left'
-  point: { x: number; y: number }
+  point?: { x: number; y: number }
+  clientPos?: { x: number; y: number }
 }) => {
-  const { direction, point } = payload
+  const { direction, point, clientPos } = payload
   quickConnectDirection.value = direction
-  if (!selectedShapeNode.value || !boardInstance.value) return
+  const sourceNode = payload.node || selectedShapeNode.value
+  if (!sourceNode || !boardInstance.value) return
 
-  const sourceNode = selectedShapeNode.value
   const sourcePos = sourceNode.position()
   const sourceSize = sourceNode.size()
 
@@ -441,34 +367,35 @@ const onAnchorClick = (payload: {
   activeAnchorEdge.value = edge
 
   // 2. 计算快捷连接选择器弹窗坐标（放置在延伸线终点附近）
-  let posX = point.x
-  let posY = point.y
-  if (direction === 'right') posX += 110
-  else if (direction === 'left') posX -= 260
-  else if (direction === 'bottom') posY += 90
-  else if (direction === 'top') posY -= 220
+  let posX = 0
+  let posY = 0
+  if (point) {
+    posX = point.x
+    posY = point.y
+    if (direction === 'right') posX += 110
+    else if (direction === 'left') posX -= 260
+    else if (direction === 'bottom') posY += 90
+    else if (direction === 'top') posY -= 220
+  } else if (clientPos && canvasWrapperRef.value) {
+    const wrapperRect = canvasWrapperRef.value.getBoundingClientRect()
+    posX = clientPos.x - wrapperRect.left
+    posY = clientPos.y - wrapperRect.top
+    if (direction === 'right') posX += 120
+    else if (direction === 'left') posX -= 260
+    else if (direction === 'bottom') posY += 100
+    else if (direction === 'top') posY -= 220
+  } else if (canvasWrapperRef.value) {
+    const graphClientPt = boardInstance.value.graph.localToClient(targetGraphPt.x, targetGraphPt.y)
+    const wrapperRect = canvasWrapperRef.value.getBoundingClientRect()
+    posX = graphClientPt.x - wrapperRect.left + 10
+    posY = graphClientPt.y - wrapperRect.top + 10
+  }
 
   quickConnectPos.value = {
     x: Math.max(10, posX),
     y: Math.max(10, posY),
   }
   showQuickConnect.value = true
-}
-
-const onAnchorDragStart = (payload: {
-  direction: 'top' | 'right' | 'bottom' | 'left'
-  point: any
-  event: PointerEvent
-}) => {
-  if (!selectedShapeNode.value) return
-  showQuickConnect.value = false
-  quickConnectDirection.value = payload.direction
-  drawingOverlayRef.value?.startLineFromAnchor(
-    selectedShapeNode.value,
-    payload.direction,
-    payload.point,
-    payload.event
-  )
 }
 
 const onQuickConnectClose = () => {
@@ -644,6 +571,18 @@ const onBoardCreated = (board: Board) => {
   }
   board.drawingController.onFinishVector = () => {
     showSettingsPanel.value = true
+  }
+  board.drawingController.onLineFinishedOnBlank = (payload: any) => {
+    onLineFinishedOnBlank(payload)
+  }
+  board.onPortQuickConnect = (payload: any) => {
+    const { node, port, clientPos } = payload
+    const dir = (port ? String(port).replace(/^port-/, '') : 'right') as 'top' | 'right' | 'bottom' | 'left'
+    onAnchorClick({
+      node,
+      direction: dir,
+      clientPos,
+    })
   }
 
   board.graph.on('node:start-edit', ({ node, initialChar }: { node: any; initialChar?: string }) => {

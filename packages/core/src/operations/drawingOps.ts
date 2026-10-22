@@ -1,5 +1,6 @@
 import type { Node } from '@antv/x6'
 import type { Board, DrawingMode, DrawingOptions } from '../Board'
+import { findClosestPort } from './portSnapping'
 
 export class DrawingController {
   private board: Board
@@ -14,7 +15,16 @@ export class DrawingController {
   // 连线绘制相关
   public lineType: 'elbow' | 'straight' | 'curve' = 'straight'
   public lineStartPt: { x: number; y: number } | null = null
+  public lineStartSnapped: { cell: string; port?: string } | null = null
+  public lineEndSnapped: { cell: string; port?: string } | null = null
   public tempLinePath: SVGPathElement | null = null
+  public hoveredPortNode: any = null
+  public onLineFinishedOnBlank?: (payload: {
+    edge: any
+    clientPos: { x: number; y: number }
+    sourceNodeId?: string
+    sourcePort?: string
+  }) => void
 
   // 矢量钢笔多边形绘制相关
   public vectorPoints: { x: number; y: number }[] = []
@@ -48,6 +58,33 @@ export class DrawingController {
     )
   }
 
+  public ensureLineMarker() {
+    const stage = this.getStage()
+    if (!stage) return
+    const svg = (stage.ownerSVGElement || (stage.tagName.toLowerCase() === 'svg' ? stage : stage.closest('svg'))) as SVGSVGElement | null
+    if (!svg) return
+    let defs = svg.querySelector('defs')
+    if (!defs) {
+      defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
+      svg.insertBefore(defs, svg.firstChild)
+    }
+    if (!defs.querySelector('#speed-core-line-arrow')) {
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker')
+      marker.setAttribute('id', 'speed-core-line-arrow')
+      marker.setAttribute('viewBox', '0 0 10 10')
+      marker.setAttribute('refX', '9')
+      marker.setAttribute('refY', '5')
+      marker.setAttribute('markerWidth', '9')
+      marker.setAttribute('markerHeight', '6')
+      marker.setAttribute('orient', 'auto-start-reverse')
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+      path.setAttribute('d', 'M 0 2 L 9 5 L 0 8 Z')
+      path.setAttribute('fill', '#374151')
+      marker.appendChild(path)
+      defs.appendChild(marker)
+    }
+  }
+
   private initDrawingEvents() {
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return
@@ -64,7 +101,14 @@ export class DrawingController {
         e.preventDefault()
         e.stopPropagation()
         this.isDrawing = true
+        this.ensureLineMarker()
         this.lineStartPt = this.board.graph.clientToLocal(e.clientX, e.clientY)
+        const startPort = findClosestPort(this.board, this.lineStartPt, 22)
+        if (startPort && startPort.isCenterPort && startPort.port) {
+          this.lineStartSnapped = { cell: startPort.node.id, port: startPort.port }
+        } else {
+          this.lineStartSnapped = null
+        }
 
         if (!this.tempLinePath) {
           this.tempLinePath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
@@ -74,7 +118,9 @@ export class DrawingController {
         this.tempLinePath.setAttribute('stroke-width', String(this.drawWidth || 2))
         this.tempLinePath.setAttribute('stroke-linecap', 'round')
         this.tempLinePath.setAttribute('stroke-linejoin', 'round')
+        this.tempLinePath.setAttribute('stroke-dasharray', '4,4')
         this.tempLinePath.setAttribute('fill', 'none')
+        this.tempLinePath.setAttribute('marker-end', 'url(#speed-core-line-arrow)')
         this.tempLinePath.setAttribute(
           'd',
           `M ${this.lineStartPt.x.toFixed(1)} ${this.lineStartPt.y.toFixed(1)} L ${this.lineStartPt.x.toFixed(1)} ${this.lineStartPt.y.toFixed(1)}`
@@ -149,8 +195,44 @@ export class DrawingController {
       if (this.drawingMode === 'line') {
         if (!this.isDrawing || !this.lineStartPt || !this.tempLinePath) return
         const curPt = this.board.graph.clientToLocal(e.clientX, e.clientY)
+        const portResult = findClosestPort(this.board, curPt, 22)
+        const contactNode = portResult ? portResult.node : null
+        const activePortId = portResult?.isCenterPort ? portResult.port : undefined
+
+        if (contactNode !== this.hoveredPortNode) {
+          const keepStartCellId = this.lineStartSnapped ? this.lineStartSnapped.cell : null
+          if (this.hoveredPortNode && this.hoveredPortNode.id !== keepStartCellId) {
+            this.board.showNodePorts(this.hoveredPortNode, false)
+          }
+          if (contactNode) {
+            this.board.showNodePorts(contactNode, true, activePortId)
+          }
+          this.hoveredPortNode = contactNode
+        } else if (contactNode) {
+          this.board.showNodePorts(contactNode, true, activePortId)
+        }
+
+        const isSameAsStart =
+          portResult &&
+          this.lineStartSnapped &&
+          this.lineStartSnapped.cell === portResult.node.id &&
+          ((portResult.isCenterPort && this.lineStartSnapped.port === portResult.port) ||
+            (!portResult.isCenterPort && Math.hypot(curPt.x - this.lineStartPt.x, curPt.y - this.lineStartPt.y) < 16))
+
+        let targetPt = curPt
+        if (portResult && !isSameAsStart) {
+          if (portResult.isCenterPort && portResult.port) {
+            this.lineEndSnapped = { cell: portResult.node.id, port: portResult.port }
+          } else {
+            this.lineEndSnapped = null
+          }
+          targetPt = portResult.point
+        } else {
+          this.lineEndSnapped = null
+        }
+
         const p1 = this.lineStartPt
-        const p2 = curPt
+        const p2 = targetPt
         let d = ''
         if (this.lineType === 'elbow') {
           const midX = (p1.x + p2.x) / 2
@@ -216,15 +298,30 @@ export class DrawingController {
         const curPt = this.board.graph.clientToLocal(e.clientX, e.clientY)
         const dist = Math.hypot(curPt.x - this.lineStartPt.x, curPt.y - this.lineStartPt.y)
         if (dist > 10) {
-          this.board.addLine({
+          const finalStart: any = this.lineStartSnapped || this.lineStartPt
+          const finalEnd: any = this.lineEndSnapped || curPt
+          const edge = this.board.addLine({
             type: this.lineType,
-            source: this.lineStartPt,
-            target: curPt,
+            source: finalStart,
+            target: finalEnd,
             stroke: this.drawColor,
             strokeWidth: this.drawWidth,
           })
+
+          if (!this.lineEndSnapped) {
+            this.onLineFinishedOnBlank?.({
+              edge,
+              clientPos: { x: e.clientX, y: e.clientY },
+              sourceNodeId: typeof finalStart === 'object' ? finalStart.cell : undefined,
+              sourcePort: typeof finalStart === 'object' ? finalStart.port : undefined,
+            })
+          }
         }
         this.lineStartPt = null
+        this.lineStartSnapped = null
+        this.lineEndSnapped = null
+        this.hoveredPortNode = null
+        this.board.hideAllPorts()
         this.setDrawingMode('select')
         this.onModeChange?.('select')
         return
@@ -288,6 +385,48 @@ export class DrawingController {
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
     })
+  }
+
+  public startLineFromPort(
+    node: Node,
+    direction: string,
+    clientPos: { clientX: number; clientY: number }
+  ) {
+    this.ensureLineMarker()
+    this.drawingMode = 'line'
+    this.isDrawing = true
+    const portId = node.hasPort?.(`port-${direction}`) ? `port-${direction}` : direction
+    const nodePos = node.position()
+    const nodeSize = node.size()
+    let localAnchorX = nodePos.x + nodeSize.width / 2
+    let localAnchorY = nodePos.y + nodeSize.height / 2
+    if (direction === 'top') localAnchorY = nodePos.y
+    else if (direction === 'bottom') localAnchorY = nodePos.y + nodeSize.height
+    else if (direction === 'left') localAnchorX = nodePos.x
+    else if (direction === 'right') localAnchorX = nodePos.x + nodeSize.width
+
+    this.lineStartPt = { x: localAnchorX, y: localAnchorY }
+    this.lineStartSnapped = { cell: node.id, port: portId }
+    this.lineEndSnapped = null
+
+    if (!this.tempLinePath) {
+      this.tempLinePath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+      this.tempLinePath.setAttribute('style', 'pointer-events: none;')
+    }
+    this.tempLinePath.setAttribute('stroke', this.drawColor || '#374151')
+    this.tempLinePath.setAttribute('stroke-width', String(this.drawWidth || 2))
+    this.tempLinePath.setAttribute('stroke-linecap', 'round')
+    this.tempLinePath.setAttribute('stroke-linejoin', 'round')
+    this.tempLinePath.setAttribute('stroke-dasharray', '4,4')
+    this.tempLinePath.setAttribute('fill', 'none')
+    this.tempLinePath.setAttribute('marker-end', 'url(#speed-core-line-arrow)')
+    this.tempLinePath.setAttribute(
+      'd',
+      `M ${this.lineStartPt.x.toFixed(1)} ${this.lineStartPt.y.toFixed(1)} L ${this.lineStartPt.x.toFixed(1)} ${this.lineStartPt.y.toFixed(1)}`
+    )
+
+    const stage = this.getStage()
+    stage?.appendChild(this.tempLinePath)
   }
 
   private eraseAtPoint(clientX: number, clientY: number) {

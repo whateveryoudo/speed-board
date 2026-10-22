@@ -292,6 +292,7 @@ export function activateNodeTextEdit(
     finished = true
 
     textEl.removeEventListener('keydown', onKeyDown)
+    textEl.removeEventListener('input', onInput)
     textEl.removeEventListener('blur', onBlur)
 
     textEl.removeAttribute('contenteditable')
@@ -314,6 +315,17 @@ export function activateNodeTextEdit(
       const newText = rawText === '' ? '文本' : rawText
       textEl.innerText = newText
       board.updateTextNode(node, { text: newText })
+    }
+  }
+
+  const onInput = () => {
+    const rawText = textEl.innerText
+    if (node.shape === 'speed-text-node') {
+      const fs = node.getData()?.fontSize || 14
+      const font = `${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+      const measuredW = measureTextWidth(rawText || '文本', font)
+      const newW = Math.max(28, Math.round(measuredW + 8))
+      node.resize(newW, 28)
     }
   }
 
@@ -357,6 +369,7 @@ export function activateNodeTextEdit(
   }
 
   textEl.addEventListener('keydown', onKeyDown)
+  textEl.addEventListener('input', onInput)
   textEl.addEventListener('blur', onBlur)
 }
 

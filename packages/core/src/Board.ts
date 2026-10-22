@@ -111,6 +111,11 @@ export class Board {
   public extensions: Map<string, Extension> = new Map()
   public commands!: CommandManager
   public drawingController!: DrawingController
+  public onPortQuickConnect?: (payload: {
+    node: Node
+    port: string
+    clientPos: { x: number; y: number }
+  }) => void
 
   // TipTap / speed-sheet 风格的链式命令调度器
   public chain(): CommandChain {

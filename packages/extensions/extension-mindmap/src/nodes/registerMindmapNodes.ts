@@ -23,6 +23,27 @@ export function registerMindmapNodes(): void {
           selector: 'underline',
         },
         {
+          tagName: 'foreignObject',
+          selector: 'textFo',
+          children: [
+            {
+              tagName: 'div',
+              ns: 'http://www.w3.org/1999/xhtml',
+              selector: 'textWrap',
+            },
+          ],
+        },
+        {
+          tagName: 'g',
+          selector: 'handleGroup',
+          children: [
+            {
+              tagName: 'foreignObject',
+              selector: 'handleFo',
+            },
+          ],
+        },
+        {
           tagName: 'text',
           selector: 'label',
         },
@@ -57,7 +78,59 @@ export function registerMindmapNodes(): void {
           fill: '#3b82f6',
           stroke: 'none',
         },
+        textFo: {
+          x: 12,
+          y: 0,
+          refWidth: '100%',
+          refWidth2: -24,
+          refHeight: '100%',
+          style: {
+            overflow: 'hidden',
+          },
+        },
+        textWrap: {
+          class: 'mindmap-node-text selection-transparent',
+          contenteditable: 'false',
+          spellcheck: 'false',
+          style: {
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            color: '#1f2937',
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif',
+            outline: 'none',
+            wordBreak: 'break-word',
+            userSelect: 'none',
+            cursor: 'default',
+            lineHeight: '1.4',
+            textAlign: 'center',
+            margin: '0px',
+            padding: '0px',
+            boxSizing: 'border-box',
+          },
+          html: '思维导图',
+        },
+        handleGroup: {
+          refX: '100%',
+          refY: '50%',
+        },
+        handleFo: {
+          x: 0,
+          y: -12,
+          width: 80,
+          height: 24,
+          style: {
+            overflow: 'visible',
+          },
+          html: '',
+        },
         label: {
+          display: 'none',
           text: '思维导图',
           fontSize: 16,
           fontWeight: 'bold',
@@ -156,6 +229,27 @@ export function registerMindmapNodes(): void {
           selector: 'underline',
         },
         {
+          tagName: 'foreignObject',
+          selector: 'textFo',
+          children: [
+            {
+              tagName: 'div',
+              ns: 'http://www.w3.org/1999/xhtml',
+              selector: 'textWrap',
+            },
+          ],
+        },
+        {
+          tagName: 'g',
+          selector: 'handleGroup',
+          children: [
+            {
+              tagName: 'foreignObject',
+              selector: 'handleFo',
+            },
+          ],
+        },
+        {
           tagName: 'text',
           selector: 'label',
         },
@@ -188,7 +282,58 @@ export function registerMindmapNodes(): void {
           fill: '#8b5cf6',
           stroke: 'none',
         },
+        textFo: {
+          x: 8,
+          y: 0,
+          refWidth: '100%',
+          refWidth2: -16,
+          refHeight: '100%',
+          style: {
+            overflow: 'hidden',
+          },
+        },
+        textWrap: {
+          class: 'mindmap-node-text selection-transparent',
+          contenteditable: 'false',
+          spellcheck: 'false',
+          style: {
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            fontSize: '14px',
+            color: '#1f2937',
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif',
+            outline: 'none',
+            wordBreak: 'break-word',
+            userSelect: 'none',
+            cursor: 'default',
+            lineHeight: '1.4',
+            textAlign: 'left',
+            margin: '0px',
+            padding: '0px',
+            boxSizing: 'border-box',
+          },
+          html: '分支主题',
+        },
+        handleGroup: {
+          refX: '100%',
+          refY: '50%',
+        },
+        handleFo: {
+          x: 0,
+          y: -12,
+          width: 80,
+          height: 24,
+          style: {
+            overflow: 'visible',
+          },
+          html: '',
+        },
         label: {
+          display: 'none',
           text: '分支主题',
           fontSize: 14,
           fill: '#1f2937',

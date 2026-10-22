@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Tooltip as ATooltip } from 'ant-design-vue'
 import {
   SHAPE_GROUPS,
@@ -85,11 +85,22 @@ const popupStyle = computed(() => ({
 }))
 
 // 最近使用图形列表（与左侧工具栏形状选择器完全共享同步）
-const recentShapes = computed<ShapeDefinition[]>(() => {
-  void props.visible
+const recentShapes = ref<ShapeDefinition[]>([])
+
+const refreshRecentShapes = () => {
   const ids = getRecentShapeIds()
-  return ids.map((id) => getShapeById(id)).filter(Boolean) as ShapeDefinition[]
-})
+  recentShapes.value = ids.map((id) => getShapeById(id)).filter(Boolean) as ShapeDefinition[]
+}
+
+watch(
+  () => props.visible,
+  (val) => {
+    if (val) {
+      refreshRecentShapes()
+    }
+  },
+  { immediate: true }
+)
 
 // 基础图形列表 ( basic 分组中的所有图形 )
 const basicShapes = computed<ShapeDefinition[]>(() => {

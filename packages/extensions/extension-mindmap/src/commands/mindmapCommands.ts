@@ -1082,11 +1082,20 @@ export function activateMindmapNodeTextEdit(
   }
 
   let finished = false
+  const onInput = () => {
+    const rawText = textEl.innerText
+    const data = (node.getData() || {}) as MindmapNodeData
+    const isRoot = !!data.isRoot
+    const calcW = calculateMindmapNodeWidth(rawText || (isRoot ? '思维导图' : '分支主题'), isRoot)
+    node.setSize(calcW, node.size().height)
+  }
+
   const commitEdit = () => {
     if (finished) return
     finished = true
 
     textEl.removeEventListener('keydown', onKeyDown)
+    textEl.removeEventListener('input', onInput)
     textEl.removeEventListener('blur', onBlur)
 
     textEl.removeAttribute('contenteditable')
@@ -1153,6 +1162,7 @@ export function activateMindmapNodeTextEdit(
   }
 
   textEl.addEventListener('keydown', onKeyDown)
+  textEl.addEventListener('input', onInput)
   textEl.addEventListener('blur', onBlur)
 }
 

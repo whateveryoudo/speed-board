@@ -17,6 +17,17 @@ export function registerShapeNode(): void {
           selector: 'shapeBody',
         },
         {
+          tagName: 'foreignObject',
+          selector: 'textFo',
+          children: [
+            {
+              tagName: 'div',
+              ns: 'http://www.w3.org/1999/xhtml',
+              selector: 'textWrap',
+            },
+          ],
+        },
+        {
           tagName: 'text',
           selector: 'label',
         },
@@ -38,7 +49,44 @@ export function registerShapeNode(): void {
           pointerEvents: 'none',
           overflow: 'visible',
         },
+        textFo: {
+          x: 8,
+          y: 8,
+          refWidth: '100%',
+          refWidth2: -16,
+          refHeight: '100%',
+          refHeight2: -16,
+          style: {
+            overflow: 'hidden',
+          },
+        },
+        textWrap: {
+          class: 'speed-node-text selection-transparent',
+          contenteditable: 'false',
+          spellcheck: 'false',
+          html: '',
+          style: {
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '14px',
+            color: '#1f2937',
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif',
+            outline: 'none',
+            wordBreak: 'break-word',
+            whiteSpace: 'pre-wrap',
+            userSelect: 'none',
+            cursor: 'default',
+            margin: '0px',
+            padding: '0px',
+            boxSizing: 'border-box',
+          },
+        },
         label: {
+          display: 'none',
           text: '',
           fontSize: 14,
           fill: '#1f2937',
@@ -57,7 +105,7 @@ export function registerShapeNode(): void {
             attrs: {
               circle: {
                 r: 4.5,
-                magnet: true,
+                magnet: false,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
@@ -74,7 +122,7 @@ export function registerShapeNode(): void {
             attrs: {
               circle: {
                 r: 4.5,
-                magnet: true,
+                magnet: false,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
@@ -91,7 +139,7 @@ export function registerShapeNode(): void {
             attrs: {
               circle: {
                 r: 4.5,
-                magnet: true,
+                magnet: false,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
@@ -108,7 +156,7 @@ export function registerShapeNode(): void {
             attrs: {
               circle: {
                 r: 4.5,
-                magnet: true,
+                magnet: false,
                 stroke: '#3b82f6',
                 strokeWidth: 1.5,
                 fill: '#ffffff',
