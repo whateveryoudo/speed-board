@@ -349,6 +349,15 @@ export class Board {
       new Snapline({
         enabled: true,
         sharp: true,
+        filter: (node: Node) => {
+          // 脑图非根节点（分支子节点）的布局由自动树算法排版控制，不作为对齐线的吸附目标，
+          // 防止拖拽脑图根节点时在自身子节点之间产生干扰对齐线，同时保持与其他外部图形正常对齐
+          const data = node.getData() as any
+          if (data?.type === 'mindmap-node' && !data?.isRoot) {
+            return false
+          }
+          return true
+        },
       })
     )
 
@@ -414,6 +423,19 @@ export class Board {
     this.keyboardPlugin = new Keyboard({
       enabled: true,
       global: false,
+      guard: (e: KeyboardEvent) => {
+        const target = e.target as HTMLElement | null
+        if (!target) return true
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return false
+        if (
+          target.isContentEditable ||
+          target.getAttribute('contenteditable') === 'true' ||
+          target.closest?.('[contenteditable="true"]')
+        ) {
+          return false
+        }
+        return true
+      },
     })
     this.graph.use(this.keyboardPlugin)
 

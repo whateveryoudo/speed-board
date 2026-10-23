@@ -113,7 +113,10 @@ export function useNodeStyle(getBoard: () => Board | null) {
         shape === 'speed-mindmap-node' ||
         cell.getData()?.type === 'mindmap-node'
       ) {
-        selectedType.value = 'mindmap'
+        const d = (cell.getData() || {}) as any
+        if (d.isSummary) selectedType.value = 'mindmap-summary' as any
+        else if (d.isRoot || shape === 'speed-mindmap-root') selectedType.value = 'mindmap-root' as any
+        else selectedType.value = 'mindmap-node' as any
         const textData = board.getSelectedTextData()
         if (textData) {
           textState.value = { ...textState.value, ...textData }

@@ -15,6 +15,8 @@ import {
   isMindmapNode,
   updateMindmapNodeHandle,
   activateMindmapNodeTextEdit,
+  addMindmapSummary,
+  deleteMindmapSummary,
 } from './commands/mindmapCommands'
 import { MindmapDragController } from './interaction/MindmapDragController'
 import type { MindmapExtensionOptions } from './types'
@@ -30,8 +32,8 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
         defaultStructure: 'balanced',
         defaultBranchWidth: 3,
         defaultBranchType: 'curve',
-        hgap: 45,
-        vgap: 16,
+        hgap: 50,
+        vgap: 24,
         ...options,
       }),
       onInit: (board) => {
@@ -198,6 +200,13 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
         },
         setMindmapNodeCollapse: (nodeId?: any, collapsed?: any) => () => {
           if (nodeId) setMindmapNodeCollapse(ctx.board, nodeId, !!collapsed)
+          return true
+        },
+        addMindmapSummary: (nodeId?: any) => () => {
+          return addMindmapSummary(ctx.board, nodeId)
+        },
+        deleteMindmapSummary: (nodeId?: any) => () => {
+          if (nodeId) deleteMindmapSummary(ctx.board, nodeId)
           return true
         },
       }),

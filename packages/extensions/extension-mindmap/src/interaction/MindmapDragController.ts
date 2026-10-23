@@ -1,4 +1,4 @@
-import type { Node } from '@antv/x6'
+import type { Node, Edge } from '@antv/x6'
 import type { Board } from '@speed-board/core'
 import type { MindmapNodeData } from '@speed-board/shared'
 import {
@@ -39,6 +39,7 @@ export class MindmapDragController {
   private isDraggingRoot = false
   private rootStartPos: { x: number; y: number } | null = null
   private rootSubtreeStartPositions = new Map<string, { x: number; y: number }>()
+  private rootSummaryEdgeStartArgs = new Map<string, any>()
 
   // 分支节点 Ghost 拖拽状态
   private pendingDrag: {
@@ -82,10 +83,21 @@ export class MindmapDragController {
       this.isDraggingRoot = true
       this.rootStartPos = node.getPosition()
       this.rootSubtreeStartPositions.clear()
+      this.rootSummaryEdgeStartArgs.clear()
 
-      const { nodes } = getMindmapElements(graph, data.mindmapId)
+      const { nodes, edges } = getMindmapElements(graph, data.mindmapId)
       for (const n of nodes) {
         this.rootSubtreeStartPositions.set(n.id, n.getPosition())
+      }
+
+      for (const e of edges) {
+        if (e.getData()?.isSummaryEdge) {
+          const connector = e.getConnector() as any
+          const args = connector && typeof connector === 'object' && 'args' in connector ? connector.args : null
+          if (args) {
+            this.rootSummaryEdgeStartArgs.set(e.id, { ...args })
+          }
+        }
       }
 
       this.board.graph.trigger('mindmap:drag:start', { node })
@@ -95,16 +107,48 @@ export class MindmapDragController {
       if (!isMindmapNode(node)) return
       if (!this.isDraggingRoot || !this.rootStartPos) return
 
+      const data = node.getData() as MindmapNodeData | undefined
+      if (!data) return
+
       const currentPos = node.getPosition()
       const dx = currentPos.x - this.rootStartPos.x
       const dy = currentPos.y - this.rootStartPos.y
 
+      // 1. 同步平移整个子树的所有子孙节点与概要节点
       for (const [id, startPos] of this.rootSubtreeStartPositions) {
         if (id !== node.id) {
           const cell = graph.getCellById(id) as Node
           if (cell) cell.setPosition(startPos.x + dx, startPos.y + dy)
         }
       }
+
+      // 2. 同步平移所有概要大括号连接器参数 (topY, bottomY, bracketX, tipX, midY)
+      for (const [edgeId, startArgs] of this.rootSummaryEdgeStartArgs) {
+        const edge = graph.getCellById(edgeId) as Edge
+        if (edge) {
+          edge.setConnector({
+            name: 'mindmap-summary-bracket',
+            args: {
+              ...startArgs,
+              topY: startArgs.topY + dy,
+              bottomY: startArgs.bottomY + dy,
+              bracketX: startArgs.bracketX + dx,
+              tipX: startArgs.tipX + dx,
+              midY: startArgs.midY + dy,
+            },
+          })
+        }
+      }
+
+      // 3. 实时强制更新脑图所有边视图，使线条实时跟随节点移动
+      const { edges } = getMindmapElements(graph, data.mindmapId)
+      for (const edge of edges) {
+        const edgeView = graph.findViewByCell(edge) as any
+        edgeView?.update()
+      }
+
+      // 4. 同步选中指示框与变换框
+      this.board.syncSelectionBoxesTransform?.()
     })
 
     graph.on('node:moved', ({ node }) => {
@@ -114,6 +158,7 @@ export class MindmapDragController {
       this.isDraggingRoot = false
       this.rootStartPos = null
       this.rootSubtreeStartPositions.clear()
+      this.rootSummaryEdgeStartArgs.clear()
       updateMindmapLayout(this.board, node.id)
       this.board.graph.trigger('mindmap:drag:end', { node })
     })
@@ -367,8 +412,8 @@ export class MindmapDragController {
           const first = siblings[0]
           const fBBox = first.getBBox()
           refBBox = fBBox
-          slotY = fBBox.y - 8
-          minY = fBBox.y - 30
+          slotY = fBBox.y - 12
+          minY = fBBox.y - 36
           maxY = fBBox.y + fBBox.height * 0.4
           targetNode = first
           position = 'before'
@@ -377,9 +422,9 @@ export class MindmapDragController {
           const last = siblings[siblings.length - 1]
           const lBBox = last.getBBox()
           refBBox = lBBox
-          slotY = lBBox.y + lBBox.height + 8
+          slotY = lBBox.y + lBBox.height + 12
           minY = lBBox.y + lBBox.height * 0.6
-          maxY = lBBox.y + lBBox.height + 30
+          maxY = lBBox.y + lBBox.height + 36
           targetNode = last
           position = 'after'
         } else {
@@ -390,8 +435,8 @@ export class MindmapDragController {
           const cBBox = curr.getBBox()
           refBBox = pBBox
           slotY = (pBBox.y + pBBox.height + cBBox.y) / 2
-          minY = pBBox.y + pBBox.height * 0.4
-          maxY = cBBox.y + cBBox.height * 0.6
+          minY = pBBox.y + pBBox.height * 0.35
+          maxY = cBBox.y + cBBox.height * 0.65
           targetNode = prev
           position = 'after'
         }

@@ -22,6 +22,8 @@ export type QuickToolbarItem =
   | 'mindmap-layout'
   | 'mindmap-branch'
   | 'mindmap-shape'
+  | 'mindmap-marker'
+  | 'mindmap-summary'
 
 export type PanelTabKey = 'style' | 'text' | 'arrange'
 
@@ -156,14 +158,15 @@ export const groupSchema: NodeSchema = {
   },
 }
 
-/** 8. 思维导图 (Mindmap) —— 1:1 对齐语雀白板结构与分支设置 */
-export const mindmapSchema: NodeSchema = {
-  type: 'mindmap',
-  label: '思维导图',
+/** 8. 思维导图中心主题根节点 (Mindmap Root) —— 支持结构布局，不支持概要 */
+export const mindmapRootSchema: NodeSchema = {
+  type: 'mindmap-root',
+  label: '思维导图 (中心主题)',
   quickToolbar: [
     'mindmap-layout',
     'mindmap-branch',
     'mindmap-shape',
+    'mindmap-marker',
     'fill',
     'stroke',
     'text',
@@ -180,6 +183,57 @@ export const mindmapSchema: NodeSchema = {
   },
 }
 
+/** 9. 思维导图分支节点 (Mindmap Branch Node) —— 支持概要操作，不支持全局结构布局 */
+export const mindmapNodeSchema: NodeSchema = {
+  type: 'mindmap-node',
+  label: '思维导图 (分支主题)',
+  quickToolbar: [
+    'mindmap-branch',
+    'mindmap-shape',
+    'mindmap-marker',
+    'mindmap-summary',
+    'fill',
+    'stroke',
+    'text',
+    'link',
+    'open-panel',
+  ],
+  panel: {
+    tabs: ['style', 'text', 'arrange'],
+    sections: {
+      style: ['mindmap-node', 'mindmap-branch'],
+      text: ['typography', 'align', 'link'],
+      arrange: ['arrange-layer', 'arrange-group'],
+    },
+  },
+}
+
+/** 10. 思维导图概要节点 (Mindmap Summary Node) —— 不支持分支/结构/再次嵌套概要 */
+export const mindmapSummarySchema: NodeSchema = {
+  type: 'mindmap-summary',
+  label: '思维导图 (概要主题)',
+  quickToolbar: [
+    'mindmap-shape',
+    'mindmap-marker',
+    'fill',
+    'stroke',
+    'text',
+    'link',
+    'open-panel',
+  ],
+  panel: {
+    tabs: ['style', 'text', 'arrange'],
+    sections: {
+      style: ['mindmap-node'],
+      text: ['typography', 'align', 'link'],
+      arrange: ['arrange-layer', 'arrange-group'],
+    },
+  },
+}
+
+/** 兼容旧版单一 mindmap key */
+export const mindmapSchema: NodeSchema = mindmapNodeSchema
+
 export const schemaRegistry: Record<string, NodeSchema> = {
   shape: shapeSchema,
   image: imageSchema,
@@ -189,6 +243,9 @@ export const schemaRegistry: Record<string, NodeSchema> = {
   multiple: multipleSchema,
   group: groupSchema,
   mindmap: mindmapSchema,
+  'mindmap-root': mindmapRootSchema,
+  'mindmap-node': mindmapNodeSchema,
+  'mindmap-summary': mindmapSummarySchema,
 }
 
 /** 获取指定元素对应的 Schema */

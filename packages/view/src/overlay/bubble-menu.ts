@@ -45,7 +45,9 @@ export function resolveCellType(cell: Cell, board?: Board | null): string {
     shape === 'speed-mindmap-node' ||
     cell.getData()?.type === 'mindmap-node'
   ) {
-    return 'mindmap'
+    if (data.isSummary) return 'mindmap-summary'
+    if (data.isRoot || shape === 'speed-mindmap-root') return 'mindmap-root'
+    return 'mindmap-node'
   }
   if (board && board.isTextNode(cell)) return 'text'
   return 'shape'

@@ -69,4 +69,74 @@ export function registerMindmapEdges(): void {
     },
     true
   )
+
+  // 4. 注册概要大括号连接器 (平滑 curly bracket } / { 括弧)
+  Graph.registerConnector(
+    'mindmap-summary-bracket',
+    (sourcePoint, targetPoint, _routePoints, args: any) => {
+      const isLeft = args?.side === 'left'
+      const topY = args && typeof args.topY === 'number' ? args.topY : sourcePoint.y - 20
+      const bottomY = args && typeof args.bottomY === 'number' ? args.bottomY : sourcePoint.y + 20
+      const bracketX = args && typeof args.bracketX === 'number' ? args.bracketX : targetPoint.x - 20
+      const tipX = args && typeof args.tipX === 'number' ? args.tipX : (isLeft ? targetPoint.x + 6 : targetPoint.x - 6)
+      const midY = args && typeof args.midY === 'number' ? args.midY : (topY + bottomY) / 2
+      const h = Math.abs(bottomY - topY)
+      const r = Math.min(8, Math.max(3, h / 4))
+
+      if (isLeft) {
+        return [
+          `M ${bracketX} ${topY}`,
+          `Q ${bracketX - r} ${topY} ${bracketX - r} ${topY + r}`,
+          `L ${bracketX - r} ${midY - r}`,
+          `Q ${bracketX - r} ${midY} ${tipX} ${midY}`,
+          `Q ${bracketX - r} ${midY} ${bracketX - r} ${midY + r}`,
+          `L ${bracketX - r} ${bottomY - r}`,
+          `Q ${bracketX - r} ${bottomY} ${bracketX} ${bottomY}`,
+          `M ${tipX} ${midY}`,
+          `L ${targetPoint.x} ${targetPoint.y}`,
+        ].join(' ')
+      }
+
+      return [
+        `M ${bracketX} ${topY}`,
+        `Q ${bracketX + r} ${topY} ${bracketX + r} ${topY + r}`,
+        `L ${bracketX + r} ${midY - r}`,
+        `Q ${bracketX + r} ${midY} ${tipX} ${midY}`,
+        `Q ${bracketX + r} ${midY} ${bracketX + r} ${midY + r}`,
+        `L ${bracketX + r} ${bottomY - r}`,
+        `Q ${bracketX + r} ${bottomY} ${bracketX} ${bottomY}`,
+        `M ${tipX} ${midY}`,
+        `L ${targetPoint.x} ${targetPoint.y}`,
+      ].join(' ')
+    },
+    true
+  )
+
+  // 5. 注册思维导图概要专用 Edge
+  Graph.registerEdge(
+    'speed-mindmap-summary-edge',
+    {
+      inherit: 'edge',
+      connector: {
+        name: 'mindmap-summary-bracket',
+      },
+      sourceAnchor: {
+        name: 'center',
+      },
+      targetAnchor: {
+        name: 'left',
+      },
+      attrs: {
+        line: {
+          stroke: '#64748b',
+          strokeWidth: 2,
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          targetMarker: null,
+        },
+      },
+      zIndex: 2,
+    },
+    true
+  )
 }

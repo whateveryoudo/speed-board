@@ -273,12 +273,8 @@ const onTextOverlayConfirm = (payload: { text: string; link: string }) => {
 
 const setupTextListeners = (board: Board) => {
   board.graph.on('node:dblclick', ({ node }: any) => {
-    if (
-      board.isTextNode(node) ||
-      board.isShapeNode(node) ||
-      isMindmapNode(node) ||
-      node.getData()?.type === 'mindmap-node'
-    ) {
+    // 文本与图形节点就地编辑 (脑图节点由 MindmapExtension 自行管理监听与编辑)
+    if (board.isTextNode(node) || board.isShapeNode(node)) {
       startInlineTextEdit(node)
     }
   })
@@ -649,6 +645,10 @@ const onBoardCreated = (board: Board) => {
   }
 
   board.graph.on('node:start-edit', ({ node, initialChar }: { node: any; initialChar?: string }) => {
+    // 脑图节点由 MindmapExtension 自行管理编辑生命周期
+    if (isMindmapNode(node) || node.getData()?.type === 'mindmap-node') {
+      return
+    }
     startInlineTextEdit(node, initialChar)
   })
 
@@ -797,26 +797,8 @@ const onKeyDown = (e: KeyboardEvent) => {
   const selectedCells = boardInstance.value ? boardInstance.value.graph.getSelectedCells() : []
   const singleSelected = selectedCells.length === 1 ? selectedCells[0] : null
 
-  // 1. 结构快捷键：思维导图节点单选态按 Enter / Tab 专职新增分支 (零歧义，绝不用于触发打字)
-  if (singleSelected && (e.key === 'Enter' || e.key === 'Tab')) {
-    const isMindmap =
-      (selectedMindmapNode.value && selectedMindmapNode.value.id === singleSelected.id) ||
-      isMindmapNode(singleSelected) ||
-      singleSelected.getData()?.type === 'mindmap-node'
-    if (isMindmap) {
-      e.preventDefault()
-      e.stopPropagation()
-      const data = singleSelected.getData() || {}
-      if (e.key === 'Tab' || data.isRoot || !data.parentId) {
-        ;(boardInstance.value as any)?.commands?.addMindmapChild?.(singleSelected.id)
-      } else {
-        ;(boardInstance.value as any)?.commands?.addMindmapSibling?.(singleSelected.id)
-      }
-      return
-    }
-  }
-
-  // 2. 选中直接输入 (Type-to-edit)：单选任意图元（图形、文本、便签、思维导图）直接敲键盘任意字符启动打字
+  // 1. 选中直接输入 (Type-to-edit)：单选任意图元（图形、文本、便签、思维导图）直接敲键盘任意字符启动打字
+  // 注：思维导图节点单选态按 Enter / Tab 专职新增分支由 MindmapExtension.addKeyboardShortcuts 统一处理，避免重复监听
   if (
     singleSelected &&
     !e.ctrlKey &&

@@ -36,8 +36,9 @@ export function measureTextWidth(
  * 计算思维导图节点根据内容自适应的紧凑宽度
  * @param text 节点文字
  * @param isRoot 是否为根节点
+ * @param markersCount 节点包含的标记数量
  */
-export function calculateMindmapNodeWidth(text: string, isRoot = false): number {
+export function calculateMindmapNodeWidth(text: string, isRoot = false, markersCount = 0): number {
   const lines = (text || '').split('\n')
   const maxLine = lines.reduce((max, line) => (line.length > max.length ? line : max), '')
 
@@ -46,12 +47,13 @@ export function calculateMindmapNodeWidth(text: string, isRoot = false): number 
     : '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
 
   const textWidth = measureTextWidth(maxLine, font)
+  const markerExtraWidth = markersCount > 0 ? markersCount * 22 + 4 : 0
 
   if (isRoot) {
     // 根节点：Card 胶囊卡片，文字居中，左右各留 16px 呼吸间距
-    return Math.max(90, textWidth + 32)
+    return Math.max(90, textWidth + 32 + markerExtraWidth)
   }
 
   // 分支节点：文字左右各留 10px 呼吸间距，直接衔接子分支/加号，确保加号绝不遮挡文字
-  return Math.max(56, textWidth + 20)
+  return Math.max(56, textWidth + 20 + markerExtraWidth)
 }

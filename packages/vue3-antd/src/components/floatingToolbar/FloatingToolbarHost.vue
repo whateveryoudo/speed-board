@@ -38,6 +38,18 @@
           :board="props.board"
         />
 
+        <!-- 思维导图: 标记 (优先级/进度/旗帜) -->
+        <MindmapMarkerItem
+          v-else-if="item === 'mindmap-marker'"
+          :board="props.board"
+        />
+
+        <!-- 思维导图: 概要 (大括号直接组合直接子集) -->
+        <MindmapSummaryItem
+          v-else-if="item === 'mindmap-summary'"
+          :board="props.board"
+        />
+
         <!-- 2. 填充颜色 -->
         <FillColorItem
           v-else-if="item === 'fill'"
@@ -173,6 +185,8 @@ import ShapeSwitchItem from './items/ShapeSwitchItem.vue'
 import MindmapLayoutItem from './items/MindmapLayoutItem.vue'
 import MindmapBranchItem from './items/MindmapBranchItem.vue'
 import MindmapShapeItem from './items/MindmapShapeItem.vue'
+import MindmapMarkerItem from './items/MindmapMarkerItem.vue'
+import MindmapSummaryItem from './items/MindmapSummaryItem.vue'
 import FillColorItem from './items/FillColorItem.vue'
 import StrokeItem from './items/StrokeItem.vue'
 import TextFormatItem from './items/TextFormatItem.vue'
@@ -299,15 +313,25 @@ const mindmapShapeStyle = useCellAttributes<string>(
   'rect'
 )
 
+const selectedMindmapNodeData = useCellAttributes<any>(
+  () => props.board,
+  (cell) => {
+    return cell.getData() as any
+  },
+  null
+)
+
 const activeToolbarItems = computed(() => {
   const schema = activeSchema.value
   if (!schema?.quickToolbar) return []
 
   return schema.quickToolbar.filter((item) => {
-    // 思维导图节点：当为纯文本 (none) 时，隐藏填充 (fill) 和描边 (stroke)
-    if (currentType.value === 'mindmap' && (item === 'fill' || item === 'stroke')) {
-      const style = mindmapShapeStyle.value || 'rect'
-      return style === 'rect' || style === 'capsule'
+    if (currentType.value.startsWith('mindmap')) {
+      // 思维导图节点：当为纯文本 (none) 时，隐藏填充 (fill) 和描边 (stroke)
+      if (item === 'fill' || item === 'stroke') {
+        const style = mindmapShapeStyle.value || 'rect'
+        return style === 'rect' || style === 'capsule'
+      }
     }
     return true
   })
@@ -316,8 +340,8 @@ const activeToolbarItems = computed(() => {
 const shouldShowDivider = (item: string, idx: number) => {
   if (idx === 0) return false
   if (item === 'open-panel') return true
-  if (item === 'mindmap-shape') return true
-  if (item === 'fill' && currentType.value !== 'mindmap') return true
+  if (item === 'mindmap-marker') return true
+  if (item === 'fill') return true
   if (item === 'text') return true
   return false
 }

@@ -262,8 +262,8 @@ export class MindmapDragIndicator {
         slotY !== undefined
           ? Math.round(slotY)
           : type === 'before'
-          ? Math.round(targetBBox.y - 8)
-          : Math.round(targetBBox.y + targetBBox.height + 8)
+          ? Math.round(targetBBox.y - 12)
+          : Math.round(targetBBox.y + targetBBox.height + 12)
 
       this.placeholderBarLine.setAttribute('x', String(barX))
       this.placeholderBarLine.setAttribute('y', String(barY - 1.75))
@@ -305,7 +305,7 @@ export class MindmapDragIndicator {
       this.placeholderTargetRect.setAttribute('height', String(targetBBox.height + pad * 2))
       this.placeholderTargetRect.setAttribute('stroke', branchColor || '#3b82f6')
 
-      placeholderX = targetBBox.x + targetBBox.width + 36
+      placeholderX = targetBBox.x + targetBBox.width + 48
       placeholderY = targetBBox.y + (targetBBox.height - boxH) / 2
 
       this.placeholderRect.setAttribute('x', String(placeholderX))

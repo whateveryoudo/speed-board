@@ -23,6 +23,14 @@ export interface CalculatedMindmapLayout {
   }>
 }
 
+function sanitizeTree(node: MindmapTreeNode): MindmapTreeNode {
+  const children = (node.children || []).filter(Boolean).map(sanitizeTree)
+  return {
+    ...node,
+    children: children.length > 0 ? children : undefined,
+  }
+}
+
 /**
  * 基于 @antv/hierarchy 的思维导图布局计算器
  * @param rootTree 树形结构数据
@@ -39,10 +47,11 @@ export function calculateMindmapLayout(
   options?: MindmapExtensionOptions
 ): CalculatedMindmapLayout {
   const direction = structure === 'right' ? 'LR' : structure === 'left' ? 'RL' : 'H'
-  const hgap = options?.hgap ?? 45
-  const vgap = options?.vgap ?? 16
+  const hgap = options?.hgap ?? 50
+  const vgap = options?.vgap ?? 24
 
-  const hierarchyResult = mindmap(rootTree, {
+  const cleanTree = sanitizeTree(rootTree)
+  const hierarchyResult = mindmap(cleanTree, {
     direction,
     getWidth: (d: any) => d.width || 80,
     getHeight: (d: any) => d.height || 32,

@@ -1,6 +1,6 @@
 import type { Node } from '@antv/x6'
 import type { Board } from '../Board'
-import { calculateMindmapNodeWidth, measureTextWidth } from '@speed-board/shared'
+import { calculateMindmapNodeWidth, measureTextWidth, countNodeMarkers } from '@speed-board/shared'
 
 /**
  * 判断图元是否为文本节点
@@ -74,6 +74,7 @@ export function updateTextNode(
   else if (isUnderline) decoration = 'underline'
   else if (isStrike) decoration = 'line-through'
   node.setAttrByPath('label/textDecoration', decoration)
+  node.setAttrByPath('textWrap/style/textDecoration', decoration)
 
   const isMindmap = data.type === 'mindmap-node'
   if (isMindmap) {
@@ -135,7 +136,7 @@ export function updateTextNode(
 
     if (isMindmap) {
       const targetHeight = data.isRoot ? 42 : 32
-      const calcWidth = calculateMindmapNodeWidth(text, !!data.isRoot)
+      const calcWidth = calculateMindmapNodeWidth(text, !!data.isRoot, countNodeMarkers(data.markers))
       node.setSize(calcWidth, targetHeight)
     } else {
       const font = `${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
@@ -291,6 +292,7 @@ export function activateNodeTextEdit(
   setTransformEditing(true)
   graph.trigger('node:edit:start', { node })
 
+  textEl.setAttribute('data-editing', 'true')
   textEl.setAttribute('contenteditable', 'true')
   textEl.setAttribute('tabindex', '-1')
   textEl.style.userSelect = 'text'
@@ -309,6 +311,8 @@ export function activateNodeTextEdit(
 
   const stopProp = (e: Event) => {
     e.stopPropagation()
+    // 用户主动点击光标定位时，立即退出全量替换占位符状态，转为正常就地插入
+    isFirstType = false
   }
   textEl.addEventListener('pointerdown', stopProp)
   textEl.addEventListener('mousedown', stopProp)
@@ -322,21 +326,38 @@ export function activateNodeTextEdit(
     : (board.isShapeNode(node) ? '' : '文本')
   let isFirstType = !initialData.text || initialData.text === defaultPlaceholder
 
+  // 严格校验是否处于【全选占位文字】态，仅在全量选中状态下输入才执行清空替换；若光标已折叠/定位则绝不清空
+  const isAllPlaceholderSelected = () => {
+    if (!isFirstType || !defaultPlaceholder) return false
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false
+    const selectedText = sel.toString().trim()
+    return selectedText.length > 0 && selectedText === textEl.innerText.trim()
+  }
+
+  let isComposing = false
   const onCompositionStart = () => {
-    if (isFirstType && defaultPlaceholder) {
+    isComposing = true
+    if (isAllPlaceholderSelected()) {
       textEl.innerText = ''
-      isFirstType = false
     }
+    isFirstType = false
+  }
+
+  const onCompositionEnd = () => {
+    isComposing = false
+    onInput()
   }
 
   const onBeforeInput = (e: InputEvent) => {
-    if (isFirstType && defaultPlaceholder && e.inputType === 'insertText') {
+    if (isAllPlaceholderSelected() && e.inputType === 'insertText') {
       textEl.innerText = ''
       isFirstType = false
     }
   }
 
   textEl.addEventListener('compositionstart', onCompositionStart)
+  textEl.addEventListener('compositionend', onCompositionEnd)
   textEl.addEventListener('beforeinput', onBeforeInput as any)
 
   requestAnimationFrame(() => {
@@ -375,6 +396,7 @@ export function activateNodeTextEdit(
     textEl.removeEventListener('click', stopProp)
     textEl.removeEventListener('dblclick', stopProp)
     textEl.removeEventListener('compositionstart', onCompositionStart)
+    textEl.removeEventListener('compositionend', onCompositionEnd)
     textEl.removeEventListener('beforeinput', onBeforeInput as any)
 
     textEl.removeAttribute('data-editing')
@@ -435,7 +457,7 @@ export function activateNodeTextEdit(
       } else {
         textEl.style.whiteSpace = 'pre'
         textEl.style.wordBreak = 'normal'
-        const calcWidth = calculateMindmapNodeWidth(rawText || (isRoot ? '思维导图' : '分支主题'), isRoot)
+        const calcWidth = calculateMindmapNodeWidth(rawText || (isRoot ? '思维导图' : '分支主题'), isRoot, countNodeMarkers(data.markers))
         const lines = rawText.split('\n')
         const baseHeight = isRoot ? 42 : 32
         const lineH = (isRoot ? 16 : 14) * 1.45
@@ -470,7 +492,7 @@ export function activateNodeTextEdit(
       board.syncSelectionBoxesTransform()
     }
 
-    if (savedRange && sel) {
+    if (!isComposing && savedRange && sel) {
       try {
         const newRange = document.createRange()
         newRange.setStart(savedRange.startContainer, savedRange.startOffset)
@@ -482,6 +504,10 @@ export function activateNodeTextEdit(
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+      isFirstType = false
+    }
+
     if (e.key === 'Escape') {
       e.preventDefault()
       e.stopPropagation()
@@ -496,12 +522,10 @@ export function activateNodeTextEdit(
           e.preventDefault()
           e.stopPropagation()
           commitEdit()
-          const data = node.getData() || {}
-          if (data.isRoot || !data.parentId) {
-            ;(board as any).commands?.addMindmapChild?.(node.id)
-          } else {
-            ;(board as any).commands?.addMindmapSibling?.(node.id)
-          }
+          // 确认保存并退出编辑态，聚焦保持选中当前节点
+          graph.cleanSelection()
+          graph.select(node)
+          graph.trigger('selection:changed', { selected: [node] })
           return
         }
       } else {

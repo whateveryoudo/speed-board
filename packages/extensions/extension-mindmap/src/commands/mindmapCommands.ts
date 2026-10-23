@@ -3,6 +3,9 @@ import type { Board } from '@speed-board/core'
 import {
   MINDMAP_RAINBOW_COLORS,
   calculateMindmapNodeWidth,
+  ensureMarkerSprite,
+  renderNodeMarkersHtml,
+  countNodeMarkers,
   type MindmapNodeData,
   type MindmapStructure,
   type MindmapBranchConfig,
@@ -79,12 +82,16 @@ export function buildMindmapTree(graph: Graph, rootNode: Node): MindmapTreeNode 
 
   for (const n of nodes) {
     const data = n.getData() as MindmapNodeData
+    // 概要节点不参与主体层级树计算
+    if (data.isSummary) continue
+
     const bbox = n.getBBox()
     const text = data.text || (data.isRoot ? '思维导图' : '分支主题')
     const hasManualSize = !!data.manualSize
+    const markersCount = countNodeMarkers(data.markers)
     const nodeWidth = hasManualSize
       ? (typeof data.manualSize === 'object' && data.manualSize.width ? data.manualSize.width : bbox.width)
-      : calculateMindmapNodeWidth(text, !!data.isRoot)
+      : calculateMindmapNodeWidth(text, !!data.isRoot, markersCount)
     const nodeHeight = hasManualSize
       ? (typeof data.manualSize === 'object' && data.manualSize.height ? data.manualSize.height : (data.isRoot ? 42 : 32))
       : (data.isRoot ? 42 : 32)
@@ -104,12 +111,14 @@ export function buildMindmapTree(graph: Graph, rootNode: Node): MindmapTreeNode 
   // 挂载父子树
   for (const n of nodes) {
     const data = n.getData() as MindmapNodeData
+    if (data.isSummary) continue
+
     const parentId = data.parentId
     if (parentId && nodeMap.has(parentId)) {
       const parentTree = nodeMap.get(parentId)!
-      const currentTree = nodeMap.get(n.id)!
+      const currentTree = nodeMap.get(n.id)
       // 若父节点被折叠，不挂载 children，使 hierarchy 布局将父节点视作叶子节点
-      if (!parentTree.collapsed) {
+      if (currentTree && !parentTree.collapsed) {
         parentTree.children = parentTree.children || []
         parentTree.children.push(currentTree)
       }
@@ -138,6 +147,8 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
   const rootNode = getMindmapRootNode(graph, rootOrChildId)
   if (!rootNode) return
 
+  ensureMarkerSprite()
+
   const rootData = rootNode.getData() as MindmapNodeData
   const structure = rootData.structure || 'balanced'
   const originBBox = rootNode.getBBox()
@@ -147,9 +158,13 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
   const layout = calculateMindmapLayout(tree, originBBox.x, originBBox.y, structure)
 
   // 1.1 节点可见性与收起状态同步：未在 layout.nodes 中的节点全部隐藏，已在其中的节点全部显示
+  // 注意：概要节点不属于 layout.nodes，在第 4 步独立处理，此处绝不隐藏
   const visibleNodeIds = new Set(layout.nodes.map((n) => n.id))
   const { nodes: allNodes } = getMindmapElements(graph, rootData.mindmapId)
   for (const n of allNodes) {
+    const d = n.getData() as MindmapNodeData | undefined
+    if (d?.isSummary) continue
+
     if (visibleNodeIds.has(n.id)) {
       n.show()
     } else {
@@ -171,6 +186,17 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
     const currentData = (node.getData() || {}) as MindmapNodeData
     const nodeText = currentData.text || (currentData.isRoot ? '思维导图' : '分支主题')
     node.setAttrByPath('textWrap/html', nodeText)
+
+    // 同步标记图标
+    const markersHtml = renderNodeMarkersHtml(currentData.markers)
+    if (markersHtml) {
+      node.setAttrByPath('markersWrap/html', markersHtml)
+      node.setAttrByPath('markersWrap/style/display', 'inline-flex')
+    } else {
+      node.setAttrByPath('markersWrap/html', '')
+      node.setAttrByPath('markersWrap/style/display', 'none')
+    }
+
     if (currentData.manualSize) {
       node.setAttrByPath('textWrap/style/whiteSpace', 'pre-wrap')
       node.setAttrByPath('textWrap/style/wordBreak', 'break-all')
@@ -200,7 +226,7 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       }
     }
 
-    if (shapeStyle === 'underline' || shapeStyle === 'none') {
+    if (shapeStyle === 'underline') {
       node.setAttrByPath('body/fill', 'transparent')
       node.setAttrByPath('body/stroke', 'transparent')
       node.setAttrByPath('body/strokeWidth', 0)
@@ -209,6 +235,13 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
       node.setAttrByPath('underline/stroke', 'none')
       ensurePort('left', 13)
       ensurePort('right', 13)
+    } else if (shapeStyle === 'none') {
+      node.setAttrByPath('body/fill', 'transparent')
+      node.setAttrByPath('body/stroke', 'transparent')
+      node.setAttrByPath('body/strokeWidth', 0)
+      node.setAttrByPath('underline/display', 'none')
+      ensurePort('left', 0)
+      ensurePort('right', 0)
     } else if (shapeStyle === 'capsule') {
       const rx = currentData.isRoot ? 21 : 16
       node.setAttrByPath('body/rx', rx)
@@ -238,6 +271,7 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
   const { edges: existingEdges } = getMindmapElements(graph, rootData.mindmapId)
   const existingEdgeMap = new Map<string, Edge>()
   for (const edge of existingEdges) {
+    if (edge.getData()?.isSummaryEdge) continue
     existingEdgeMap.set(`${edge.getSourceCellId()}->${edge.getTargetCellId()}`, edge)
   }
 
@@ -303,11 +337,151 @@ export function updateMindmapLayout(board: Board, rootOrChildId: string): void {
     }
   }
 
-  // 清除多余边
+  // 清除多余分支边 (排除概要大括号连线)
   for (const edge of existingEdges) {
+    if (edge.getData()?.isSummaryEdge) continue
     const key = `${edge.getSourceCellId()}->${edge.getTargetCellId()}`
     if (!activeEdgeKeys.has(key)) {
       edge.remove()
+    }
+  }
+
+  // 4. 更新概要节点与大括号连线布局
+  const summaryNodes = allNodes.filter((n) => {
+    const d = n.getData() as MindmapNodeData | undefined
+    return d?.type === 'mindmap-node' && d?.isSummary && d?.summaryForId
+  })
+
+  for (const sNode of summaryNodes) {
+    const sData = sNode.getData() as MindmapNodeData
+    const parentNode = graph.getCellById(sData.summaryForId!) as Node | undefined
+    const sEdge = getMindmapSummaryEdge(graph, sData.summaryForId!)
+
+    if (!parentNode || !parentNode.isVisible()) {
+      sNode.hide()
+      if (sEdge) sEdge.hide()
+      continue
+    }
+
+    sNode.show()
+    const parentBBox = parentNode.getBBox()
+    const isParentCollapsed = !!parentNode.getData()?.collapsed
+    const directChildren = getMindmapChildren(graph, parentNode.id).filter((c) => c.isVisible())
+
+    const side = (parentNode.getData() as MindmapNodeData)?.side || 'right'
+    const isLeft = side === 'left'
+
+    let topY: number
+    let bottomY: number
+    let bracketX: number
+    let tipX: number
+
+    const bracketW = 16
+
+    if (!isParentCollapsed && directChildren.length > 0) {
+      // 展开状态：包裹所有可见直接子节点
+      const bboxes = directChildren.map((c) => c.getBBox())
+      topY = Math.min(...bboxes.map((b) => b.y)) + 4
+      bottomY = Math.max(...bboxes.map((b) => b.y + b.height)) - 4
+      if (isLeft) {
+        const minLeft = Math.min(...bboxes.map((b) => b.x))
+        bracketX = minLeft - 14
+        tipX = bracketX - bracketW
+      } else {
+        const maxRight = Math.max(...bboxes.map((b) => b.x + b.width))
+        bracketX = maxRight + 14
+        tipX = bracketX + bracketW
+      }
+    } else {
+      // 折叠状态 或 无直接子节点：包裹父节点自身（位于收起手柄之后）
+      topY = parentBBox.y + 4
+      bottomY = parentBBox.y + parentBBox.height - 4
+      if (isLeft) {
+        bracketX = parentBBox.x - 26
+        tipX = bracketX - bracketW
+      } else {
+        bracketX = parentBBox.x + parentBBox.width + 26
+        tipX = bracketX + bracketW
+      }
+    }
+
+    const midY = (topY + bottomY) / 2
+    const sText = sData.text || '概要'
+    const sMarkersCount = countNodeMarkers(sData.markers)
+    const sWidth = calculateMindmapNodeWidth(sText, false, sMarkersCount)
+    const sHeight = 32
+
+    const nodeX = isLeft ? tipX - 8 - sWidth : tipX + 8
+    sNode.position(nodeX, midY - sHeight / 2)
+    sNode.setSize(sWidth, sHeight)
+    sNode.setZIndex(10)
+    sNode.setAttrByPath('textWrap/html', sText)
+
+    sNode.setData({
+      ...sData,
+      side,
+    })
+
+    const sMarkersHtml = renderNodeMarkersHtml(sData.markers)
+    if (sMarkersHtml) {
+      sNode.setAttrByPath('markersWrap/html', sMarkersHtml)
+      sNode.setAttrByPath('markersWrap/style/display', 'inline-flex')
+    } else {
+      sNode.setAttrByPath('markersWrap/html', '')
+      sNode.setAttrByPath('markersWrap/style/display', 'none')
+    }
+
+    // 同步概要节点形状样式 (下划线 / 胶囊 / 卡片矩形 / 纯文本)
+    const sShapeStyle = sData.shapeStyle || 'rect'
+    const sPrimaryColor = '#8b5cf6'
+    if (sShapeStyle === 'underline') {
+      sNode.setAttrByPath('body/fill', 'transparent')
+      sNode.setAttrByPath('body/stroke', 'transparent')
+      sNode.setAttrByPath('body/strokeWidth', 0)
+      sNode.setAttrByPath('underline/display', 'block')
+      sNode.setAttrByPath('underline/fill', sPrimaryColor)
+      sNode.setAttrByPath('underline/stroke', 'none')
+    } else if (sShapeStyle === 'none') {
+      sNode.setAttrByPath('body/fill', 'transparent')
+      sNode.setAttrByPath('body/stroke', 'transparent')
+      sNode.setAttrByPath('body/strokeWidth', 0)
+      sNode.setAttrByPath('underline/display', 'none')
+    } else if (sShapeStyle === 'capsule') {
+      sNode.setAttrByPath('body/rx', 16)
+      sNode.setAttrByPath('body/ry', 16)
+      sNode.setAttrByPath('body/fill', sData.fill || '#ffffff')
+      sNode.setAttrByPath('body/stroke', sData.stroke || sPrimaryColor)
+      sNode.setAttrByPath('body/strokeWidth', sData.strokeWidth || 1.5)
+      sNode.setAttrByPath('underline/display', 'none')
+    } else {
+      sNode.setAttrByPath('body/rx', 6)
+      sNode.setAttrByPath('body/ry', 6)
+      sNode.setAttrByPath('body/fill', sData.fill || '#ffffff')
+      sNode.setAttrByPath('body/stroke', sData.stroke || sPrimaryColor)
+      sNode.setAttrByPath('body/strokeWidth', sData.strokeWidth || 1.5)
+      sNode.setAttrByPath('underline/display', 'none')
+    }
+
+    // 确保概要节点连接端口存在
+    const targetPort = isLeft ? 'right' : 'left'
+    if (!sNode.hasPort?.(targetPort)) {
+      sNode.addPort?.({ id: targetPort, group: targetPort, args: { dy: 0 } })
+    }
+
+    if (sEdge) {
+      sEdge.show()
+      sEdge.setTarget({ cell: sNode.id, port: targetPort })
+      sEdge.setConnector({
+        name: 'mindmap-summary-bracket',
+        args: {
+          side,
+          topY,
+          bottomY,
+          bracketX,
+          tipX,
+          midY,
+        },
+      })
     }
   }
 }
@@ -533,6 +707,15 @@ export function deleteMindmapBranch(board: Board, targetId?: string): void {
   const data = targetNode.getData() as MindmapNodeData
   const mindmapId = data.mindmapId
 
+  // 如果是概要节点，直接删除概要节点与对应大括号连线
+  if (data.isSummary && data.summaryForId) {
+    const sEdge = getMindmapSummaryEdge(graph, data.summaryForId)
+    if (sEdge) sEdge.remove()
+    targetNode.remove()
+    updateMindmapLayout(board, mindmapId)
+    return
+  }
+
   // 如果是根节点，删除整棵脑图
   if (data.isRoot) {
     const { nodes, edges } = getMindmapElements(graph, mindmapId)
@@ -555,6 +738,10 @@ export function deleteMindmapBranch(board: Board, targetId?: string): void {
           toDelete.add(n.id)
           foundNew = true
         }
+        if (d.isSummary && d.summaryForId && toDelete.has(d.summaryForId)) {
+          toDelete.add(n.id)
+          foundNew = true
+        }
       }
     }
   }
@@ -562,6 +749,13 @@ export function deleteMindmapBranch(board: Board, targetId?: string): void {
   for (const nId of toDelete) {
     const n = graph.getCellById(nId)
     if (n) n.remove()
+  }
+
+  for (const e of edges) {
+    const eData = e.getData() as any
+    if (eData?.isSummaryEdge && eData.summaryForId && toDelete.has(eData.summaryForId)) {
+      e.remove()
+    }
   }
 
   updateMindmapLayout(board, mindmapId)
@@ -800,13 +994,131 @@ export function setMindmapNodeCollapse(board: Board, nodeId: string, collapsed: 
 }
 
 /**
- * 获取指定思维导图节点的直接子节点列表
+ * 获取指定思维导图节点的直接子节点列表 (排除概要节点)
  */
 export function getMindmapChildren(graph: Graph, parentId: string): Node[] {
   return graph.getNodes().filter((n) => {
     const data = n.getData() as MindmapNodeData | undefined
-    return data?.type === 'mindmap-node' && data.parentId === parentId
+    return data?.type === 'mindmap-node' && data.parentId === parentId && !data.isSummary
   })
+}
+
+/**
+ * 获取指定节点的概要节点 (若有)
+ */
+export function getMindmapSummaryNode(graph: Graph, parentId: string): Node | null {
+  return (
+    graph.getNodes().find((n) => {
+      const data = n.getData() as MindmapNodeData | undefined
+      return data?.type === 'mindmap-node' && data.isSummary && data.summaryForId === parentId
+    }) || null
+  )
+}
+
+/**
+ * 获取指定节点的概要大括号连线 (若有)
+ */
+export function getMindmapSummaryEdge(graph: Graph, parentId: string): Edge | null {
+  return (
+    graph.getEdges().find((e) => {
+      const data = e.getData() as any
+      return data?.isSummaryEdge && data.summaryForId === parentId
+    }) || null
+  )
+}
+
+/**
+ * 为指定节点添加概要 (汇总其直接子集)
+ */
+export function addMindmapSummary(board: Board, parentNodeId?: string): Node | null {
+  const graph = board.graph
+  let targetId = parentNodeId
+  if (!targetId) {
+    const selected = graph.getSelectedCells()
+    if (selected.length > 0 && isMindmapNode(selected[0])) {
+      targetId = selected[0].id
+    }
+  }
+  if (!targetId) return null
+
+  const parentNode = graph.getCellById(targetId) as Node
+  if (!parentNode) return null
+
+  const parentData = parentNode.getData() as MindmapNodeData
+  // root 根节点与概要节点自身均不允许创建概要
+  if (parentData.isRoot || parentData.isSummary) return null
+
+  // 若已存在概要节点，直接定位选中并激活编辑
+  const existingSummary = getMindmapSummaryNode(graph, parentNode.id)
+  if (existingSummary) {
+    graph.resetSelection([existingSummary])
+    activateMindmapNodeTextEdit(board, existingSummary)
+    return existingSummary
+  }
+
+  // 若该节点尚无直接子节点，为其默认创建一个子分支以形成概要组合
+  const directChildren = getMindmapChildren(graph, parentNode.id)
+  if (directChildren.length === 0) {
+    addMindmapChild(board, parentNode.id)
+  }
+
+  const summaryId = `summary-${parentNode.id}-${Date.now().toString(36)}`
+  const summaryNode = graph.createNode({
+    id: summaryId,
+    shape: 'speed-mindmap-node',
+    data: {
+      type: 'mindmap-node',
+      mindmapId: parentData.mindmapId,
+      isSummary: true,
+      summaryForId: parentNode.id,
+      parentId: parentNode.id,
+      depth: (parentData.depth ?? 0) + 2,
+      side: parentData.side || 'right',
+      text: '概要',
+      shapeStyle: 'rect',
+    },
+  })
+  graph.addNode(summaryNode)
+
+  const edgeId = `summary-edge-${parentNode.id}`
+  const summaryEdge = graph.createEdge({
+    id: edgeId,
+    shape: 'speed-mindmap-summary-edge',
+    source: { cell: parentNode.id },
+    target: { cell: summaryId, port: 'left' },
+    data: {
+      isSummaryEdge: true,
+      summaryForId: parentNode.id,
+    },
+  })
+  graph.addEdge(summaryEdge)
+
+  updateMindmapLayout(board, parentData.mindmapId)
+
+  // 立即选中新建的概要节点并进入就地编辑
+  requestAnimationFrame(() => {
+    graph.resetSelection([summaryNode])
+    activateMindmapNodeTextEdit(board, summaryNode)
+  })
+
+  return summaryNode
+}
+
+/**
+ * 删除指定节点的概要
+ */
+export function deleteMindmapSummary(board: Board, parentNodeId: string): void {
+  const graph = board.graph
+  const summaryNode = getMindmapSummaryNode(graph, parentNodeId)
+  const summaryEdge = getMindmapSummaryEdge(graph, parentNodeId)
+  if (summaryNode) summaryNode.remove()
+  if (summaryEdge) summaryEdge.remove()
+
+  const parentNode = graph.getCellById(parentNodeId) as Node | undefined
+  const mindmapId = parentNode?.getData()?.mindmapId
+  if (mindmapId) {
+    updateMindmapLayout(board, mindmapId)
+  }
 }
 
 /**
@@ -993,18 +1305,13 @@ export function getMindmapNodeHandleHTML(graph: Graph, node: Node): string {
       : false
 
   if (hasChildren && isCollapsed && !isRoot) {
-    // 情况 A：折叠状态 -> 常驻显示折叠数字徽标，同时带有添加按钮
+    // 情况 A：折叠状态 -> 仅常驻显示折叠数字徽标（点击展开），隐藏添加按钮保持清爽
     return `
       <div class="mindmap-native-handle ${side} is-collapsed" data-node-id="${node.id}">
         <div class="branch-anchor-dot" style="background-color: ${branchColor}"></div>
         <div class="branch-stub-line ${side}" style="background-color: ${branchColor}"></div>
         <div class="branch-count-badge ${side}" style="background-color: ${branchColor}" data-action="toggle-collapse" title="点击展开分支">
           ${children.length}
-        </div>
-        <div class="branch-add-btn is-secondary ${side}" data-action="add-child" title="添加分支 (Enter)">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2Z" />
-          </svg>
         </div>
       </div>
     `.trim()
@@ -1143,6 +1450,7 @@ export function activateMindmapNodeTextEdit(
   setTransformEditing(true)
   graph.trigger('node:edit:start', { node })
 
+  textEl.setAttribute('data-editing', 'true')
   textEl.setAttribute('contenteditable', 'true')
   textEl.setAttribute('tabindex', '-1')
   textEl.style.userSelect = 'text'
@@ -1161,6 +1469,8 @@ export function activateMindmapNodeTextEdit(
 
   const stopProp = (e: Event) => {
     e.stopPropagation()
+    // 用户主动点击光标定位时，立即退出全量替换占位符状态，转为正常就地插入
+    isFirstType = false
   }
   textEl.addEventListener('pointerdown', stopProp)
   textEl.addEventListener('mousedown', stopProp)
@@ -1171,21 +1481,35 @@ export function activateMindmapNodeTextEdit(
   const defaultPlaceholder = initialData.isRoot ? '思维导图' : '分支主题'
   let isFirstType = !initialData.text || initialData.text === defaultPlaceholder
 
+  // 严格校验是否处于【全选占位文字】态，仅在全量选中状态下输入才执行清空替换；若光标已折叠/定位则绝不清空
+  const isAllPlaceholderSelected = () => {
+    if (!isFirstType) return false
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false
+    const selectedText = sel.toString().trim()
+    return selectedText.length > 0 && selectedText === textEl.innerText.trim()
+  }
+
   const onCompositionStart = () => {
-    if (isFirstType) {
+    if (isAllPlaceholderSelected()) {
       textEl.innerText = ''
-      isFirstType = false
     }
+    isFirstType = false
   }
 
   const onBeforeInput = (e: InputEvent) => {
-    if (isFirstType && e.inputType === 'insertText') {
+    if (isAllPlaceholderSelected() && e.inputType === 'insertText') {
       textEl.innerText = ''
       isFirstType = false
     }
   }
 
+  const onCompositionEnd = () => {
+    onInput()
+  }
+
   textEl.addEventListener('compositionstart', onCompositionStart)
+  textEl.addEventListener('compositionend', onCompositionEnd)
   textEl.addEventListener('beforeinput', onBeforeInput as any)
 
   requestAnimationFrame(() => {
@@ -1231,7 +1555,7 @@ export function activateMindmapNodeTextEdit(
     } else {
       textEl.style.whiteSpace = 'pre'
       textEl.style.wordBreak = 'normal'
-      const calcW = calculateMindmapNodeWidth(rawText || (isRoot ? '思维导图' : '分支主题'), isRoot)
+      const calcW = calculateMindmapNodeWidth(rawText || (isRoot ? '思维导图' : '分支主题'), isRoot, countNodeMarkers(currData.markers))
       const lines = rawText.split('\n')
       const baseHeight = isRoot ? 42 : 32
       const lineH = (isRoot ? 16 : 14) * 1.45
@@ -1254,6 +1578,7 @@ export function activateMindmapNodeTextEdit(
     textEl.removeEventListener('click', stopProp)
     textEl.removeEventListener('dblclick', stopProp)
     textEl.removeEventListener('compositionstart', onCompositionStart)
+    textEl.removeEventListener('compositionend', onCompositionEnd)
     textEl.removeEventListener('beforeinput', onBeforeInput as any)
 
     textEl.removeAttribute('data-editing')
@@ -1284,7 +1609,7 @@ export function activateMindmapNodeTextEdit(
       const targetHeight = Math.max(baseHeight, scrollH + 8)
       node.setSize(manualWidth, targetHeight)
     } else {
-      const calcW = calculateMindmapNodeWidth(newText, isRoot)
+      const calcW = calculateMindmapNodeWidth(newText, isRoot, countNodeMarkers(currData.markers))
       const lines = newText.split('\n')
       const baseHeight = isRoot ? 42 : 32
       const lineH = (isRoot ? 16 : 14) * 1.45
@@ -1295,6 +1620,10 @@ export function activateMindmapNodeTextEdit(
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+      isFirstType = false
+    }
+
     if (e.key === 'Escape') {
       e.preventDefault()
       e.stopPropagation()
@@ -1313,8 +1642,10 @@ export function activateMindmapNodeTextEdit(
       e.preventDefault()
       e.stopPropagation()
       commitEdit()
-      // Enter 完成后直接新增同级兄弟节点 (1:1 语雀交互)
-      addMindmapSibling(board, node.id)
+      // 确认保存并退出编辑态，聚焦保持选中当前节点（按 Enter 新增同级分支仅在选中态触发，不在编辑打字中强行触发）
+      graph.cleanSelection()
+      graph.select(node)
+      graph.trigger('selection:changed', { selected: [node] })
       return
     }
 
@@ -1322,8 +1653,10 @@ export function activateMindmapNodeTextEdit(
       e.preventDefault()
       e.stopPropagation()
       commitEdit()
-      // Tab 完成后直接新增子节点 (1:1 语雀交互)
-      addMindmapChild(board, node.id)
+      // 确认保存并退出编辑态，聚焦保持选中当前节点
+      graph.cleanSelection()
+      graph.select(node)
+      graph.trigger('selection:changed', { selected: [node] })
       return
     }
   }
