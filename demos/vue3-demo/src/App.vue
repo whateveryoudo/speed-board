@@ -42,6 +42,7 @@ const uploadConfig: BoardUploadConfig = {
 
 const onBoardCreated = (board: Board) => {
   console.log('Speed-Board initialized:', board)
+  ;(window as any).__board__ = board
 }
 </script>
 

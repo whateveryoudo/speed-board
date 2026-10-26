@@ -209,11 +209,13 @@ export class BubbleMenuView {
     this.show(context)
 
     const boundary = this.containerEl || undefined
+    // 图形带有外偏 14px 的延伸出发点锚点，需适当上移气泡工具栏留出舒适间距 (1:1 语雀交互)
+    const dynamicOffset = this.currentType === 'shape' ? Math.max(this.offsetValue, 28) : this.offsetValue
     const { x, y } = await computePosition(this.virtualElement, this.element, {
       placement: this.placement,
       strategy: 'fixed',
       middleware: [
-        offset(this.offsetValue),
+        offset(dynamicOffset),
         flip({
           boundary,
           fallbackPlacements: ['bottom', 'top'],

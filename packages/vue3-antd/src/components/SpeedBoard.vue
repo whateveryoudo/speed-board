@@ -84,6 +84,17 @@
         @close="onQuickConnectClose"
       />
 
+      <!-- 思维导图渲染体上的 Marker 快捷切换 Popover (1:1 语雀/XMind 交互) -->
+      <MindmapMarkerQuickPicker
+        :board="boardInstance"
+        :visible="showMarkerQuickPicker"
+        :node="markerPickerNode"
+        :category="markerPickerCategory"
+        :value="markerPickerValue"
+        :target-el="markerPickerTargetEl"
+        @close="showMarkerQuickPicker = false"
+      />
+
       <!-- 语雀白板 1:1 鼠标跟随放置预览图层 (Ghost Placement Overlay) -->
       <PlacementOverlay
         :board="boardInstance"
@@ -113,6 +124,7 @@ import StyleSettingsPanel from './StyleSettingsPanel.vue'
 import TextOverlayEditor from './TextOverlayEditor.vue'
 import FloatingToolbarHost from './floatingToolbar/FloatingToolbarHost.vue'
 import QuickShapeConnectPopover from './QuickShapeConnectPopover.vue'
+import MindmapMarkerQuickPicker from './MindmapMarkerQuickPicker.vue'
 import {
   MindmapExtension,
   isMindmapNode,
@@ -120,7 +132,7 @@ import {
 } from '@speed-board/extension-mindmap'
 import { useCellAttributes } from '../composables/useCellAttributes'
 import type { IconProvider } from '../data/defaultIcons'
-import type { ShapeDefinition } from '../data/shapeLibrary'
+import { renderShapeCanvasSvg, getShapeTightViewBox, type ShapeDefinition } from '../data/shapeLibrary'
 import '../style/index.less'
 
 defineOptions({
@@ -283,6 +295,7 @@ const setupTextListeners = (board: Board) => {
     if (Date.now() - justPlacedTime < 300) return
     board.graph.cleanSelection()
     showTextOverlay.value = false
+    showMarkerQuickPicker.value = false
   }
 
   board.graph.on('blank:mousedown', onBlank)
@@ -308,7 +321,10 @@ const setupTextListeners = (board: Board) => {
 const isCanvasToolOrWidget = (target: HTMLElement | SVGElement | null): boolean => {
   if (!target) return false
   return !!(
+    target.closest('.speed-shape-anchor-ports') ||
+    target.closest('.shape-anchor-btn') ||
     target.closest('.floating-bubble-toolbar') ||
+    target.closest('.mindmap-marker-quick-picker') ||
     target.closest('.style-settings-panel') ||
     target.closest('.ant-popover') ||
     target.closest('.ant-dropdown') ||
@@ -346,6 +362,8 @@ const onCanvasWrapperPointerDown = (e: PointerEvent) => {
     boardInstance.value?.graph.cleanSelection()
     showTextOverlay.value = false
     showQuickConnect.value = false
+    showMarkerQuickPicker.value = false
+    showMarkerQuickPicker.value = false
   }
 }
 
@@ -360,11 +378,19 @@ const isShapeSelected = computed(() => !!selectedShapeNode.value)
 const isTextSelected = computed(() => !!selectedTextNode.value)
 const isMindmapSelected = computed(() => !!selectedMindmapNode.value)
 
+// 思维导图节点 Marker 快捷切换卡片状态
+const showMarkerQuickPicker = ref(false)
+const markerPickerNode = shallowRef<any>(null)
+const markerPickerCategory = ref<string>('')
+const markerPickerValue = ref<any>(null)
+const markerPickerTargetEl = ref<HTMLElement | null>(null)
+
 // 4 锚点延伸补线与快捷图形生成状态
 const showQuickConnect = ref(false)
 const quickConnectPos = ref({ x: 0, y: 0 })
 const quickConnectDirection = ref<'top' | 'right' | 'bottom' | 'left'>('right')
 const activeAnchorEdge = shallowRef<any>(null)
+const anchorSourceNode = shallowRef<any>(null)
 
 const onAnchorClick = (payload: {
   node?: any
@@ -376,6 +402,7 @@ const onAnchorClick = (payload: {
   quickConnectDirection.value = direction
   const sourceNode = payload.node || selectedShapeNode.value
   if (!sourceNode || !boardInstance.value) return
+  anchorSourceNode.value = sourceNode
 
   const sourcePos = sourceNode.position()
   const sourceSize = sourceNode.size()
@@ -396,8 +423,8 @@ const onAnchorClick = (payload: {
     type: 'elbow',
     source: { cell: sourceNode.id, port: direction },
     target: targetGraphPt,
-    stroke: '#374151',
-    strokeWidth: 2,
+    stroke: '#4b5563',
+    strokeWidth: 1.5,
   })
   activeAnchorEdge.value = edge
 
@@ -433,19 +460,6 @@ const onAnchorClick = (payload: {
   showQuickConnect.value = true
 }
 
-const onAnchorDragStart = (payload: {
-  direction: 'top' | 'right' | 'bottom' | 'left'
-  point: any
-  event: PointerEvent
-}) => {
-  const node = selectedShapeNode.value
-  if (!node || !boardInstance.value) return
-  boardInstance.value.drawingController.startLineFromPort(node, payload.direction, {
-    clientX: payload.event.clientX,
-    clientY: payload.event.clientY,
-  })
-}
-
 const onQuickConnectClose = () => {
   showQuickConnect.value = false
   if (activeAnchorEdge.value) {
@@ -479,7 +493,10 @@ const onLineFinishedOnBlank = (payload: {
 
 const onQuickConnectShapeSelect = (shape: ShapeDefinition) => {
   if (!boardInstance.value) return
-  const sourceNode = selectedShapeNode.value
+  const sourceNode =
+    anchorSourceNode.value ||
+    (activeAnchorEdge.value ? boardInstance.value.graph.getCellById(activeAnchorEdge.value.getSourceCellId()) : null) ||
+    selectedShapeNode.value
   const sourcePos = sourceNode ? sourceNode.position() : { x: 0, y: 0 }
   const sourceSize = sourceNode ? sourceNode.size() : { width: 100, height: 80 }
   const sourceData = sourceNode ? (sourceNode.getData() || {}) : {}
@@ -512,28 +529,57 @@ const onQuickConnectShapeSelect = (shape: ShapeDefinition) => {
   // 如果是在拖拽释放处
   if (activeAnchorEdge.value && activeAnchorEdge.value.getTargetPoint) {
     const targetPt = activeAnchorEdge.value.getTargetPoint()
-    if (targetPt) {
-      targetX = Math.round(targetPt.x - targetWidth / 2)
-      targetY = Math.round(targetPt.y - targetHeight / 2)
+    if (targetPt && targetPt.x && targetPt.y) {
+      if (dir === 'right') {
+        targetX = Math.round(targetPt.x)
+        targetY = Math.round(targetPt.y - targetHeight / 2)
+      } else if (dir === 'left') {
+        targetX = Math.round(targetPt.x - targetWidth)
+        targetY = Math.round(targetPt.y - targetHeight / 2)
+      } else if (dir === 'bottom') {
+        targetX = Math.round(targetPt.x - targetWidth / 2)
+        targetY = Math.round(targetPt.y)
+      } else if (dir === 'top') {
+        targetX = Math.round(targetPt.x - targetWidth / 2)
+        targetY = Math.round(targetPt.y - targetHeight)
+      }
     }
   }
 
-  const newNode = boardInstance.value.addShape({
-    shape: shape.id as any,
+  const fill = sourceData.fill || '#ffffff'
+  const stroke = sourceData.stroke || '#4b5563'
+  const strokeWidth = sourceData.strokeWidth || 1.5
+  const svgContent = renderShapeCanvasSvg(shape, { fill, stroke, strokeWidth })
+  const viewBox = getShapeTightViewBox(svgContent, shape.id)
+
+  const newNode = boardInstance.value.addVectorShape({
+    shapeId: shape.id,
+    shapeName: shape.name,
+    svgContent,
+    viewBox,
     x: targetX,
     y: targetY,
     width: targetWidth,
     height: targetHeight,
-    fill: sourceData.fill || '#ffffff',
-    stroke: sourceData.stroke || '#374151',
-    strokeWidth: sourceData.strokeWidth || 2,
+    fill,
+    stroke,
+    strokeWidth,
   })
 
   if (activeAnchorEdge.value && newNode) {
     activeAnchorEdge.value.setTarget({ cell: newNode.id, port: targetPort })
     activeAnchorEdge.value = null
+  } else if (sourceNode && newNode) {
+    boardInstance.value.addLine({
+      type: 'elbow',
+      source: { cell: sourceNode.id, port: dir },
+      target: { cell: newNode.id, port: targetPort },
+      stroke: '#4b5563',
+      strokeWidth: 1.5,
+    })
   }
 
+  anchorSourceNode.value = null
   showQuickConnect.value = false
   if (newNode) {
     boardInstance.value.graph.cleanSelection()
@@ -585,6 +631,7 @@ const setupSelectionListeners = (board: Board) => {
         ? selectedNodes[0]
         : null
     showQuickConnect.value = false
+    showMarkerQuickPicker.value = false
 
     nextTick(() => {
       const transformWidgets = board.container.querySelectorAll('.x6-widget-transform')
@@ -652,6 +699,20 @@ const onBoardCreated = (board: Board) => {
     startInlineTextEdit(node, initialChar)
   })
 
+  // 监听脑图节点上的 Marker 点击，弹出对应分类的快捷切换条 (1:1 语雀/XMind 交互)
+  board.graph.on('mindmap:marker:click', ({ node, category, value, targetEl }: any) => {
+    markerPickerNode.value = node
+    markerPickerCategory.value = category
+    markerPickerValue.value = value
+    markerPickerTargetEl.value = targetEl
+    showMarkerQuickPicker.value = true
+  })
+
+  // 监听 X6 内部原生 ShapeAnchorTool 触发的锚点点击事件 (1:1 语雀 In-SVG 架构)
+  board.graph.on('anchor:click', (payload: any) => {
+    onAnchorClick(payload)
+  })
+
   emit('created', board)
 }
 
@@ -663,8 +724,8 @@ const onSave = () => {
 const drawConfig = ref<DrawConfig>({
   mode: 'select',
   lineType: 'elbow',
-  color: '#333333',
-  width: 3,
+  color: '#4b5563',
+  width: 1.5,
   opacity: 1,
 })
 

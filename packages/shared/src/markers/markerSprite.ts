@@ -87,15 +87,21 @@ export function renderNodeMarkersHtml(markers?: MindmapMarkers, size = 18): stri
   const parts: string[] = []
 
   if (typeof markers.priority === "number" && markers.priority >= 1 && markers.priority <= 7) {
-    parts.push(renderMarkerSvgHtml(`marker-priority-${markers.priority}`, size))
+    parts.push(
+      `<span class="mindmap-marker-item" data-category="priority" data-value="${markers.priority}" style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;border-radius:4px;padding:1px;line-height:1;">${renderMarkerSvgHtml(`marker-priority-${markers.priority}`, size)}</span>`
+    )
   }
   if (typeof markers.progress === "number" && markers.progress >= 0 && markers.progress <= 6) {
-    parts.push(renderMarkerSvgHtml(`marker-progress-${markers.progress}`, size))
+    parts.push(
+      `<span class="mindmap-marker-item" data-category="progress" data-value="${markers.progress}" style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;border-radius:4px;padding:1px;line-height:1;">${renderMarkerSvgHtml(`marker-progress-${markers.progress}`, size)}</span>`
+    )
   }
   if (markers.flag) {
     // 兼容 flag 格式，如 "1-red" 或 "flag-1-red"
     const flagKey = markers.flag.startsWith("flag-") ? markers.flag : `flag-${markers.flag}`
-    parts.push(renderMarkerSvgHtml(`marker-${flagKey}`, size))
+    parts.push(
+      `<span class="mindmap-marker-item" data-category="flag" data-value="${markers.flag}" style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;border-radius:4px;padding:1px;line-height:1;">${renderMarkerSvgHtml(`marker-${flagKey}`, size)}</span>`
+    )
   }
 
   return parts.join("")

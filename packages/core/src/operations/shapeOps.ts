@@ -1,6 +1,7 @@
 import type { Node } from '@antv/x6'
 import type { Board, AddShapeOptions } from '../Board'
 import { measureTextWidth } from '@speed-board/shared'
+import { getShapePortsConfig } from '../nodes/shapePorts'
 
 /**
  * 添加通用基础图形
@@ -20,17 +21,25 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
         y,
         width: options.width ?? 80,
         height: options.height ?? 80,
+        ports: getShapePortsConfig('circle'),
         attrs: {
           body: {
             fill: options.fill ?? '#ffffff',
-            stroke: options.stroke ?? '#374151',
-            strokeWidth: 2,
+            stroke: options.stroke ?? '#4b5563',
+            strokeWidth: options.strokeWidth ?? 1.5,
           },
           label: {
             text: options.text ?? '',
             fontSize: 14,
             fill: '#1f2937',
           },
+        },
+        data: {
+          type: 'shape',
+          shapeId: 'circle',
+          fill: options.fill ?? '#ffffff',
+          stroke: options.stroke ?? '#4b5563',
+          strokeWidth: options.strokeWidth ?? 1.5,
         },
       })
       break
@@ -43,17 +52,25 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
         width: options.width ?? 100,
         height: options.height ?? 80,
         points: '0,40 50,0 100,40 50,80',
+        ports: getShapePortsConfig('diamond'),
         attrs: {
           body: {
             fill: options.fill ?? '#ffffff',
-            stroke: options.stroke ?? '#374151',
-            strokeWidth: 2,
+            stroke: options.stroke ?? '#4b5563',
+            strokeWidth: options.strokeWidth ?? 1.5,
           },
           label: {
             text: options.text ?? '',
             fontSize: 14,
             fill: '#1f2937',
           },
+        },
+        data: {
+          type: 'shape',
+          shapeId: 'diamond',
+          fill: options.fill ?? '#ffffff',
+          stroke: options.stroke ?? '#4b5563',
+          strokeWidth: options.strokeWidth ?? 1.5,
         },
       })
       break
@@ -150,6 +167,7 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
         y,
         width: options.width ?? 100,
         height: options.height ?? 80,
+        ports: getShapePortsConfig(options.shapeId || 'rect'),
         attrs: {
           shapeBody: {
             html: options.svgContent || options.svg || '',
@@ -160,6 +178,7 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
           textWrap: {
             html: options.text || '',
             style: {
+              textAlign: options.align || 'center',
               fontSize: `${options.fontSize ?? 14}px`,
               color: options.textColor ?? '#1f2937',
             },
@@ -206,11 +225,12 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
         y,
         width: options.width ?? 120,
         height: options.height ?? 60,
+        ports: getShapePortsConfig('rect'),
         attrs: {
           body: {
             fill: options.fill ?? '#ffffff',
-            stroke: options.stroke ?? '#374151',
-            strokeWidth: 2,
+            stroke: options.stroke ?? '#4b5563',
+            strokeWidth: options.strokeWidth ?? 1.5,
             rx: 6,
             ry: 6,
           },
@@ -228,8 +248,8 @@ export function addShape(board: Board, options: AddShapeOptions): Node {
           type: 'shape',
           shapeId: 'rect',
           fill: options.fill ?? '#ffffff',
-          stroke: options.stroke ?? '#374151',
-          strokeWidth: 2,
+          stroke: options.stroke ?? '#4b5563',
+          strokeWidth: options.strokeWidth ?? 1.5,
           text: options.text ?? '',
           align: 'center',
           verticalAlign: 'middle',
@@ -391,6 +411,7 @@ export function updateShapeNode(
       width: size.width,
       height: size.height,
       zIndex,
+      ports: getShapePortsConfig(options.shapeId || data.shapeId || 'rect'),
       attrs: {
         shapeBody: {
           html: options.svgContent,
@@ -417,6 +438,7 @@ export function updateShapeNode(
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            textAlign: options.align ?? data.align ?? 'center',
             fontSize: `${options.fontSize ?? data.fontSize ?? 14}px`,
             color: options.textColor ?? data.textColor ?? '#1f2937',
             outline: 'none',

@@ -80,30 +80,6 @@ const onSelect = (shape: ShapeDefinition) => {
 </script>
 
 <style scoped>
-.bubble-toolbar-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: #374151;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.bubble-toolbar-btn:hover {
-  background-color: #f3f4f6;
-  color: #111827;
-}
-
-.bubble-toolbar-btn.is-active {
-  background-color: #e5e7eb;
-  color: #10b981;
-}
-
 .trigger-shape-svg {
   width: 22px;
   height: 22px;

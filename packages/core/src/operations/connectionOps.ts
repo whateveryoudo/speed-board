@@ -93,32 +93,46 @@ export function showNodePorts(
       const circle = p.querySelector<SVGCircleElement>('circle')
       if (!circle) return
       if (!visible) {
+        p.classList.remove('is-visible')
+        p.classList.remove('is-active')
+        p.style.removeProperty('opacity')
         circle.style.removeProperty('opacity')
         circle.style.removeProperty('pointer-events')
         circle.style.removeProperty('cursor')
-        circle.setAttribute('r', '4.5')
+        circle.setAttribute('r', '2.8')
         circle.setAttribute('fill', '#ffffff')
-        circle.setAttribute('stroke', '#1677ff')
-        circle.setAttribute('stroke-width', '1.5')
+        circle.setAttribute('stroke', '#3b82f6')
+        circle.setAttribute('stroke-width', '1.2')
       } else {
+        p.classList.add('is-visible')
+        p.style.opacity = '1'
         circle.style.opacity = '1'
         circle.style.pointerEvents = 'auto'
         circle.style.cursor = 'crosshair'
+        const bodyEl = p.querySelector('.x6-port-body')
         const portId =
-          p.getAttribute('data-port') ||
+          bodyEl?.getAttribute('port') ||
           p.getAttribute('port') ||
+          p.getAttribute('data-port') ||
           circle.getAttribute('port') ||
           circle.getAttribute('data-port')
-        if (activePortId && portId === activePortId) {
-          circle.setAttribute('r', '6.5')
-          circle.setAttribute('fill', '#1677ff')
-          circle.setAttribute('stroke', '#ffffff')
-          circle.setAttribute('stroke-width', '2')
+        const isActive = !!(
+          activePortId &&
+          (portId === activePortId ||
+            portId === `port-${activePortId}` ||
+            String(activePortId).endsWith(String(portId)))
+        )
+        if (isActive) {
+          p.classList.add('is-active')
+          circle.setAttribute('r', '4')
+          circle.setAttribute('fill', '#2563eb')
+          circle.setAttribute('stroke', 'none')
         } else {
-          circle.setAttribute('r', '4.5')
+          p.classList.remove('is-active')
+          circle.setAttribute('r', '2.8')
           circle.setAttribute('fill', '#ffffff')
-          circle.setAttribute('stroke', '#1677ff')
-          circle.setAttribute('stroke-width', '1.5')
+          circle.setAttribute('stroke', '#3b82f6')
+          circle.setAttribute('stroke-width', '1.2')
         }
       }
     })
@@ -224,14 +238,18 @@ export function addLine(
 
   const attrs: any = {
     line: {
-      stroke: options.stroke || '#374151',
-      strokeWidth: options.strokeWidth || 2,
+      stroke: options.stroke || '#4b5563',
+      strokeWidth: options.strokeWidth || 1.5,
       strokeDasharray: options.strokeDasharray && options.strokeDasharray !== 'none' ? options.strokeDasharray : undefined,
       targetMarker: {
         name: 'block',
-        width: 9,
-        height: 6,
-        offset: 0,
+        width: 6,
+        height: 4.5,
+        offset: -1.5,
+        attrs: {
+          fill: options.stroke || '#4b5563',
+          stroke: options.stroke || '#4b5563',
+        },
       },
     },
   }
@@ -241,13 +259,12 @@ export function addLine(
     source,
     target,
     attrs,
-    connectionPoint: 'anchor',
+    connectionPoint: 'boundary',
   }
 
   if (type === 'elbow') {
     edgeConfig.router = {
-      name: 'manhattan',
-      args: { padding: 10 },
+      name: 'whiteboard-elbow',
     }
     edgeConfig.connector = {
       name: 'rounded',

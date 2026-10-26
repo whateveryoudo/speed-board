@@ -285,36 +285,31 @@
   }
 }
 
-// X6 原生连接桩 (Ports)：白色圆圈指示点，hover 或选中时展示，鼠标悬浮放大并高亮 (1:1 语雀白板原生交互)
+// X6 原生连接桩 (落点 Ports)：鼠标 hover 或拖拽连线进入时展示贴合轮廓的落点 (1:1 语雀白板原生交互)
 .x6-port {
   opacity: 0;
   transition: opacity 0.15s ease;
   cursor: crosshair;
 
   circle {
-    r: 4.5px;
+    r: 2.8px;
     fill: #ffffff;
-    stroke: var(--speed-board-selection, var(--ant-color-primary, #1677ff));
-    stroke-width: 1.5px;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
-    transition: all 0.15s ease;
-    transform-origin: center;
+    stroke: #3b82f6;
+    stroke-width: 1.2px;
+    transition: r 0.15s ease, fill 0.15s ease;
   }
 
-  &:hover circle {
-    r: 6.5px;
-    stroke: #ffffff;
-    stroke-width: 2px;
-    fill: var(--speed-board-selection, var(--ant-color-primary, #1677ff));
-    filter: drop-shadow(0 2px 6px rgba(22, 119, 255, 0.5));
+  &:hover circle,
+  &.is-active circle {
+    r: 4px;
+    stroke: none;
+    fill: #2563eb;
   }
 }
 
-// 鼠标悬停到普通节点或单选时，原生显示连接桩
-.x6-node:not([data-shape^="speed-mindmap"]):hover .x6-port,
-.x6-node-selected:not([data-shape^="speed-mindmap"]) .x6-port,
-.is-shape-selected .x6-node-selected .x6-port {
-  opacity: 1;
+// 仅在连线拖拽感应/接触时激活展示落点桩（平时即便鼠标 hover 也严格隐蔽，保持图形边线纯净 1:1 语雀白板交互）
+.x6-port.is-visible {
+  opacity: 1 !important;
 }
 
 // 脑图节点永不显示连接桩 (由脑图专用分支手柄接管)
@@ -335,6 +330,20 @@
 .speed-image-spinner {
   animation: speed-spin 1s linear infinite;
   transform-origin: center;
+}
+
+// 连线端点工具手柄（白圈）样式：严禁在 CSS 中添加任何 transform / transform-origin，防止覆盖 X6 SVG 矩阵定位导致飞出
+.x6-edge-tool-source-arrowhead,
+.x6-edge-tool-target-arrowhead {
+  cursor: move !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+
+  &:hover {
+    stroke: #1677ff !important;
+    stroke-width: 2.5px !important;
+    filter: drop-shadow(0 1px 3px rgba(22, 119, 255, 0.5)) !important;
+  }
 }
 
 // 连线端点拖拽进行中：隐藏两端端点引导圈手柄，展示干净的箭头尖端与吸附实心填充圆 (1:1 语雀白板交互)

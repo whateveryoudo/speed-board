@@ -83,10 +83,30 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
           }
         })
 
-        // 监听脑图节点内置控制手柄的原生 DOM 点击事件 (+ / 收起 / 展开)
-        board.graph.on('node:click', ({ e, cell }) => {
+        // 监听脑图节点内置控制手柄的原生 DOM 点击事件 (+ / 收起 / 展开 / 标记快捷切换)
+        board.graph.on('node:click', ({ e, cell, node }: any) => {
+          const currentCell = node || cell
           const target = e.target as HTMLElement | null
-          if (!target) return
+          if (!target || !currentCell) return
+
+          // 1. 检查是否点击了节点上的标记 (Marker)
+          const markerEl = (target as Element).closest?.('.mindmap-marker-item') as HTMLElement | null
+          if (markerEl) {
+            e.stopPropagation()
+            const category = markerEl.getAttribute('data-category')
+            const value = markerEl.getAttribute('data-value')
+            if (!board.graph.isSelected(currentCell)) {
+              board.graph.cleanSelection()
+              board.graph.select(currentCell)
+            }
+            board.graph.trigger('mindmap:marker:click', {
+              node: currentCell,
+              category,
+              value,
+              targetEl: markerEl,
+            })
+            return
+          }
 
           const actionEl = target.closest('[data-action]') as HTMLElement | null
           if (!actionEl) return
@@ -94,14 +114,14 @@ export class MindmapExtension extends Extension<any, MindmapExtensionOptions> {
           const action = actionEl.getAttribute('data-action')
           if (action === 'add-child') {
             e.stopPropagation()
-            addMindmapChild(board, cell.id)
+            addMindmapChild(board, currentCell.id)
             return
           }
           if (action === 'toggle-collapse') {
             e.stopPropagation()
-            toggleMindmapNodeCollapse(board, cell.id)
+            toggleMindmapNodeCollapse(board, currentCell.id)
             board.graph.cleanSelection()
-            board.graph.select(cell)
+            board.graph.select(currentCell)
             return
           }
         })

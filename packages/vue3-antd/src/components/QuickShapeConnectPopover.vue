@@ -5,6 +5,7 @@
     :style="popupStyle"
     @click.stop
     @mousedown.stop
+    @pointerdown.stop
   >
     <!-- 最近使用 -->
     <div class="shape-group-section">
@@ -22,7 +23,8 @@
         >
           <button
             class="shape-item-btn"
-            @click="onSelect(shape)"
+            @click.stop="onSelect(shape)"
+            @pointerdown.stop.prevent="onSelect(shape)"
           >
             <div class="shape-svg-wrapper" v-html="getShapeIconSvg(shape)" />
           </button>
@@ -46,7 +48,8 @@
         >
           <button
             class="shape-item-btn"
-            @click="onSelect(shape)"
+            @click.stop="onSelect(shape)"
+            @pointerdown.stop.prevent="onSelect(shape)"
           >
             <div class="shape-svg-wrapper" v-html="getShapeIconSvg(shape)" />
           </button>

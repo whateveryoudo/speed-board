@@ -1,24 +1,11 @@
 <template>
   <a-tooltip title="概要" placement="bottom">
     <button
-      class="bubble-toolbar-btn summary-trigger-btn"
+      class="bubble-toolbar-btn"
       :class="{ 'is-active': isSummaryNode }"
       @click="handleAddSummary"
     >
-      <svg
-        class="summary-bracket-icon"
-        viewBox="0 0 24 24"
-        width="17"
-        height="17"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M7 4h3a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2H7" />
-        <line x1="16" y1="12" x2="20" y2="12" />
-      </svg>
+      <SIconFont type="icon-kl-fenzhi0" style="transform: rotate(180deg);" :size="18" />
     </button>
   </a-tooltip>
 </template>
@@ -29,7 +16,7 @@ import { Tooltip as ATooltip } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
 import type { MindmapNodeData } from '@speed-board/shared'
 import { addMindmapSummary } from '@speed-board/extension-mindmap'
-
+import { IconFont as SIconFont } from 'speed-components-ui/components'
 const props = defineProps<{
   board: Board | null
 }>()

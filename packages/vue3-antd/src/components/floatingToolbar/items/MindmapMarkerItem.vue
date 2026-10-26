@@ -74,25 +74,8 @@
     </template>
 
     <a-tooltip title="标记" placement="bottom" :open="isOpen ? false : undefined">
-      <button class="bubble-toolbar-btn marker-trigger-btn" :class="{ 'is-active': isOpen || hasActiveMarkers }">
-        <svg v-if="firstActiveSymbol" class="marker-preview-icon">
-          <use :xlink:href="'#' + firstActiveSymbol" :href="'#' + firstActiveSymbol" />
-        </svg>
-        <svg
-          v-else
-          class="default-flag-icon"
-          viewBox="0 0 24 24"
-          width="17"
-          height="17"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-          <line x1="4" y1="22" x2="4" y2="15" />
-        </svg>
+      <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }">
+        <SIconFont type="icon-kl-a-biaoshiicon" :size="18" />
       </button>
     </a-tooltip>
   </a-popover>
@@ -102,6 +85,7 @@
 import { computed, onMounted, watch } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
+import { IconFont as SIconFont } from 'speed-components-ui/components'
 import {
   PRIORITY_MARKERS,
   PROGRESS_MARKERS,
@@ -173,12 +157,15 @@ const updateMarkers = (updater: (prev: MindmapMarkers) => MindmapMarkers) => {
   if (typeof next.progress === 'number') cleaned.progress = next.progress
   if (next.flag) cleaned.flag = next.flag
 
-  cell.setData({
-    ...currentData,
-    markers: Object.keys(cleaned).length > 0 ? cleaned : undefined,
-  })
+  cell.setData(
+    {
+      ...currentData,
+      markers: Object.keys(cleaned).length > 0 ? cleaned : undefined,
+    },
+    { overwrite: true }
+  )
 
-  updateMindmapLayout(props.board, currentData.mindmapId)
+  updateMindmapLayout(props.board, currentData.mindmapId || cell.id)
 }
 
 const togglePriority = (val: number) => {
@@ -280,7 +267,6 @@ const clearAllMarkers = () => {
   .marker-clear-action {
     margin-top: 4px;
     padding-top: 8px;
-    border-top: 1px solid #f3f4f6;
     text-align: center;
     font-size: 12px;
     color: #ef4444;
@@ -292,22 +278,6 @@ const clearAllMarkers = () => {
     &:hover {
       background-color: #fef2f2;
     }
-  }
-}
-
-.marker-trigger-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  .marker-preview-icon {
-    width: 18px;
-    height: 18px;
-    display: block;
-  }
-
-  .default-flag-icon {
-    display: block;
   }
 }
 </style>

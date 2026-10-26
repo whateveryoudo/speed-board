@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { Board } from '@speed-board/core'
 import {
   computePortPositions,
@@ -137,18 +137,57 @@ const onAnchorPointerDown = (direction: PortDirection, pt: AnchorPointData, e: P
   window.addEventListener('pointerup', onPointerUp)
 }
 
+const isPortConnected = (dir: string) => {
+  void anchorTick.value
+  if (!props.selectedNode || !props.board) return false
+  try {
+    const edges = props.board.graph.getConnectedEdges(props.selectedNode)
+    for (const edge of edges) {
+      const src = edge.getSource()
+      const tgt = edge.getTarget()
+      if (src && (src as any).cell === props.selectedNode.id) {
+        if ((src as any).port === dir || (src as any).port === `port-${dir}`) return true
+      }
+      if (tgt && (tgt as any).cell === props.selectedNode.id) {
+        if ((tgt as any).port === dir || (tgt as any).port === `port-${dir}`) return true
+      }
+    }
+  } catch {}
+  return false
+}
+
 const syncTick = () => {
   anchorTick.value++
 }
 
-onMounted(() => {
-  if (props.board) {
-    props.board.graph.on('scale', syncTick)
-    props.board.graph.on('translate', syncTick)
-    props.board.graph.on('node:change:position', syncTick)
-    props.board.graph.on('node:change:size', syncTick)
-  }
-})
+watch(
+  () => props.board,
+  (board, oldBoard) => {
+    if (oldBoard) {
+      oldBoard.graph.off('scale', syncTick)
+      oldBoard.graph.off('translate', syncTick)
+      oldBoard.graph.off('node:change:position', syncTick)
+      oldBoard.graph.off('node:change:size', syncTick)
+      oldBoard.graph.off('node:moving', syncTick)
+      oldBoard.graph.off('node:resizing', syncTick)
+      oldBoard.graph.off('node:rotate', syncTick)
+      oldBoard.graph.off('edge:connected', syncTick)
+      oldBoard.graph.off('edge:removed', syncTick)
+    }
+    if (board) {
+      board.graph.on('scale', syncTick)
+      board.graph.on('translate', syncTick)
+      board.graph.on('node:change:position', syncTick)
+      board.graph.on('node:change:size', syncTick)
+      board.graph.on('node:moving', syncTick)
+      board.graph.on('node:resizing', syncTick)
+      board.graph.on('node:rotate', syncTick)
+      board.graph.on('edge:connected', syncTick)
+      board.graph.on('edge:removed', syncTick)
+    }
+  },
+  { immediate: true }
+)
 
 onUnmounted(() => {
   if (props.board) {
@@ -156,6 +195,11 @@ onUnmounted(() => {
     props.board.graph.off('translate', syncTick)
     props.board.graph.off('node:change:position', syncTick)
     props.board.graph.off('node:change:size', syncTick)
+    props.board.graph.off('node:moving', syncTick)
+    props.board.graph.off('node:resizing', syncTick)
+    props.board.graph.off('node:rotate', syncTick)
+    props.board.graph.off('edge:connected', syncTick)
+    props.board.graph.off('edge:removed', syncTick)
   }
 })
 </script>
@@ -167,13 +211,13 @@ onUnmounted(() => {
 
 .shape-anchor-btn {
   position: absolute;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: crosshair;
   pointer-events: auto;
   z-index: 85;
   transition: transform 0.15s ease;
@@ -182,17 +226,17 @@ onUnmounted(() => {
 .anchor-dot {
   width: 8px;
   height: 8px;
-  background-color: #3b82f6;
-  border: 1.5px solid #ffffff;
+  background-color: #ffffff;
+  border: 1.5px solid #3b82f6;
   border-radius: 50%;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   transition: all 0.15s ease;
 }
 
 .anchor-arrow {
   display: none;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   background-color: #3b82f6;
   color: #ffffff;
   border-radius: 50%;

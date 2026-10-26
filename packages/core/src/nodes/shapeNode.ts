@@ -71,6 +71,7 @@ export function registerShapeNode(): void {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            textAlign: 'center',
             fontSize: '14px',
             color: '#1f2937',
             fontFamily:

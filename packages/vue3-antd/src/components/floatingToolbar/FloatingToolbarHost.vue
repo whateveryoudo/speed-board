@@ -365,6 +365,43 @@ const shouldShowDivider = (item: string, idx: number) => {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(0, 0, 0, 0.06);
   gap: 2px;
+
+  :deep(.bubble-toolbar-btn) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #374151;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    box-sizing: border-box;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background-color: #f3f4f6;
+      color: #111827;
+    }
+
+    &.is-active {
+      background-color: #e5e7eb;
+      color: #111827;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    &:focus-visible {
+      outline: none;
+    }
+  }
 }
 
 .image-status-bar {

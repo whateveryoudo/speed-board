@@ -16,7 +16,7 @@ export class DrawingController {
   public lineType: 'elbow' | 'straight' | 'curve' = 'straight'
   public lineStartPt: { x: number; y: number } | null = null
   public lineStartSnapped: { cell: string; port?: string } | null = null
-  public lineEndSnapped: { cell: string; port?: string } | null = null
+  public lineEndSnapped: { cell: string; port?: string; anchor?: any } | null = null
   public tempLinePath: SVGPathElement | null = null
   public hoveredPortNode: any = null
   public onLineFinishedOnBlank?: (payload: {
@@ -72,14 +72,14 @@ export class DrawingController {
       const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker')
       marker.setAttribute('id', 'speed-core-line-arrow')
       marker.setAttribute('viewBox', '0 0 10 10')
-      marker.setAttribute('refX', '9')
+      marker.setAttribute('refX', '7')
       marker.setAttribute('refY', '5')
-      marker.setAttribute('markerWidth', '9')
-      marker.setAttribute('markerHeight', '6')
+      marker.setAttribute('markerWidth', '7')
+      marker.setAttribute('markerHeight', '5')
       marker.setAttribute('orient', 'auto-start-reverse')
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-      path.setAttribute('d', 'M 0 2 L 9 5 L 0 8 Z')
-      path.setAttribute('fill', '#374151')
+      path.setAttribute('d', 'M 0 2 L 7 5 L 0 8 Z')
+      path.setAttribute('fill', '#4b5563')
       marker.appendChild(path)
       defs.appendChild(marker)
     }
@@ -114,8 +114,8 @@ export class DrawingController {
           this.tempLinePath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
           this.tempLinePath.setAttribute('style', 'pointer-events: none;')
         }
-        this.tempLinePath.setAttribute('stroke', this.drawColor || '#374151')
-        this.tempLinePath.setAttribute('stroke-width', String(this.drawWidth || 2))
+        this.tempLinePath.setAttribute('stroke', this.drawColor || '#4b5563')
+        this.tempLinePath.setAttribute('stroke-width', String(this.drawWidth || 1.5))
         this.tempLinePath.setAttribute('stroke-linecap', 'round')
         this.tempLinePath.setAttribute('stroke-linejoin', 'round')
         this.tempLinePath.setAttribute('stroke-dasharray', '4,4')
@@ -195,7 +195,7 @@ export class DrawingController {
       if (this.drawingMode === 'line') {
         if (!this.isDrawing || !this.lineStartPt || !this.tempLinePath) return
         const curPt = this.board.graph.clientToLocal(e.clientX, e.clientY)
-        const portResult = findClosestPort(this.board, curPt, 22)
+        const portResult = findClosestPort(this.board, curPt, 38)
         const contactNode = portResult ? portResult.node : null
         const activePortId = portResult?.isCenterPort ? portResult.port : undefined
 
@@ -224,19 +224,67 @@ export class DrawingController {
           if (portResult.isCenterPort && portResult.port) {
             this.lineEndSnapped = { cell: portResult.node.id, port: portResult.port }
           } else {
-            this.lineEndSnapped = null
+            this.lineEndSnapped = {
+              cell: portResult.node.id,
+              anchor: {
+                name: portResult.edge,
+                args: {
+                  dx: portResult.edge === 'top' || portResult.edge === 'bottom' ? portResult.delta : 0,
+                  dy: portResult.edge === 'left' || portResult.edge === 'right' ? portResult.delta : 0,
+                  rotate: true,
+                },
+              },
+            }
           }
           targetPt = portResult.point || portResult.localPoint
         } else {
           this.lineEndSnapped = null
+          // 正交拉线阈值吸附 (24px 宽容度内自动锁平/锁直，彻底杜绝尾部微小弯折步阶)
+          if (this.lineType === 'elbow' || this.lineType === 'straight') {
+            if (Math.abs(targetPt.y - this.lineStartPt.y) <= 24) {
+              targetPt = { x: targetPt.x, y: this.lineStartPt.y }
+            } else if (Math.abs(targetPt.x - this.lineStartPt.x) <= 24) {
+              targetPt = { x: this.lineStartPt.x, y: targetPt.y }
+            }
+          }
         }
 
         const p1 = this.lineStartPt
         const p2 = targetPt
         let d = ''
         if (this.lineType === 'elbow') {
-          const midX = (p1.x + p2.x) / 2
-          d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p2.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+          const dx = p2.x - p1.x
+          const dy = p2.y - p1.y
+          // 1. 水平或垂直 20px 阈值内：直接锁平纯直线
+          if (Math.abs(dy) <= 20) {
+            d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p1.y.toFixed(1)}`
+          } else if (Math.abs(dx) <= 20) {
+            d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p1.x.toFixed(1)} ${p2.y.toFixed(1)}`
+          } else {
+            const srcPort = this.lineStartSnapped?.port || ''
+            const tgtPort = this.lineEndSnapped?.port || ''
+            const isSrcH = srcPort.includes('left') || srcPort.includes('right')
+            const isSrcV = srcPort.includes('top') || srcPort.includes('bottom')
+            const isTgtH = tgtPort.includes('left') || tgtPort.includes('right')
+            const isTgtV = tgtPort.includes('top') || tgtPort.includes('bottom')
+
+            if (isSrcH && isTgtV) {
+              // 水平出，垂直入：L-形拐角，在 p2.x 转折垂直入桩
+              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+            } else if (isSrcV && isTgtH) {
+              // 垂直出，水平入：L-形拐角，在 p1.x 转折水平入桩
+              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p1.x.toFixed(1)} ${p2.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+            } else if (isSrcH || isTgtH) {
+              const midX = p1.x + dx / 2
+              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p2.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+            } else if (isSrcV || isTgtV) {
+              const midY = p1.y + dy / 2
+              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p1.x.toFixed(1)} ${midY.toFixed(1)} L ${p2.x.toFixed(1)} ${midY.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+            } else {
+              const midX = p1.x + dx / 2
+              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p2.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+            }
+          }
         } else if (this.lineType === 'curve') {
           const dx = p2.x - p1.x
           d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${(p1.x + dx / 2).toFixed(1)} ${p1.y.toFixed(1)}, ${(p1.x + dx / 2).toFixed(1)} ${p2.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
@@ -299,7 +347,14 @@ export class DrawingController {
         const dist = Math.hypot(curPt.x - this.lineStartPt.x, curPt.y - this.lineStartPt.y)
         if (dist > 10) {
           const finalStart: any = this.lineStartSnapped || this.lineStartPt
-          const finalEnd: any = this.lineEndSnapped || curPt
+          let finalEnd: any = this.lineEndSnapped || curPt
+          if (!this.lineEndSnapped && (this.lineType === 'elbow' || this.lineType === 'straight')) {
+            if (Math.abs(curPt.y - this.lineStartPt.y) <= 24) {
+              finalEnd = { x: curPt.x, y: this.lineStartPt.y }
+            } else if (Math.abs(curPt.x - this.lineStartPt.x) <= 24) {
+              finalEnd = { x: this.lineStartPt.x, y: curPt.y }
+            }
+          }
           const edge = this.board.addLine({
             type: this.lineType,
             source: finalStart,
@@ -396,14 +451,27 @@ export class DrawingController {
     this.drawingMode = 'line'
     this.isDrawing = true
     const portId = node.hasPort?.(`port-${direction}`) ? `port-${direction}` : direction
-    const nodePos = node.position()
-    const nodeSize = node.size()
-    let localAnchorX = nodePos.x + nodeSize.width / 2
-    let localAnchorY = nodePos.y + nodeSize.height / 2
-    if (direction === 'top') localAnchorY = nodePos.y
-    else if (direction === 'bottom') localAnchorY = nodePos.y + nodeSize.height
-    else if (direction === 'left') localAnchorX = nodePos.x
-    else if (direction === 'right') localAnchorX = nodePos.x + nodeSize.width
+    const bbox = node.getBBox()
+    let localAnchorX = bbox.x + bbox.width / 2
+    let localAnchorY = bbox.y + bbox.height / 2
+    const port = (node as any).getPort?.(portId) || (node as any).getPorts?.()?.find((p: any) => p.id === portId || p.id === direction)
+    if (port && port.args) {
+      if (typeof port.args.x === 'string' && port.args.x.endsWith('%')) {
+        localAnchorX = bbox.x + (parseFloat(port.args.x) / 100) * bbox.width
+      } else if (typeof port.args.x === 'number') {
+        localAnchorX = bbox.x + port.args.x
+      }
+      if (typeof port.args.y === 'string' && port.args.y.endsWith('%')) {
+        localAnchorY = bbox.y + (parseFloat(port.args.y) / 100) * bbox.height
+      } else if (typeof port.args.y === 'number') {
+        localAnchorY = bbox.y + port.args.y
+      }
+    } else {
+      if (direction === 'top') localAnchorY = bbox.y
+      else if (direction === 'bottom') localAnchorY = bbox.y + bbox.height
+      else if (direction === 'left') localAnchorX = bbox.x
+      else if (direction === 'right') localAnchorX = bbox.x + bbox.width
+    }
 
     this.lineStartPt = { x: localAnchorX, y: localAnchorY }
     this.lineStartSnapped = { cell: node.id, port: portId }
@@ -413,8 +481,8 @@ export class DrawingController {
       this.tempLinePath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
       this.tempLinePath.setAttribute('style', 'pointer-events: none;')
     }
-    this.tempLinePath.setAttribute('stroke', this.drawColor || '#374151')
-    this.tempLinePath.setAttribute('stroke-width', String(this.drawWidth || 2))
+    this.tempLinePath.setAttribute('stroke', this.drawColor || '#4b5563')
+    this.tempLinePath.setAttribute('stroke-width', String(this.drawWidth || 1.5))
     this.tempLinePath.setAttribute('stroke-linecap', 'round')
     this.tempLinePath.setAttribute('stroke-linejoin', 'round')
     this.tempLinePath.setAttribute('stroke-dasharray', '4,4')

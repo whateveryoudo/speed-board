@@ -84,11 +84,6 @@ export function initAllCanvasInteractions(board: Board): () => void {
         board.showNodePorts(prevSelectedShapeNode, false)
       }
       prevSelectedShapeNode = singleNode
-      if (singleNode) {
-        board.showNodePorts(singleNode, true)
-      }
-    } else if (singleNode) {
-      board.showNodePorts(singleNode, true)
     }
 
     if (singleNode) {
@@ -121,17 +116,15 @@ export function initAllCanvasInteractions(board: Board): () => void {
             edge.getData()?.stroke ||
             '#374151'
 
-          const hasTargetMarker = !!edge.getAttrByPath('line/targetMarker')
-          const hasSourceMarker = !!edge.getAttrByPath('line/sourceMarker')
+          const isTargetConnected = Boolean(edge.getTargetCellId?.() || edge.getTargetCell?.())
+          const isSourceConnected = Boolean(edge.getSourceCellId?.() || edge.getSourceCell?.())
 
           edge.addTools([
             {
               name: 'source-arrowhead',
               args: {
                 attrs: {
-                  d: hasSourceMarker
-                    ? 'M -8 0 A 4 4 0 1 0 0 0 A 4 4 0 1 0 -8 0 Z'
-                    : 'M -4 0 A 4 4 0 1 0 4 0 A 4 4 0 1 0 -4 0 Z',
+                  d: 'M 0,0 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0',
                   fill: '#ffffff',
                   stroke: lineColor,
                   'stroke-width': 1.5,
@@ -143,9 +136,7 @@ export function initAllCanvasInteractions(board: Board): () => void {
               name: 'target-arrowhead',
               args: {
                 attrs: {
-                  d: hasTargetMarker
-                    ? 'M 0 0 A 4 4 0 1 0 8 0 A 4 4 0 1 0 0 0 Z'
-                    : 'M -4 0 A 4 4 0 1 0 4 0 A 4 4 0 1 0 -4 0 Z',
+                  d: 'M 0,0 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0',
                   fill: '#ffffff',
                   stroke: lineColor,
                   'stroke-width': 1.5,
@@ -166,29 +157,15 @@ export function initAllCanvasInteractions(board: Board): () => void {
         const lineColor =
           edge.getAttrByPath('line/stroke') ||
           edge.getData()?.stroke ||
-          '#374151'
-        const hasTargetMarker = !!edge.getAttrByPath('line/targetMarker')
-        const hasSourceMarker = !!edge.getAttrByPath('line/sourceMarker')
+          '#4b5563'
 
         const toolItems = edge.getTools()?.items || []
         toolItems.forEach((tool: any) => {
-          if (tool.name === 'source-arrowhead') {
+          if (tool.name === 'source-arrowhead' || tool.name === 'target-arrowhead') {
             tool.setAttrs(
               {
                 stroke: lineColor,
-                d: hasSourceMarker
-                  ? 'M -8 0 A 4 4 0 1 0 0 0 A 4 4 0 1 0 -8 0 Z'
-                  : 'M -4 0 A 4 4 0 1 0 4 0 A 4 4 0 1 0 -4 0 Z',
-              },
-              tool.container
-            )
-          } else if (tool.name === 'target-arrowhead') {
-            tool.setAttrs(
-              {
-                stroke: lineColor,
-                d: hasTargetMarker
-                  ? 'M 0 0 A 4 4 0 1 0 8 0 A 4 4 0 1 0 0 0 Z'
-                  : 'M -4 0 A 4 4 0 1 0 4 0 A 4 4 0 1 0 -4 0 Z',
+                d: 'M 0,0 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0',
               },
               tool.container
             )
@@ -198,12 +175,33 @@ export function initAllCanvasInteractions(board: Board): () => void {
     } catch {}
   }
 
+  const onEdgeEndpointsChanged = ({ edge }: any) => {
+    try {
+      if (board.graph.isSelected(edge)) {
+        const isTargetConnected = Boolean(edge.getTargetCellId?.() || edge.getTargetCell?.())
+        const isSourceConnected = Boolean(edge.getSourceCellId?.() || edge.getSourceCell?.())
+        const toolItems = edge.getTools()?.items || []
+        toolItems.forEach((tool: any) => {
+          if (tool.name === 'source-arrowhead' && tool.container) {
+            tool.container.classList.toggle('is-connected', isSourceConnected)
+          } else if (tool.name === 'target-arrowhead' && tool.container) {
+            tool.container.classList.toggle('is-connected', isTargetConnected)
+          }
+        })
+      }
+    } catch {}
+  }
+
   board.graph.on('selection:changed', onSelectionChanged)
   board.graph.on('edge:change:attrs', onEdgeAttrsChanged)
+  board.graph.on('edge:change:source', onEdgeEndpointsChanged)
+  board.graph.on('edge:change:target', onEdgeEndpointsChanged)
 
   cleanupFns.push(() => {
     board.graph.off('selection:changed', onSelectionChanged)
     board.graph.off('edge:change:attrs', onEdgeAttrsChanged)
+    board.graph.off('edge:change:source', onEdgeEndpointsChanged)
+    board.graph.off('edge:change:target', onEdgeEndpointsChanged)
   })
 
   // 3. 端点箭头抓手拖拽与磁吸连接交互
@@ -296,6 +294,20 @@ export function initAllCanvasInteractions(board: Board): () => void {
         board.showNodePorts(currentActiveSnapResult.node, false)
         currentActiveSnapResult = null
       }
+      // 正交水平/垂直拉平吸附：当拖拽在 24px 宽容度内时自动锁平，解决用户“一直不能拉直”的痛点
+      const view = board.graph.findViewByCell(currentDraggingEdge) as any
+      const oppositePt = currentDraggingType === 'target' ? view?.sourcePoint : view?.targetPoint
+      let snapPt = { ...localPt }
+      if (oppositePt) {
+        if (Math.abs(snapPt.y - oppositePt.y) <= 24) {
+          snapPt.y = oppositePt.y
+        } else if (Math.abs(snapPt.x - oppositePt.x) <= 24) {
+          snapPt.x = oppositePt.x
+        }
+      }
+      if (currentDraggingType) {
+        currentDraggingEdge.setTerminal(currentDraggingType, snapPt, {}, { ui: true })
+      }
     }
   }
 
@@ -330,6 +342,19 @@ export function initAllCanvasInteractions(board: Board): () => void {
             },
           },
         })
+      }
+    } else if (edge && type) {
+      // 避免 X6 错误将端点吸附至图形 cell 中心导致“扎进腹部内部”
+      const term = type === 'source' ? edge.getSource() : edge.getTarget()
+      if (term && term.cell && !term.port) {
+        const view = board.graph.findViewByCell(edge) as any
+        const oppositePt = type === 'target' ? view?.sourcePoint : view?.targetPoint
+        let pt = { x: (term as any).x || 0, y: (term as any).y || 0 }
+        if (oppositePt) {
+          if (Math.abs(pt.y - oppositePt.y) <= 24) pt.y = oppositePt.y
+          else if (Math.abs(pt.x - oppositePt.x) <= 24) pt.x = oppositePt.x
+        }
+        edge.setTerminal(type, pt)
       }
     }
 

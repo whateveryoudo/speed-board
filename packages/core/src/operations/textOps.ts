@@ -300,13 +300,24 @@ export function activateNodeTextEdit(
   textEl.style.outline = 'none'
 
   const initialData = (node.getData() || {}) as any
+  const isShape = board.isShapeNode(node)
   const hasManualSize = !!initialData.manualSize || !!initialData.isCustomSize
-  if (hasManualSize) {
+  if (isShape) {
+    textEl.style.whiteSpace = 'pre-wrap'
+    textEl.style.wordBreak = 'break-word'
+    textEl.style.textAlign = initialData.align || 'center'
+  } else if (hasManualSize) {
     textEl.style.whiteSpace = 'pre-wrap'
     textEl.style.wordBreak = 'break-all'
   } else {
     textEl.style.whiteSpace = 'pre'
     textEl.style.wordBreak = 'normal'
+  }
+
+  // 图形节点文字居中：当初始内容为空时，使用零宽空格作为光标锚点，确保 Chrome Blink 引擎在 contenteditable 初始态精准居中闪烁，而非降级回退到左上角 (0, 0)
+  const isShapeEmpty = isShape && !textEl.innerText.replace(/[\u200B\uFEFF]/g, '').trim()
+  if (isShapeEmpty && !initialChar) {
+    textEl.textContent = '\u200B'
   }
 
   const stopProp = (e: Event) => {
@@ -340,6 +351,8 @@ export function activateNodeTextEdit(
     isComposing = true
     if (isAllPlaceholderSelected()) {
       textEl.innerText = ''
+    } else if (isShape && textEl.textContent === '\u200B') {
+      textEl.textContent = ''
     }
     isFirstType = false
   }
@@ -352,6 +365,9 @@ export function activateNodeTextEdit(
   const onBeforeInput = (e: InputEvent) => {
     if (isAllPlaceholderSelected() && e.inputType === 'insertText') {
       textEl.innerText = ''
+      isFirstType = false
+    } else if (isShape && textEl.textContent === '\u200B') {
+      textEl.textContent = ''
       isFirstType = false
     }
   }
@@ -377,6 +393,9 @@ export function activateNodeTextEdit(
       const range = document.createRange()
       const sel = window.getSelection()
       range.selectNodeContents(textEl)
+      if (isShape && textEl.textContent === '\u200B') {
+        range.collapse(false)
+      }
       sel?.removeAllRanges()
       sel?.addRange(range)
     }
@@ -406,7 +425,7 @@ export function activateNodeTextEdit(
     setTransformEditing(false)
     graph.trigger('node:edit:end', { node })
 
-    const rawText = textEl.innerText.trim()
+    const rawText = textEl.innerText.replace(/[\u200B\uFEFF]/g, '').trim()
     const isMind = node.getData()?.type === 'mindmap-node'
 
     if (isMind) {
@@ -417,6 +436,7 @@ export function activateNodeTextEdit(
       node.setData({ ...data, text: newText })
       ;(board as any).commands?.updateMindmapLayout?.(data.mindmapId)
     } else if (board.isShapeNode(node)) {
+      textEl.innerText = rawText
       board.updateShapeNode(node, { text: rawText })
     } else {
       const newText = rawText === '' ? '文本' : rawText
@@ -426,7 +446,16 @@ export function activateNodeTextEdit(
   }
 
   const onInput = () => {
-    const rawText = textEl.innerText || ''
+    if (isShape && !textEl.innerText.replace(/[\u200B\uFEFF]/g, '').trim() && !isComposing) {
+      textEl.textContent = '\u200B'
+      const r = document.createRange()
+      const s = window.getSelection()
+      r.selectNodeContents(textEl)
+      r.collapse(false)
+      s?.removeAllRanges()
+      s?.addRange(r)
+    }
+    const rawText = textEl.innerText.replace(/[\u200B\uFEFF]/g, '')
     const isMind = node.getData()?.type === 'mindmap-node'
     const sel = window.getSelection()
     let savedRange: { startContainer: globalThis.Node; startOffset: number; endContainer: globalThis.Node; endOffset: number } | null = null
@@ -504,6 +533,11 @@ export function activateNodeTextEdit(
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
+    if (isShape && (e.key === 'Backspace' || e.key === 'Delete') && textEl.textContent === '\u200B') {
+      e.preventDefault()
+      return
+    }
+
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
       isFirstType = false
     }

@@ -23,9 +23,9 @@ export const ARROWHEAD_PRESETS: ArrowheadPreset[] = [
     id: 'classic-arrow',
     name: '普通箭头',
     iconSvg: '<line x1="2" y1="12" x2="18" y2="12" stroke="currentColor" stroke-width="2"/><polyline points="12 6 18 12 12 18" fill="none" stroke="currentColor" stroke-width="2"/>',
-    getMarkerConfig: (color = '#374151') => ({
+    getMarkerConfig: (color = '#4b5563') => ({
       name: 'classic',
-      size: 8,
+      size: 7,
       attrs: {
         fill: color,
         stroke: color,
@@ -36,11 +36,11 @@ export const ARROWHEAD_PRESETS: ArrowheadPreset[] = [
     id: 'block',
     name: '实心三角',
     iconSvg: '<line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="2"/><polygon points="14 7 22 12 14 17" fill="currentColor"/>',
-    getMarkerConfig: (color = '#374151') => ({
+    getMarkerConfig: (color = '#4b5563') => ({
       name: 'block',
-      width: 8,
-      height: 6,
-      offset: 0,
+      width: 6,
+      height: 4.5,
+      offset: -1.5,
       attrs: {
         fill: color,
         stroke: color,
@@ -51,11 +51,11 @@ export const ARROWHEAD_PRESETS: ArrowheadPreset[] = [
     id: 'hollow-triangle',
     name: '空心三角',
     iconSvg: '<line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="2"/><polygon points="14 7 22 12 14 17" fill="#ffffff" stroke="currentColor" stroke-width="1.8"/>',
-    getMarkerConfig: (color = '#374151') => ({
+    getMarkerConfig: (color = '#4b5563') => ({
       name: 'block',
-      width: 8,
-      height: 6,
-      offset: 0,
+      width: 6,
+      height: 4.5,
+      offset: -1.5,
       attrs: {
         fill: '#ffffff',
         stroke: color,
@@ -67,10 +67,10 @@ export const ARROWHEAD_PRESETS: ArrowheadPreset[] = [
     id: 'diamond',
     name: '实心菱形',
     iconSvg: '<line x1="2" y1="12" x2="12" y2="12" stroke="currentColor" stroke-width="2"/><polygon points="16 7 21 12 16 17 11 12" fill="currentColor"/>',
-    getMarkerConfig: (color = '#374151') => ({
+    getMarkerConfig: (color = '#4b5563') => ({
       name: 'diamond',
-      width: 9,
-      height: 6,
+      width: 8,
+      height: 5,
       attrs: {
         fill: color,
         stroke: color,
@@ -81,10 +81,10 @@ export const ARROWHEAD_PRESETS: ArrowheadPreset[] = [
     id: 'hollow-diamond',
     name: '空心菱形',
     iconSvg: '<line x1="2" y1="12" x2="12" y2="12" stroke="currentColor" stroke-width="2"/><polygon points="16 7 21 12 16 17 11 12" fill="#ffffff" stroke="currentColor" stroke-width="1.8"/>',
-    getMarkerConfig: (color = '#374151') => ({
+    getMarkerConfig: (color = '#4b5563') => ({
       name: 'diamond',
-      width: 9,
-      height: 6,
+      width: 8,
+      height: 5,
       attrs: {
         fill: '#ffffff',
         stroke: color,
@@ -96,9 +96,9 @@ export const ARROWHEAD_PRESETS: ArrowheadPreset[] = [
     id: 'circle',
     name: '实心圆点',
     iconSvg: '<line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="12" r="4" fill="currentColor"/>',
-    getMarkerConfig: (color = '#374151') => ({
+    getMarkerConfig: (color = '#4b5563') => ({
       name: 'circle',
-      r: 3.5,
+      r: 3,
       attrs: {
         fill: color,
         stroke: color,
@@ -109,9 +109,9 @@ export const ARROWHEAD_PRESETS: ArrowheadPreset[] = [
     id: 'hollow-circle',
     name: '空心圆点',
     iconSvg: '<line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="12" r="4" fill="#ffffff" stroke="currentColor" stroke-width="1.8"/>',
-    getMarkerConfig: (color = '#374151') => ({
+    getMarkerConfig: (color = '#4b5563') => ({
       name: 'circle',
-      r: 3.5,
+      r: 3,
       attrs: {
         fill: '#ffffff',
         stroke: color,
@@ -148,7 +148,7 @@ export function useLineOperations(getBoard: () => Board | null) {
     if (!edge) return
 
     if (type === 'elbow') {
-      edge.setRouter({ name: 'manhattan', args: { padding: 10 } })
+      edge.setRouter({ name: 'whiteboard-elbow' })
       edge.setConnector({ name: 'rounded', args: { radius: 8 } })
     } else if (type === 'curve') {
       edge.setRouter({ name: 'normal' })
@@ -166,7 +166,7 @@ export function useLineOperations(getBoard: () => Board | null) {
     if (!edge) return 'straight'
     const router = edge.getRouter()
     const connector = edge.getConnector()
-    if (router?.name === 'manhattan') return 'elbow'
+    if (router?.name === 'manhattan' || router?.name === 'whiteboard-elbow') return 'elbow'
     if (connector?.name === 'smooth') return 'curve'
     return 'straight'
   }

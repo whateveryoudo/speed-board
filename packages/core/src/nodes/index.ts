@@ -13,6 +13,7 @@ export * from './freehandNode'
 export * from './iconNode'
 export * from './imageNode'
 export * from './shapeNode'
+export * from './shapePorts'
 
 /**
  * 统一注册 speed-board 画板自定义 X6 节点集合与增强属性处理器

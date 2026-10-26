@@ -57,6 +57,12 @@ import {
   syncSelectionBoxesTransform,
 } from './operations/layoutOps'
 import { DrawingController } from './operations/drawingOps'
+import { ShapeAnchorTool } from './tools/ShapeAnchorTool'
+import { whiteboardElbowRouter } from './routers/whiteboardRouter'
+
+// 注册原生 X6 白板级扩展（纯 In-SVG 工具与智能正交路由，零外部外挂）
+Graph.registerNodeTool('shape-anchor-tool', ShapeAnchorTool)
+Graph.registerRouter('whiteboard-elbow', whiteboardElbowRouter)
 
 export { IMAGE_ERROR_PLACEHOLDER, renderImageProgressHtml }
 
@@ -249,21 +255,30 @@ export class Board {
       },
       highlighting: {
         default: { name: 'none' },
-        magnetAdsorbed: { name: 'none' },
+        magnetAdsorbed: {
+          name: 'stroke',
+          args: {
+            attrs: {
+              fill: '#ffffff',
+              stroke: '#3b82f6',
+              strokeWidth: 2,
+            },
+          },
+        },
         nodeAvailable: { name: 'none' },
         magnetAvailable: { name: 'none' },
       },
       connecting: {
         snap: {
-          radius: 20,
+          radius: 15,
         },
         allowBlank: true,
         allowLoop: false,
         allowNode: false,
         allowPort: true,
         allowEdge: false,
-        highlight: false,
-        anchor: 'orth',
+        highlight: true,
+        anchor: 'center',
         connectionPoint: 'boundary',
         validateMagnet({ cell }: any) {
           if (!cell) return true
@@ -293,29 +308,39 @@ export class Board {
             shape: 'edge',
             attrs: {
               line: {
-                stroke: '#374151',
-                strokeWidth: 2,
+                stroke: '#4b5563',
+                strokeWidth: 1.5,
                 targetMarker: {
                   name: 'block',
-                  width: 9,
-                  height: 6,
-                  offset: 0,
+                  width: 6,
+                  height: 4.5,
+                  offset: -1.5,
+                  attrs: {
+                    fill: '#4b5563',
+                    stroke: '#4b5563',
+                  },
                 },
               },
             },
             router: {
-              name: 'normal',
+              name: 'whiteboard-elbow',
             },
             connector: {
-              name: 'normal',
+              name: 'rounded',
+              args: {
+                radius: 8,
+              },
             },
           })
         },
         router: {
-          name: 'normal',
+          name: 'whiteboard-elbow',
         },
         connector: {
-          name: 'normal',
+          name: 'rounded',
+          args: {
+            radius: 8,
+          },
         },
       },
       interacting: (cellView: any) => {
@@ -657,6 +682,28 @@ export class Board {
 
     this.graph.on('blank:pointerdown', () => {
       this.hideAllPorts()
+    })
+
+    ;(this.graph as any).__board__ = this
+
+    // 选中单个形状图形时，在 X6 SVG 内部原生挂载 4 向延伸出发点手柄 (ShapeAnchorTool，0 Vue 外挂)
+    this.graph.on('selection:changed', ({ selected }: { selected: any[] }) => {
+      const allNodes = this.graph.getNodes()
+      allNodes.forEach((n: any) => {
+        if (!selected.includes(n) && n.hasTools && n.hasTools()) {
+          n.removeTools()
+        }
+      })
+      if (selected && selected.length === 1 && selected[0].isNode && selected[0].isNode()) {
+        const node = selected[0]
+        if (this.isShapeNode(node)) {
+          node.addTools([
+            {
+              name: 'shape-anchor-tool',
+            },
+          ])
+        }
+      }
     })
 
     // 下沉并挂载核心交互控制器 (旋转徽标、箭头抓手、端点拖拽磁吸、双击就地文本编辑)

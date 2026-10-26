@@ -83,30 +83,6 @@ const selectBranchType = (type: 'curve' | 'straight') => {
 </script>
 
 <style scoped lang="less">
-.bubble-toolbar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #374151;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background-color: #f3f4f6;
-    color: #111827;
-  }
-
-  &.is-active {
-    background-color: #e5e7eb;
-    color: #111827;
-  }
-}
-
 .mindmap-branch-popover {
   width: 140px;
 
