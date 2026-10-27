@@ -11,7 +11,7 @@
       @save="onSave"
     />
 
-    <!-- 左侧悬浮胶囊工具栏 (原生模式切换：选择/抓手/矩形/圆形/正交连线/脑图等) -->
+    <!-- 左侧悬浮胶囊工具栏 (选择/抓手/画笔/文本/图形库/连线/思维导图/图标) -->
     <LeftToolbar
       :board="boardInstance"
       :icon-provider="props.iconProvider"
@@ -21,7 +21,10 @@
       @mode-change="onToolbarModeChange"
     />
 
-    <!-- 右侧属性设置面板 -->
+    <!-- 选区浮动工具栏 (贴合所选图元的 Tip Config，支持描边/填充/连线箭头/脑图结构/更多图层对齐操作) -->
+    <FloatingToolbar :board="boardInstance" />
+
+    <!-- 右侧属性深度设置抽屉 -->
     <StyleSettingsPanel
       v-model:visible="showSettingsPanel"
       :board="boardInstance"
@@ -49,6 +52,7 @@ import {
 import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
 import LeftToolbar from './LeftToolbar.vue';
+import FloatingToolbar from './FloatingToolbar.vue';
 import StyleSettingsPanel from './StyleSettingsPanel.vue';
 import { useAntdCssVars } from 'speed-components-ui/hooks';
 import type { IconProvider } from '../data/defaultIcons';
@@ -75,14 +79,14 @@ const emit = defineEmits<{
   (e: 'save'): void;
 }>();
 
-const showLeftToolbar = ref(true);
-const showSettingsPanel = ref(false);
-const activeMode = ref<string>('select');
-
 useAntdCssVars();
 
 const boardInstance = shallowRef<Board | null>(null);
 const canvasWrapperRef = ref<HTMLDivElement | null>(null);
+
+const showLeftToolbar = ref(true);
+const showSettingsPanel = ref(false);
+const activeMode = ref<string>('select');
 
 const onBoardCreated = (board: Board) => {
   boardInstance.value = board;

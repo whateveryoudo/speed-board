@@ -1,14 +1,12 @@
 {
-  "name": "speed-board",
+  "name": "speed-board-next",
   "private": true,
   "version": "0.1.0",
-  "description": "A collaborative whiteboard / diagramming canvas based on AntV X6 and Yjs CRDT",
+  "description": "Next-generation high-performance collaborative whiteboard powered by Plait and Vue 3",
   "scripts": {
     "dev": "pnpm --filter @speed-board/vue3-demo dev",
     "build": "pnpm -r run build",
-    "typecheck": "pnpm -r run typecheck",
-    "extract-icons": "node scripts/extract-icons.mjs",
-    "extract:markers": "node scripts/extract-mindmap-markers.mjs"
+    "typecheck": "pnpm -r run typecheck"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

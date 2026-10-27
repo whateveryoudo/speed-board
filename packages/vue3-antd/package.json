@@ -1,31 +1,30 @@
 {
   "name": "@speed-board/vue3-antd",
   "version": "0.1.0",
-  "description": "Ant Design Vue UI components for speed-board",
+  "description": "Ant Design Vue Whiteboard UI Components",
   "main": "./src/index.ts",
+  "module": "./src/index.ts",
   "types": "./src/index.ts",
-  "scripts": {
-    "typecheck": "vue-tsc --noEmit"
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
   },
   "dependencies": {
-    "@ant-design/icons-vue": "^7.0.1",
-    "@floating-ui/dom": "^1.8.0",
+    "@ant-design/icons-vue": "^7.0.0",
     "@speed-board/core": "workspace:*",
     "@speed-board/vue3": "workspace:*",
-    "@speed-board/shared": "workspace:*",
-    "@speed-board/extension-mindmap": "workspace:*",
     "ant-design-vue": "^4.2.0",
-    "lodash-es": "^4.18.1",
-    "speed-components-ui": "^1.1.5"
-  },
-  "peerDependencies": {
-    "vue": "^3.3.0"
+    "lodash-es": "^4.17.21",
+    "speed-components-ui": "link:../../../speed-components",
+    "vue": "^3.5.0"
   },
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",
-    "less": "^4.9.1",
+    "@vitejs/plugin-vue": "^5.1.0",
+    "less": "^4.2.0",
     "typescript": "^5.6.0",
-    "vue": "^3.5.0",
-    "vue-tsc": "^2.1.0"
+    "vite": "^5.4.0"
   }
 }

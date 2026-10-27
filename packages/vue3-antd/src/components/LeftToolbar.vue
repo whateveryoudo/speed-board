@@ -225,8 +225,7 @@ import {
   MindPointerType,
   FreehandShape,
 } from '@speed-board/core'
-import { useCellAttributes } from '../composables/useCellAttributes'
-import { useBoardEvent } from '../composables/useBoardEvent'
+import { useCellAttributes, useBoardEvent } from '@speed-board/vue3'
 import IconfontPopover from './IconfontPopover.vue'
 import ShapePickerPopover from './ShapePickerPopover.vue'
 import { renderShapeCanvasSvg, getShapeTightViewBox, type ShapeDefinition } from '../data/shapeLibrary'

@@ -14,6 +14,7 @@ import {
   createEmptyMind,
   createTextElement,
   createDefaultGeometry,
+  createArrowLineElement,
   getDefaultGeometryPoints,
   insertElement,
   DrawTransforms,
@@ -86,6 +87,11 @@ export class Board {
         console.error(`[Board Event Error: ${event}]`, e);
       }
     });
+  }
+
+  // --- 子节点集合 ---
+  get children(): PlaitElement[] {
+    return this.raw.children;
   }
 
   // --- 指针与绘制模式 ---
@@ -232,6 +238,20 @@ export class Board {
     return emptyMind;
   }
 
+  setMindmapLayout(layout: string) {
+    this.syncNodeIndices();
+    MindTransforms.setLayout(this.raw, layout as any);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  setMindmapShape(shape: string) {
+    this.syncNodeIndices();
+    MindTransforms.setShape(this.raw, shape as any);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
   insertShape(shape: string, options: any = {}, point?: [number, number]) {
     const center = point || this.getViewportCenterPoint();
     const pointer = this.mapShapeToPointer(shape);
@@ -244,6 +264,29 @@ export class Board {
     this.setPointer(PlaitPointerType.selection);
     this.emit('change', {});
     return geometry;
+  }
+
+  insertLine(
+    points: [[number, number], [number, number]] = [
+      [100, 100],
+      [300, 300],
+    ],
+    shape: ArrowLineShape | string = ArrowLineShape.straight,
+    options: any = {}
+  ) {
+    const arrowLine = createArrowLineElement(
+      shape as any,
+      points as any,
+      options.source || { marker: options.sourceMarker || 'none' },
+      options.target || { marker: options.targetMarker || 'arrow' },
+      options.texts || []
+    );
+    if (options.stroke) (arrowLine as any).stroke = options.stroke;
+    if (options.strokeWidth) (arrowLine as any).strokeWidth = options.strokeWidth;
+    insertElement(this.raw, arrowLine);
+    this.setPointer(PlaitPointerType.selection);
+    this.emit('change', {});
+    return arrowLine;
   }
 
   insertImage(image: { url: string; width: number; height: number; name?: string }, point?: [number, number]) {
@@ -359,6 +402,10 @@ export class Board {
     clearSelectedElement(this.raw);
     addSelectedElement(this.raw, elements);
     this.emit('selection:change', { selected: this.selectedElements });
+  }
+
+  selectElement(elements: PlaitElement | PlaitElement[]) {
+    this.select(elements);
   }
 
   clearSelection() {

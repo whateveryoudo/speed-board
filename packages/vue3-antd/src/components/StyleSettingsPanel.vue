@@ -9,136 +9,223 @@
         </button>
       </div>
 
-      <!-- 2. 一级分类选项卡 (根据当前图元 Schema 动态计算，使用 a-tabs) -->
+      <!-- 2. 一级分类选项卡 -->
       <div class="panel-tabs-wrapper">
-        <a-tabs
-          v-model:activeKey="activeTab"
-          size="small"
-          class="panel-ant-tabs"
-        >
-          <a-tab-pane
-            v-for="tab in availableTabs"
-            :key="tab.key"
-            :tab="tab.label"
-          />
+        <a-tabs v-model:activeKey="activeTab" size="small" class="panel-ant-tabs">
+          <a-tab-pane key="style" tab="样式" />
+          <a-tab-pane key="text" tab="文本" />
+          <a-tab-pane key="arrange" tab="排列" />
         </a-tabs>
       </div>
 
-      <!-- 3. 面板主体 (根据当前图元 Schema 动态加载对应的原子 Setter) -->
+      <!-- 3. 面板主体 -->
       <div class="panel-content">
         <!-- 3.1 样式 Tab -->
         <template v-if="activeTab === 'style'">
-          <div
-            v-for="section in currentSections"
-            :key="section"
-            class="section-wrapper"
-          >
-            <!-- 形状图标预览 -->
-            <ShapePreviewSetter
-              v-if="section === 'shape-preview'"
-              :shape-id="currentShapeId"
-            />
-
-            <!-- 填充颜色 -->
-            <FillColorSetter
-              v-else-if="section === 'fill'"
-              :fill="styleState.fill"
-              @update:fill="(c) => updateStyle({ fill: c })"
-            />
-
-            <!-- 边框 / 描边 (颜色、粗细、虚实) -->
-            <StrokeSetter
-              v-else-if="section === 'stroke'"
-              :stroke="styleState.stroke"
-              :stroke-width="styleState.strokeWidth"
-              :stroke-dasharray="styleState.strokeDasharray"
-              @update:stroke="(c) => updateStyle({ stroke: c })"
-              @update:stroke-width="(w) => updateStyle({ strokeWidth: w })"
-              @update:stroke-dasharray="(d) => updateStyle({ strokeDasharray: d })"
-            />
-
-            <!-- 线条专用控制 (线型、端点箭头) -->
-            <LineStyleSetter
-              v-else-if="section === 'line-style'"
-              :board="props.board"
-            />
-
-            <!-- 不透明度滑块 (图片仅配置此项) -->
-            <OpacitySetter
-              v-else-if="section === 'opacity'"
-              :model-value="styleState.opacity"
-              @update:model-value="(op) => updateStyle({ opacity: op })"
-            />
-
-            <!-- 思维导图结构布局 -->
-            <MindmapLayoutSetter
-              v-else-if="section === 'mindmap-layout'"
-              :board="props.board"
-            />
-
-            <!-- 思维导图节点形状与外观 -->
-            <MindmapNodeSetter
-              v-else-if="section === 'mindmap-node'"
-              :board="props.board"
-            />
-
-            <!-- 思维导图分支与彩虹色 -->
-            <MindmapBranchSetter
-              v-else-if="section === 'mindmap-branch'"
-              :board="props.board"
-            />
-
-            <div v-if="section !== 'opacity' && section !== 'mindmap-branch'" class="panel-divider" />
+          <!-- 填充颜色 -->
+          <div v-if="hasFill" class="setter-row">
+            <span class="label">填充颜色</span>
+            <div class="color-control-wrapper">
+              <a-popover v-model:open="fillOpen" trigger="click" placement="left" :arrow="false">
+                <template #content>
+                  <div class="color-picker-grid">
+                    <div
+                      class="color-dot is-transparent-dot"
+                      title="无填充"
+                      @click="updateFill('transparent')"
+                    >
+                      <span class="transparent-slash" />
+                    </div>
+                    <div
+                      v-for="color in presetColors"
+                      :key="color"
+                      class="color-dot"
+                      :style="{ backgroundColor: color }"
+                      @click="updateFill(color)"
+                    />
+                  </div>
+                </template>
+                <div class="color-preview-block" :style="{ backgroundColor: styleState.fill }" />
+              </a-popover>
+            </div>
           </div>
+
+          <!-- 边框描边 -->
+          <div v-if="hasStroke" class="setter-row">
+            <span class="label">边框描边</span>
+            <div class="color-control-wrapper">
+              <a-popover v-model:open="strokeOpen" trigger="click" placement="left" :arrow="false">
+                <template #content>
+                  <div class="color-picker-grid">
+                    <div
+                      v-for="color in presetColors"
+                      :key="color"
+                      class="color-dot"
+                      :style="{ backgroundColor: color }"
+                      @click="updateStrokeColor(color)"
+                    />
+                  </div>
+                </template>
+                <div class="color-preview-block" :style="{ backgroundColor: styleState.stroke }" />
+              </a-popover>
+            </div>
+          </div>
+
+          <!-- 描边粗细 -->
+          <div v-if="hasStroke" class="setter-row">
+            <span class="label">描边粗细</span>
+            <a-input-number
+              :value="styleState.strokeWidth"
+              :min="0"
+              :max="20"
+              size="small"
+              style="width: 80px;"
+              @change="(v) => updateStyle({ strokeWidth: Number(v) })"
+            />
+          </div>
+
+          <!-- 不透明度 -->
+          <div class="setter-row">
+            <span class="label">不透明度</span>
+            <a-slider
+              :value="Math.round(styleState.opacity * 100)"
+              :min="10"
+              :max="100"
+              size="small"
+              style="flex: 1; margin-left: 16px;"
+              @change="(v) => updateStyle({ opacity: Number(v) / 100 })"
+            />
+          </div>
+
+          <!-- 脑图专属：结构布局 -->
+          <template v-if="selectedType.startsWith('mindmap')">
+            <div class="panel-divider" />
+            <div class="setter-section-title">脑图结构</div>
+            <div class="setter-row">
+              <button
+                class="struct-btn"
+                @click="props.board?.setMindmapLayout('standard')"
+              >
+                平衡 (双侧)
+              </button>
+              <button
+                class="struct-btn"
+                @click="props.board?.setMindmapLayout('right')"
+              >
+                向右分布
+              </button>
+              <button
+                class="struct-btn"
+                @click="props.board?.setMindmapLayout('left')"
+              >
+                向左分布
+              </button>
+            </div>
+          </template>
         </template>
 
         <!-- 3.2 文本 Tab -->
         <template v-else-if="activeTab === 'text'">
-          <div
-            v-for="section in currentSections"
-            :key="section"
-            class="section-wrapper"
-          >
-            <!-- 文本字形排版 (B/I/S/U, 字号, 颜色) -->
-            <TypographySetter
-              v-if="section === 'typography'"
-              :bold="textState.bold"
-              :italic="textState.italic"
-              :strike="textState.strike"
-              :underline="textState.underline"
-              :font-size="textState.fontSize"
-              :color="textState.fill"
-              @update:bold="(v) => updateTextStyle({ bold: v })"
-              @update:italic="(v) => updateTextStyle({ italic: v })"
-              @update:strike="(v) => updateTextStyle({ strike: v })"
-              @update:underline="(v) => updateTextStyle({ underline: v })"
-              @update:font-size="(v) => updateTextStyle({ fontSize: v })"
-              @update:color="(v) => updateTextStyle({ fill: v })"
+          <div class="setter-row">
+            <span class="label">字号</span>
+            <a-input-number
+              :value="textState.fontSize"
+              :min="10"
+              :max="72"
+              size="small"
+              style="width: 80px;"
+              @change="(v) => updateTextStyle({ fontSize: Number(v) })"
             />
+          </div>
 
-            <!-- 文本对齐 (水平 & 垂直) -->
-            <TextAlignSetter
-              v-else-if="section === 'align'"
-              :align="textState.align"
-              :vertical-align="textState.verticalAlign"
-              @update:align="(v) => updateTextStyle({ align: v })"
-              @update:vertical-align="(v) => updateTextStyle({ verticalAlign: v })"
-            />
+          <div class="setter-row">
+            <span class="label">颜色</span>
+            <div class="color-control-wrapper">
+              <a-popover v-model:open="textColorOpen" trigger="click" placement="left" :arrow="false">
+                <template #content>
+                  <div class="color-picker-grid">
+                    <div
+                      v-for="color in presetColors"
+                      :key="color"
+                      class="color-dot"
+                      :style="{ backgroundColor: color }"
+                      @click="updateTextColor(color)"
+                    />
+                  </div>
+                </template>
+                <div class="color-preview-block" :style="{ backgroundColor: textState.fill }" />
+              </a-popover>
+            </div>
+          </div>
 
-            <!-- 超链接 -->
-            <LinkSetter
-              v-else-if="section === 'link'"
-              :link="textState.link"
-              @open-link-overlay="emit('open-link-overlay')"
-            />
-
-            <div class="panel-divider" />
+          <div class="setter-row">
+            <span class="label">字形</span>
+            <div class="btn-toggle-group">
+              <button
+                class="icon-toggle-btn"
+                :class="{ 'is-active': textState.bold }"
+                @click="updateTextStyle({ bold: !textState.bold })"
+              >
+                <strong>B</strong>
+              </button>
+              <button
+                class="icon-toggle-btn"
+                :class="{ 'is-active': textState.italic }"
+                @click="updateTextStyle({ italic: !textState.italic })"
+              >
+                <em>I</em>
+              </button>
+              <button
+                class="icon-toggle-btn"
+                :class="{ 'is-active': textState.underline }"
+                @click="updateTextStyle({ underline: !textState.underline })"
+              >
+                <u>U</u>
+              </button>
+              <button
+                class="icon-toggle-btn"
+                :class="{ 'is-active': textState.strike }"
+                @click="updateTextStyle({ strike: !textState.strike })"
+              >
+                <s>S</s>
+              </button>
+            </div>
           </div>
         </template>
 
-        <!-- 3.3 排列 Tab (对齐、图层、成组) -->
+        <!-- 3.3 排列 Tab -->
         <template v-else-if="activeTab === 'arrange'">
-          <ArrangeSection :board="props.board" />
+          <div class="setter-section-title">对齐与分布</div>
+          <div class="arrange-grid">
+            <button class="arrange-btn" @click="props.board?.alignSelectedNodes('left')">左对齐</button>
+            <button class="arrange-btn" @click="props.board?.alignSelectedNodes('center')">水平居中</button>
+            <button class="arrange-btn" @click="props.board?.alignSelectedNodes('right')">右对齐</button>
+            <button class="arrange-btn" @click="props.board?.alignSelectedNodes('top')">顶对齐</button>
+            <button class="arrange-btn" @click="props.board?.alignSelectedNodes('middle')">垂直居中</button>
+            <button class="arrange-btn" @click="props.board?.alignSelectedNodes('bottom')">底对齐</button>
+          </div>
+          <div class="arrange-grid" style="margin-top: 6px;">
+            <button class="arrange-btn" @click="props.board?.distributeSelectedNodes('horizontal')">水平等距</button>
+            <button class="arrange-btn" @click="props.board?.distributeSelectedNodes('vertical')">垂直等距</button>
+          </div>
+
+          <div class="panel-divider" />
+          <div class="setter-section-title">图层顺序</div>
+          <div class="arrange-grid">
+            <button class="arrange-btn" @click="props.board?.bringSelectedToFront()">置于顶层</button>
+            <button class="arrange-btn" @click="props.board?.sendSelectedToBack()">置于底层</button>
+            <button class="arrange-btn" @click="props.board?.bringSelectedForward()">上移一层</button>
+            <button class="arrange-btn" @click="props.board?.sendSelectedBackward()">下移一层</button>
+          </div>
+
+          <div class="panel-divider" />
+          <div class="setter-section-title">编组与锁定</div>
+          <div class="arrange-grid">
+            <button class="arrange-btn" @click="props.board?.groupSelected()">成组</button>
+            <button class="arrange-btn" @click="props.board?.ungroupSelected()">解组</button>
+            <button class="arrange-btn" @click="props.board?.duplicateSelected()">复制副本</button>
+            <button class="arrange-btn" @click="props.board?.toggleLockSelected()">锁定/解锁</button>
+          </div>
         </template>
       </div>
     </div>
@@ -148,22 +235,15 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { CloseOutlined } from '@ant-design/icons-vue'
-import { Tabs as ATabs, TabPane as ATabPane } from 'ant-design-vue'
+import {
+  Tabs as ATabs,
+  TabPane as ATabPane,
+  InputNumber as AInputNumber,
+  Slider as ASlider,
+  Popover as APopover,
+} from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
-import { getNodeSchema, type PanelTabKey, type PanelSectionKey } from '../schema/nodeSchema'
-import { useNodeStyle } from '../composables/useNodeStyle'
-import OpacitySetter from './setters/OpacitySetter.vue'
-import FillColorSetter from './setters/FillColorSetter.vue'
-import StrokeSetter from './setters/StrokeSetter.vue'
-import TypographySetter from './setters/TypographySetter.vue'
-import TextAlignSetter from './setters/TextAlignSetter.vue'
-import ShapePreviewSetter from './setters/ShapePreviewSetter.vue'
-import LineStyleSetter from './setters/LineStyleSetter.vue'
-import LinkSetter from './setters/LinkSetter.vue'
-import ArrangeSection from './setters/ArrangeSection.vue'
-import MindmapLayoutSetter from './setters/MindmapLayoutSetter.vue'
-import MindmapNodeSetter from './setters/MindmapNodeSetter.vue'
-import MindmapBranchSetter from './setters/MindmapBranchSetter.vue'
+import { useNodeStyle } from '@speed-board/vue3'
 
 const props = withDefaults(
   defineProps<{
@@ -177,14 +257,27 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
-  (e: 'open-link-overlay'): void
 }>()
 
-const activeTab = ref<PanelTabKey>('style')
+const activeTab = ref<'style' | 'text' | 'arrange'>('style')
+const fillOpen = ref(false)
+const strokeOpen = ref(false)
+const textColorOpen = ref(false)
+
+const presetColors = [
+  '#000000',
+  '#4b5563',
+  '#ef4444',
+  '#f59e0b',
+  '#10b981',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#ffffff',
+]
 
 const {
   selectedType,
-  selectedCells,
   styleState,
   textState,
   syncFromSelection,
@@ -192,63 +285,42 @@ const {
   updateTextStyle,
 } = useNodeStyle(() => props.board)
 
-/** 当前选中的图元 Schema */
-const activeSchema = computed(() => {
-  return getNodeSchema(selectedType.value)
-})
-
-const tabLabelMap: Record<PanelTabKey, string> = {
-  style: '样式',
-  text: '文本',
-  arrange: '排列',
-}
-
-/** 动态计算当前可用 Tab */
-const availableTabs = computed(() => {
-  const tabs = activeSchema.value.panel.tabs
-  return tabs.map((key) => ({
-    key,
-    label: tabLabelMap[key],
-  }))
-})
-
-/** 动态计算当前激活 Tab 下的 Setter Sections */
-const currentSections = computed<PanelSectionKey[]>(() => {
-  const sections = activeSchema.value.panel.sections
-  return (sections[activeTab.value] as PanelSectionKey[]) || []
-})
-
-const currentShapeId = computed(() => {
-  const cell = selectedCells.value[0]
-  if (cell && props.board?.isShapeNode(cell)) {
-    return cell.shape || cell.data?.shapeId || 'rect'
-  }
-  return 'rect'
-})
+const hasFill = computed(() => selectedType.value !== 'line' && selectedType.value !== 'image')
+const hasStroke = computed(() => selectedType.value !== 'image')
 
 const onClose = () => {
   emit('update:visible', false)
 }
 
-// 监听选区变化，同步回显并自适应 Tab
-const syncState = () => {
+const updateFill = (color: string) => {
+  fillOpen.value = false
+  updateStyle({ fill: color })
+}
+
+const updateStrokeColor = (color: string) => {
+  strokeOpen.value = false
+  updateStyle({ stroke: color })
+}
+
+const updateTextColor = (color: string) => {
+  textColorOpen.value = false
+  updateTextStyle({ fill: color })
+}
+
+const sync = () => {
   syncFromSelection()
-  const validTabs = activeSchema.value.panel.tabs
-  if (!validTabs.includes(activeTab.value)) {
-    activeTab.value = validTabs[0] || 'arrange'
-  }
 }
 
 watch(
   () => props.board,
   (b, oldB) => {
     if (oldB) {
-      oldB.off('selection:change', syncState)
-      oldB.off('change', syncState)
+      oldB.off('selection:change', sync)
+      oldB.off('change', sync)
     }
     if (b) {
-      b.on('selection:change', syncState)
-      b.on('change', syncState)
+      b.on('selection:change', sync)
+      b.on('change', sync)
     }
   },
   { immediate: true }
@@ -257,9 +329,7 @@ watch(
 watch(
   () => props.visible,
   (val) => {
-    if (val) {
-      syncState()
-    }
+    if (val) sync()
   }
 )
 </script>
@@ -267,90 +337,190 @@ watch(
 <style scoped lang="less">
 .style-settings-panel {
   position: absolute;
-  top: 108px; /* 紧随右上角工具条下方垂直排列，不与右上角胶囊工具条重叠 */
+  top: 60px;
   right: 16px;
-  width: 280px;
-  max-height: calc(100vh - 124px);
-  background-color: #ffffff;
+  bottom: 24px;
+  width: 260px;
+  background: #ffffff;
   border-radius: 12px;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.12), 0 2px 8px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  z-index: 60;
+  z-index: 99;
   overflow: hidden;
-  border: 1px solid #f0f0f0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  user-select: none;
 }
 
 .panel-header {
   height: 44px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
-  border-bottom: 1px solid #f3f4f6;
-}
+  border-bottom: 1px solid #f0f0f0;
 
-.panel-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #111827;
-}
+  .panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+  }
 
-.close-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #9ca3af;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
+  .close-btn {
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 4px;
 
-.close-btn:hover {
-  color: #374151;
-  background-color: #f3f4f6;
-}
-
-.panel-tabs-wrapper{
-  padding: 0 14px;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.panel-ant-tabs :deep(.ant-tabs-nav) {
-  margin-bottom: 0;
-  &::before{
-    display: none;
+    &:hover {
+      background: #f3f4f6;
+      color: #374151;
+    }
   }
 }
 
-.panel-ant-tabs :deep(.ant-tabs-content-holder) {
-  display: none;
+.panel-tabs-wrapper {
+  padding: 0 12px;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .panel-content {
   flex: 1;
+  padding: 12px 16px;
   overflow-y: auto;
-  padding: 14px;
+}
+
+.setter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  .label {
+    font-size: 12px;
+    color: #6b7280;
+  }
+}
+
+.setter-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
 }
 
 .panel-divider {
   height: 1px;
-  background-color: #f3f4f6;
+  background: #f0f0f0;
   margin: 12px 0;
+}
+
+.color-preview-block {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.color-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 20px);
+  gap: 6px;
+  padding: 4px;
+
+  .color-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+
+    &.is-transparent-dot {
+      background: #ffffff;
+      position: relative;
+      overflow: hidden;
+
+      .transparent-slash {
+        position: absolute;
+        width: 100%;
+        height: 1.5px;
+        background: #ef4444;
+        top: 50%;
+        left: 0;
+        transform: rotate(-45deg);
+      }
+    }
+  }
+}
+
+.btn-toggle-group {
+  display: flex;
+  gap: 4px;
+
+  .icon-toggle-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+
+    &.is-active {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      color: #3b82f6;
+    }
+  }
+}
+
+.struct-btn {
+  flex: 1;
+  height: 28px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+  }
+}
+
+.arrange-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+
+  .arrange-btn {
+    height: 28px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #374151;
+    cursor: pointer;
+
+    &:hover {
+      border-color: #3b82f6;
+      color: #3b82f6;
+    }
+  }
 }
 
 .drawer-slide-enter-active,
 .drawer-slide-leave-active {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .drawer-slide-enter-from,
 .drawer-slide-leave-to {
-  transform: translateX(20px);
+  transform: translateX(30px);
   opacity: 0;
 }
 </style>

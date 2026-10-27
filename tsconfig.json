@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": false,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": ["ESNext", "DOM"],
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@speed-board/core": ["packages/core/src"],
+      "@speed-board/core/*": ["packages/core/src/*"],
+      "@speed-board/view": ["packages/view/src"],
+      "@speed-board/view/*": ["packages/view/src/*"],
+      "@speed-board/vue3": ["packages/vue3/src"],
+      "@speed-board/vue3/*": ["packages/vue3/src/*"],
+      "@speed-board/vue3-antd": ["packages/vue3-antd/src"],
+      "@speed-board/vue3-antd/*": ["packages/vue3-antd/src/*"],
+      "@speed-board/shared": ["packages/shared/src"],
+      "@speed-board/shared/*": ["packages/shared/src/*"]
+    }
+  }
+}

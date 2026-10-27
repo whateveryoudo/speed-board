@@ -1,18 +1,22 @@
 {
   "name": "@speed-board/view",
   "version": "0.1.0",
-  "description": "Framework-agnostic board viewport and interaction engine — drawing, snapping, overlays",
+  "description": "Framework-agnostic headless view & interaction controllers for SpeedBoard (React / Vue / Solid ready)",
   "main": "./src/index.ts",
+  "module": "./src/index.ts",
   "types": "./src/index.ts",
-  "scripts": {
-    "typecheck": "tsc --noEmit"
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.8.0",
     "@speed-board/core": "workspace:*",
     "@speed-board/shared": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "typescript": "^5.6.0"
   }
 }

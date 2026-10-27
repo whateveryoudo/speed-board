@@ -1,8 +1,7 @@
 import { shallowRef, onBeforeUnmount } from 'vue'
-import { Board } from '../Board'
-import type { BoardOptions } from '@speed-board/core'
+import { Board, type CreatePlaitBoardOptions } from '@speed-board/core'
 
-export function useBoard(options: (container: HTMLElement) => BoardOptions) {
+export function useBoard(options: (container: HTMLElement) => CreatePlaitBoardOptions) {
   const board = shallowRef<Board | null>(null)
 
   const init = (container: HTMLElement) => {

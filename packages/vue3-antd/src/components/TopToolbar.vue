@@ -194,7 +194,7 @@ const emit = defineEmits<{
   (e: 'toggle-settings'): void
 }>()
 
-import { useBoardHistory } from '../composables/useBoardHistory'
+import { useBoardHistory } from '@speed-board/vue3'
 
 const currentZoom = ref(1)
 const isPanningActive = ref(false)

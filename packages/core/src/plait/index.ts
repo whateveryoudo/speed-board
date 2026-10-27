@@ -40,6 +40,9 @@ export {
   getSelectedElements,
   toHostPoint,
   toViewBoxPoint,
+  toHostPointFromViewBoxPoint,
+  toScreenPointFromHostPoint,
+  getRectangleByElements,
   BOARD_TO_MOVING_POINT,
   BOARD_TO_MOVING_POINT_IN_BOARD,
   hasInputOrTextareaTarget,
@@ -67,6 +70,7 @@ export {
   DrawTransforms,
   createTextElement,
   createDefaultGeometry,
+  createArrowLineElement,
   getDefaultGeometryPoints,
   insertElement,
   getGeometryPointers,
@@ -81,6 +85,10 @@ export {
   MindPointerType,
   createEmptyMind,
 } from '@plait/mind';
+
+export {
+  MindLayoutType,
+} from '@plait/layouts';
 
 export {
   BoardCreationMode,
