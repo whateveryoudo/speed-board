@@ -8,9 +8,17 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@plait/common": "0.94.1",
+    "@plait/core": "0.94.1",
+    "@plait/draw": "0.94.1",
+    "@plait/layouts": "0.94.1",
+    "@plait/mind": "0.94.1",
     "@speed-board/core": "workspace:*",
+    "@speed-board/shared": "workspace:*",
     "@speed-board/view": "workspace:*",
-    "@speed-board/shared": "workspace:*"
+    "immer": "^10.0.3",
+    "is-hotkey": "^0.2.0",
+    "roughjs": "^4.6.6"
   },
   "peerDependencies": {
     "vue": "^3.3.0"

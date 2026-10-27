@@ -323,11 +323,11 @@ export class BubbleMenuView {
     graph.on('node:change:data', onCellChange)
     graph.on('cell:change:*', onCellChange)
     graph.on('edge:change:vertices', onCellChange)
-    graph.on('edge:change:source', (args) => {
+    graph.on('edge:change:source', (args: any) => {
       if (args?.options?.ui) onDragStart()
       else onCellChange()
     })
-    graph.on('edge:change:target', (args) => {
+    graph.on('edge:change:target', (args: any) => {
       if (args?.options?.ui) onDragStart()
       else onCellChange()
     })
@@ -347,7 +347,7 @@ export class BubbleMenuView {
     graph.on('scale', onCellChange)
     graph.on('translate', onCellChange)
 
-    const scrollerEl = board.scrollerPlugin?.container
+    const scrollerEl = (board as any).scrollerPlugin?.container
     if (scrollerEl) {
       scrollerEl.addEventListener('scroll', onCellChange, { passive: true })
     }
