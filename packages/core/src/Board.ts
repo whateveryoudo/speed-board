@@ -29,6 +29,10 @@ export type BoardPointer =
   | 'curve'
   | 'mind';
 
+export function findClosestPort(node?: any, point?: any) {
+  return null;
+}
+
 export class Board {
   public raw: PlaitBoard;
 
