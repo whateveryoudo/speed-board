@@ -519,8 +519,8 @@ const currentSelectedShapeId = useCellAttributes(
 )
 
 // 当选中有元素时，左侧自动切回 select 指针工具
-useBoardEvent(() => props.board, ['cell:selected', 'selection:changed'], () => {
-  if (props.board && props.board.graph.getSelectedCells().length > 0) {
+useBoardEvent(() => props.board, ['selection:change', 'change'], () => {
+  if (props.board && props.board.selectedElements && props.board.selectedElements.length > 0) {
     if (currentTool.value !== 'select' && !props.activePlacementType) {
       currentTool.value = 'select'
       props.board.setDrawingMode('select')

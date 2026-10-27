@@ -138,7 +138,7 @@ export function useLineOperations(getBoard: () => Board | null) {
   const getSelectedEdge = (): Edge | null => {
     const board = getBoard()
     if (!board) return null
-    const cell = board.graph.getSelectedCells().find((c) => c.isEdge())
+    const cell = board.selectedElements?.find((c: any) => c.shape === 'elbow' || c.shape === 'straight' || c.shape === 'curve' || c.isEdge?.())
     return (cell as Edge) || null
   }
 

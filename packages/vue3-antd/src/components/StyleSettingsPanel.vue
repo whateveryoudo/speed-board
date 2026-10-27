@@ -241,11 +241,14 @@ const syncState = () => {
 
 watch(
   () => props.board,
-  (b) => {
+  (b, oldB) => {
+    if (oldB) {
+      oldB.off('selection:change', syncState)
+      oldB.off('change', syncState)
+    }
     if (b) {
-      b.graph.on('cell:selected', syncState)
-      b.graph.on('cell:unselected', syncState)
-      b.graph.on('selection:changed', syncState)
+      b.on('selection:change', syncState)
+      b.on('change', syncState)
     }
   },
   { immediate: true }

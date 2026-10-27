@@ -259,11 +259,13 @@ const handleKeydown = (e: KeyboardEvent) => {
 watch(
   () => props.board,
   (newBoard, oldBoard) => {
-    if (oldBoard?.graph) {
-      oldBoard.graph.off('scale', updateZoom)
+    if (oldBoard) {
+      oldBoard.off('scale', updateZoom)
+      oldBoard.off('change', updateZoom)
     }
-    if (newBoard?.graph) {
-      newBoard.graph.on('scale', updateZoom)
+    if (newBoard) {
+      newBoard.on('scale', updateZoom)
+      newBoard.on('change', updateZoom)
     }
     updateZoom()
   },
@@ -276,8 +278,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
-  if (props.board?.graph) {
-    props.board.graph.off('scale', updateZoom)
+  if (props.board) {
+    props.board.off('scale', updateZoom)
+    props.board.off('change', updateZoom)
   }
 })
 </script>

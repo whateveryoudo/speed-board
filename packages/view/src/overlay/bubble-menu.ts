@@ -79,41 +79,25 @@ export class BubbleMenuView {
   public currentType = 'shape'
   public selectedCells: Cell[] = []
 
-  // 基于 @floating-ui/dom 的 VirtualElement (精确基于 X6 几何包围盒与就地输入框计算)
+  // 基于 @floating-ui/dom 的 VirtualElement (精确基于 Plait 选区计算)
   public virtualElement: VirtualElement = {
     getBoundingClientRect: () => {
-      const graph = this.board?.graph
-      if (!graph) return { x: 0, y: 0, top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }
+      if (!this.board) return { x: 0, y: 0, top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }
 
-      const cells = graph.getSelectedCells()
+      const cells = this.board.selectedElements || []
       if (cells.length === 0) {
         return { x: 0, y: 0, top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }
       }
 
-      // 如果当前图元正在就地打字编辑，优先取输入框屏幕包围盒
-      if (cells.length === 1) {
-        const editorEl = document.querySelector('.speed-inline-text-editor') as HTMLElement | null
-        if (editorEl) {
-          return editorEl.getBoundingClientRect()
+      const activeG = document.querySelector('.active-host-g') as SVGGraphicsElement | null
+      if (activeG) {
+        const rect = activeG.getBoundingClientRect()
+        if (rect && rect.width > 0 && rect.height > 0) {
+          return rect
         }
       }
 
-      // 无论单选多选，统一通过 X6 几何模型转换视口坐标
-      const bbox = cells.length === 1 ? cells[0].getBBox() : graph.getCellsBBox(cells)
-      if (!bbox) return { x: 0, y: 0, top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }
-
-      const p1 = graph.localToClient(bbox.x, bbox.y)
-      const p2 = graph.localToClient(bbox.x + bbox.width, bbox.y + bbox.height)
-      return {
-        x: p1.x,
-        y: p1.y,
-        top: p1.y,
-        left: p1.x,
-        width: Math.max(1, p2.x - p1.x),
-        height: Math.max(1, p2.y - p1.y),
-        right: p2.x,
-        bottom: p2.y,
-      }
+      return { x: 0, y: 0, top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }
     },
   }
 
@@ -181,7 +165,7 @@ export class BubbleMenuView {
       return
     }
 
-    const cells = this.board.graph.getSelectedCells()
+    const cells = (this.board.selectedElements || []) as any[]
     this.selectedCells = cells
 
     if (cells.length > 1) {
@@ -273,7 +257,7 @@ export class BubbleMenuView {
     if (this.updateTimer) cancelAnimationFrame(this.updateTimer)
     this.updateTimer = requestAnimationFrame(() => {
       if (!this.board || this.isTyping) return
-      const hasSelected = this.board.graph.getSelectedCells().length > 0
+      const hasSelected = (this.board.selectedElements || []).length > 0
       if (hasSelected && !this.isInteracting) {
         this.updatePosition()
       } else if (!hasSelected) {
@@ -283,7 +267,7 @@ export class BubbleMenuView {
   }
 
   public sync() {
-    if (this.board && this.board.graph.getSelectedCells().length > 0 && !this.isTyping) {
+    if (this.board && (this.board.selectedElements || []).length > 0 && !this.isTyping) {
       this.setupAutoUpdate()
       this.updatePosition()
     } else {
@@ -292,8 +276,6 @@ export class BubbleMenuView {
   }
 
   private bindEvents(board: Board) {
-    const graph = board.graph
-
     const onSelectionChange = () => {
       this.queueUpdate()
     }
@@ -302,50 +284,9 @@ export class BubbleMenuView {
       this.queueUpdate()
     }
 
-    const onDragStart = () => {
-      this.isInteracting = true
-      this.hide()
-    }
-
-    const onDragEnd = () => {
-      this.isInteracting = false
-      this.queueUpdate()
-      setTimeout(() => {
-        this.queueUpdate()
-      }, 50)
-    }
-
-    graph.on('cell:selected', onSelectionChange)
-    graph.on('cell:unselected', onSelectionChange)
-    graph.on('selection:changed', onSelectionChange)
-    graph.on('node:change:position', onCellChange)
-    graph.on('node:change:size', onCellChange)
-    graph.on('node:change:data', onCellChange)
-    graph.on('cell:change:*', onCellChange)
-    graph.on('edge:change:vertices', onCellChange)
-    graph.on('edge:change:source', (args: any) => {
-      if (args?.options?.ui) onDragStart()
-      else onCellChange()
-    })
-    graph.on('edge:change:target', (args: any) => {
-      if (args?.options?.ui) onDragStart()
-      else onCellChange()
-    })
-    graph.on('edge:change:terminal', onCellChange)
-    graph.on('edge:change:*', onCellChange)
-    graph.on('render:done', onCellChange)
-    graph.on('model:updated', onCellChange)
-    graph.on('mindmap:collapse:change', onCellChange)
-    graph.on('node:moving', onDragStart)
-    graph.on('node:moved', onDragEnd)
-    graph.on('node:drag:start', onDragStart)
-    graph.on('node:drag:end', onDragEnd)
-    graph.on('mindmap:drag:start', onDragStart)
-    graph.on('mindmap:drag:end', onDragEnd)
-    graph.on('node:resizing', onDragStart)
-    graph.on('node:resized', onDragEnd)
-    graph.on('scale', onCellChange)
-    graph.on('translate', onCellChange)
+    board.on('selection:change', onSelectionChange)
+    board.on('change', onCellChange)
+    board.on('scale', onCellChange)
 
     const scrollerEl = (board as any).scrollerPlugin?.container
     if (scrollerEl) {
@@ -364,31 +305,9 @@ export class BubbleMenuView {
       if (scrollerEl) {
         scrollerEl.removeEventListener('scroll', onCellChange)
       }
-      graph.off('cell:selected', onSelectionChange)
-      graph.off('cell:unselected', onSelectionChange)
-      graph.off('selection:changed', onSelectionChange)
-      graph.off('node:change:position', onCellChange)
-      graph.off('node:change:size', onCellChange)
-      graph.off('node:change:data', onCellChange)
-      graph.off('cell:change:*', onCellChange)
-      graph.off('edge:change:vertices', onCellChange)
-      graph.off('edge:change:source')
-      graph.off('edge:change:target')
-      graph.off('edge:change:terminal', onCellChange)
-      graph.off('edge:change:*', onCellChange)
-      graph.off('render:done', onCellChange)
-      graph.off('model:updated', onCellChange)
-      graph.off('mindmap:collapse:change', onCellChange)
-      graph.off('node:moving', onDragStart)
-      graph.off('node:moved', onDragEnd)
-      graph.off('node:drag:start', onDragStart)
-      graph.off('node:drag:end', onDragEnd)
-      graph.off('mindmap:drag:start', onDragStart)
-      graph.off('mindmap:drag:end', onDragEnd)
-      graph.off('node:resizing', onDragStart)
-      graph.off('node:resized', onDragEnd)
-      graph.off('scale', onCellChange)
-      graph.off('translate', onCellChange)
+      board.off('selection:change', onSelectionChange)
+      board.off('change', onCellChange)
+      board.off('scale', onCellChange)
     }
   }
 

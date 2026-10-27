@@ -130,11 +130,11 @@ const props = defineProps<{
 const colorOpen = ref(false)
 
 const selectedCell = computed(() => {
-  return props.board?.graph.getSelectedCells()[0] || null
+  return props.board?.selectedElements?.[0] || null
 })
 
 const selectedNodeData = computed<MindmapNodeData | null>(() => {
-  return (selectedCell.value?.getData() || null) as MindmapNodeData | null
+  return (selectedCell.value?.getData?.() || selectedCell.value?.data || selectedCell.value || null) as MindmapNodeData | null
 })
 
 const isRoot = computed(() => {
@@ -143,8 +143,8 @@ const isRoot = computed(() => {
 
 const rootNode = computed(() => {
   if (!props.board || !selectedNodeData.value?.mindmapId) return null
-  return props.board.graph.getNodes().find((n) => {
-    const d = n.getData() as MindmapNodeData | undefined
+  return (props.board.raw?.children || []).find((n: any) => {
+    const d = (n.getData?.() || n.data || n) as MindmapNodeData | undefined
     return d?.type === 'mindmap-node' && d?.mindmapId === selectedNodeData.value?.mindmapId && d?.isRoot
   })
 })

@@ -37,47 +37,26 @@ export function useCellAttributes<T, R = T>(
       return
     }
 
-    const graph = board.graph
-
     const extractValue = (): T => {
-      const selected = graph.getSelectedCells()
+      const selected = board.selectedElements
       if (!selected || selected.length === 0) {
         return defaultValue as T
       }
-      const cell = selected[0]
+      const cell = selected[0] as any
 
       if (typeof attributeOrGetter === 'function') {
-        return attributeOrGetter(cell, board)
+        return (attributeOrGetter as any)(cell, board)
       }
 
       const attrName = attributeOrGetter
-      const data = cell.getData() || {}
-      if (attrName in data && data[attrName] !== undefined && data[attrName] !== null) {
-        return data[attrName] as T
+      if (cell && attrName in cell && cell[attrName] !== undefined && cell[attrName] !== null) {
+        return cell[attrName] as T
+      }
+      if (cell?.data && attrName in cell.data && cell.data[attrName] !== undefined) {
+        return cell.data[attrName] as T
       }
 
-      // 尝试从 attrs 读取 (如 body/fill, line/stroke 等)
-      const directAttr = cell.getAttrByPath(attrName)
-      if (directAttr !== undefined && directAttr !== null) {
-        return directAttr as T
-      }
-
-      const bodyAttr = cell.getAttrByPath(`body/${attrName}`)
-      if (bodyAttr !== undefined && bodyAttr !== null) {
-        return bodyAttr as T
-      }
-
-      const lineAttr = cell.getAttrByPath(`line/${attrName}`)
-      if (lineAttr !== undefined && lineAttr !== null) {
-        return lineAttr as T
-      }
-
-      const shapeAttr = cell.getAttrByPath(`shapeBody/${attrName}`)
-      if (shapeAttr !== undefined && shapeAttr !== null) {
-        return shapeAttr as T
-      }
-
-      return (defaultValue !== undefined ? defaultValue : (data[attrName] as T))
+      return defaultValue !== undefined ? defaultValue : (cell?.[attrName] as T)
     }
 
     const listener = () => {
@@ -95,27 +74,20 @@ export function useCellAttributes<T, R = T>(
 
     // 监听与选区和图元数据相关的全套画板事件
     const events = [
-      'cell:selected',
-      'cell:unselected',
-      'selection:changed',
-      'cell:change:data',
-      'node:change:data',
-      'edge:change:data',
-      'cell:change:attrs',
-      'node:change:attrs',
-      'edge:change:attrs',
+      'selection:change',
+      'change',
       'history:change',
       'history:undo',
       'history:redo',
     ]
 
     for (const ev of events) {
-      graph.on(ev, listener)
+      board.on(ev, listener)
     }
 
     onCleanup(() => {
       for (const ev of events) {
-        graph.off(ev, listener)
+        board.off(ev, listener)
       }
     })
   })

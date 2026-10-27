@@ -55,19 +55,19 @@ const props = defineProps<{
 const { isOpen } = useToolbarPopover('mindmap-branch')
 
 const selectedCell = computed(() => {
-  return props.board?.graph.getSelectedCells()[0] || null
+  return (props.board?.selectedElements?.[0] || null) as any
 })
 
 const currentBranchType = computed<'curve' | 'straight'>(() => {
   if (!selectedCell.value || !props.board) return 'curve'
-  const data = selectedCell.value.getData() as any
+  const data = (selectedCell.value.getData?.() || selectedCell.value.data || selectedCell.value) as any
   if (data?.branch?.type) return data.branch.type
   // 若当前选中的是子节点，回退读取根节点的分支类型
-  const root = props.board.graph.getNodes().find((n) => {
-    const d = n.getData() as any
+  const root = (props.board.raw?.children || []).find((n: any) => {
+    const d = (n.getData?.() || n.data || n) as any
     return d?.type === 'mindmap-node' && d?.mindmapId === data?.mindmapId && d?.isRoot
   })
-  return (root?.getData() as any)?.branch?.type || 'curve'
+  return (root?.getData?.() || root?.data || root)?.branch?.type || 'curve'
 })
 
 const currentBranchIcon = computed(() => {

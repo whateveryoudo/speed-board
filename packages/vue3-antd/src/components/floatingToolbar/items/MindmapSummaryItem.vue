@@ -22,7 +22,7 @@ const props = defineProps<{
 }>()
 
 const selectedCell = computed(() => {
-  return props.board?.graph.getSelectedCells()[0] || null
+  return (props.board?.selectedElements?.[0] || null) as any
 })
 
 const isSummaryNode = computed(() => {

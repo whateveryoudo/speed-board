@@ -44,7 +44,7 @@ export function useBoardSelection(source: BoardSource): BoardSelectionState {
       return
     }
 
-    const cells = board.graph.getSelectedCells()
+    const cells = board.selectedElements || []
     selectedCells.value = cells
     selectedCount.value = cells.length
 
@@ -55,7 +55,7 @@ export function useBoardSelection(source: BoardSource): BoardSelectionState {
       return
     }
 
-    const cell = cells[0]
+    const cell = cells[0] as any
     selectedCell.value = cell
 
     if (cells.length > 1) {
@@ -64,34 +64,24 @@ export function useBoardSelection(source: BoardSource): BoardSelectionState {
       return
     }
 
-    if (cell.isEdge()) {
+    const type = cell.type || cell.shape || ''
+    if (cell.shape === 'straight' || cell.shape === 'elbow' || cell.shape === 'curve') {
       selectedType.value = 'line'
       selectedShapeId.value = ''
-    } else if (
-      cell.shape === 'speed-mindmap-root' ||
-      cell.shape === 'speed-mindmap-node' ||
-      cell.getData()?.type === 'mindmap-node'
-    ) {
-      const d = (cell.getData() || {}) as any
-      if (d.isSummary) selectedType.value = 'mindmap-summary' as any
-      else if (d.isRoot || cell.shape === 'speed-mindmap-root') selectedType.value = 'mindmap-root' as any
-      else selectedType.value = 'mindmap-node' as any
+    } else if (cell.type === 'mind' || cell.isRoot || cell.children) {
+      if (cell.isSummary) selectedType.value = 'mindmap-summary'
+      else if (cell.isRoot) selectedType.value = 'mindmap-root'
+      else selectedType.value = 'mindmap-node'
       selectedShapeId.value = ''
-    } else if (cell.shape === 'speed-image-node') {
+    } else if (type === 'image') {
       selectedType.value = 'image'
       selectedShapeId.value = ''
-    } else if (cell.shape === 'speed-vector-polygon') {
-      selectedType.value = 'vector'
-      selectedShapeId.value = ''
-    } else if (board.isTextNode(cell)) {
+    } else if (type === 'text') {
       selectedType.value = 'text'
       selectedShapeId.value = ''
-    } else if (board.isShapeNode(cell)) {
-      selectedType.value = 'shape'
-      selectedShapeId.value = cell.getData()?.shapeId || 'rect'
     } else {
       selectedType.value = 'shape'
-      selectedShapeId.value = cell.getData()?.shapeId || 'rect'
+      selectedShapeId.value = cell.shape || 'rectangle'
     }
   }
 
@@ -102,27 +92,22 @@ export function useBoardSelection(source: BoardSource): BoardSelectionState {
       return
     }
 
-    const graph = board.graph
     const listener = () => sync(board)
 
     sync(board)
 
     const events = [
-      'cell:selected',
-      'cell:unselected',
-      'selection:changed',
-      'cell:change:data',
-      'node:change:data',
-      'edge:change:data',
+      'selection:change',
+      'change',
     ]
 
     for (const ev of events) {
-      graph.on(ev, listener)
+      board.on(ev, listener)
     }
 
     onCleanup(() => {
       for (const ev of events) {
-        graph.off(ev, listener)
+        board.off(ev, listener)
       }
     })
   })

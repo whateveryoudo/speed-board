@@ -61,19 +61,19 @@ const LAYOUT_OPTIONS = [
 ]
 
 const selectedCell = computed(() => {
-  return props.board?.graph.getSelectedCells()[0] || null
+  return (props.board?.selectedElements?.[0] || null) as any
 })
 
 const currentStructure = computed<string>(() => {
   if (!selectedCell.value || !props.board) return 'balanced'
-  const data = selectedCell.value.getData() as any
+  const data = (selectedCell.value.getData?.() || selectedCell.value.data || selectedCell.value) as any
   if (data?.structure) return data.structure
   // 若当前选中的是子节点，回退读取根节点的结构
-  const root = props.board.graph.getNodes().find((n) => {
-    const d = n.getData() as any
+  const root = (props.board.raw?.children || []).find((n: any) => {
+    const d = (n.getData?.() || n.data || n) as any
     return d?.type === 'mindmap-node' && d?.mindmapId === data?.mindmapId && d?.isRoot
   })
-  return (root?.getData() as any)?.structure || 'balanced'
+  return (root?.getData?.() || root?.data || root)?.structure || 'balanced'
 })
 
 const currentLayoutIcon = computed(() => {

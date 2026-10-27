@@ -242,7 +242,7 @@ const props = defineProps<{
 }>()
 
 const selectedCount = computed(() => {
-  return props.board?.graph.getSelectedCells().length || 0
+  return props.board?.selectedElements?.length || 0
 })
 </script>
 

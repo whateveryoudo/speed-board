@@ -24,8 +24,8 @@ export function useBoardHistory(source: BoardSource): BoardHistoryControls {
       canRedo.value = false
       return
     }
-    canUndo.value = board.canUndo()
-    canRedo.value = board.canRedo()
+    canUndo.value = typeof board.canUndo === 'function' ? board.canUndo() : Boolean(board.canUndo)
+    canRedo.value = typeof board.canRedo === 'function' ? board.canRedo() : Boolean(board.canRedo)
   }
 
   watchEffect((onCleanup) => {
@@ -36,8 +36,6 @@ export function useBoardHistory(source: BoardSource): BoardHistoryControls {
       return
     }
 
-    const graph = board.graph
-
     const listener = () => {
       sync(board)
     }
@@ -46,26 +44,20 @@ export function useBoardHistory(source: BoardSource): BoardHistoryControls {
     sync(board)
 
     const events = [
+      'change',
       'history:change',
       'history:undo',
       'history:redo',
-      'cell:added',
-      'cell:removed',
-      'cell:change:data',
-      'node:change:data',
-      'edge:change:data',
-      'node:change:position',
-      'node:change:size',
-      'cell:change:attrs',
+      'selection:change',
     ]
 
     for (const ev of events) {
-      graph.on(ev, listener)
+      board.on(ev, listener)
     }
 
     onCleanup(() => {
       for (const ev of events) {
-        graph.off(ev, listener)
+        board.off(ev, listener)
       }
     })
   })

@@ -28,11 +28,11 @@ export function useShapeSwitch(getBoard: () => Board | null) {
       typeof targetShape === 'string' ? getShapeById(targetShape) : targetShape
     if (!shapeDef) return
 
-    const selectedCells = board.graph.getSelectedCells()
+    const selectedCells = board.selectedElements || []
     for (const cell of selectedCells) {
-      if (!board.isShapeNode(cell)) continue
+      if ((board as any).isShapeNode && !(board as any).isShapeNode(cell)) continue
 
-      const oldData = cell.getData() || {}
+      const oldData = (cell as any).getData ? (cell as any).getData() : (cell as any).data || cell
       const fill = oldData.fill || '#ffffff'
       const stroke = oldData.stroke || '#374151'
       const strokeWidth = oldData.strokeWidth ?? 2
@@ -48,22 +48,33 @@ export function useShapeSwitch(getBoard: () => Board | null) {
       })
       const tightViewBox = getShapeTightViewBox(svgContent, shapeDef.id)
 
-      board.updateShapeNode(cell as any, {
-        shapeId: shapeDef.id,
-        shapeName: shapeDef.name,
-        fill,
-        stroke,
-        strokeWidth,
-        strokeDasharray,
-        opacity,
-        svgContent,
-        viewBox: tightViewBox,
-        tightViewBox,
-      })
+      if ((board as any).updateShapeNode) {
+        (board as any).updateShapeNode(cell as any, {
+          shapeId: shapeDef.id,
+          shapeName: shapeDef.name,
+          fill,
+          stroke,
+          strokeWidth,
+          strokeDasharray,
+          opacity,
+          svgContent,
+          viewBox: tightViewBox,
+          tightViewBox,
+        })
+      } else {
+        board.setShapeProperty({
+          shape: shapeDef.id,
+          fill,
+          stroke,
+          strokeWidth,
+          strokeDasharray,
+          opacity,
+        })
+      }
 
       // 触发选择集变更通知，确保浮动工具栏和左侧面板即时同步
-      board.graph.trigger('selection:changed', {
-        selected: board.graph.getSelectedCells(),
+      board.emit('selection:change', {
+        selected: board.selectedElements,
       })
     }
   }

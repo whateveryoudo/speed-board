@@ -31,10 +31,10 @@ const props = defineProps<{
 
 const isGroup = computed(() => {
   if (!props.board) return false
-  const selected = props.board.graph.getSelectedCells()
-  if (selected.length === 1 && selected[0].isNode()) {
-    const data = selected[0].getData() as any
-    return !!(data?.isGroup || data?.type === 'group')
+  const selected = props.board.selectedElements || []
+  if (selected.length === 1) {
+    const el = selected[0] as any
+    return !!(el.isGroup || el.type === 'group')
   }
   return false
 })

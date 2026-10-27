@@ -48,23 +48,9 @@ const { isOpen } = useToolbarPopover('fill')
 const { syncFromSelection, updateStyle } = useNodeStyle(() => props.board)
 
 const currentColor = computed(() => {
-  const cell = props.board?.graph.getSelectedCells()[0]
+  const cell = (props.board?.selectedElements?.[0] || null) as any
   if (!cell) return '#ffffff'
-
-  if (props.board?.isShapeNode(cell)) {
-    return cell.getData()?.fill || '#ffffff'
-  }
-  if (cell.shape === 'speed-vector-polygon') {
-    return (cell.getAttrByPath('body/fill') as string) || '#ffffff'
-  }
-  if (
-    cell.getData()?.type === 'mindmap-node' ||
-    cell.shape === 'speed-mindmap-root' ||
-    cell.shape === 'speed-mindmap-node'
-  ) {
-    return (cell.getAttrByPath('body/fill') as string) || (cell.getData() as any)?.fill || '#ffffff'
-  }
-  return '#ffffff'
+  return cell.fill || cell.data?.fill || cell.getData?.()?.fill || '#ffffff'
 })
 
 const onColorSelect = (color: string) => {

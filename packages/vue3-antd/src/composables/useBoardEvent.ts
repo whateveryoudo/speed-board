@@ -26,9 +26,8 @@ export function useBoardEvent(
 
   const cleanup = () => {
     if (currentBoard) {
-      const graph = currentBoard.graph
       for (const ev of eventList) {
-        graph.off(ev, handler)
+        currentBoard.off(ev, handler)
       }
       currentBoard = null
     }
@@ -38,9 +37,8 @@ export function useBoardEvent(
     cleanup()
     if (!board) return
     currentBoard = board
-    const graph = board.graph
     for (const ev of eventList) {
-      graph.on(ev, handler)
+      board.on(ev, handler)
     }
   }
 

@@ -113,7 +113,7 @@ watch(isOpen, (v) => {
 })
 const { updateStyle } = useNodeStyle(() => props.board)
 
-const getActiveCell = () => props.board?.graph.getSelectedCells()[0]
+const getActiveCell = () => (props.board?.selectedElements?.[0] || null) as any
 
 const isMindmapNode = computed(() => {
   const cell = getActiveCell()

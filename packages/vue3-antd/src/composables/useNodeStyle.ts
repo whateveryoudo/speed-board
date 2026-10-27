@@ -63,7 +63,7 @@ export function useNodeStyle(getBoard: () => Board | null) {
       return
     }
 
-    const cells = board.graph.getSelectedCells()
+    const cells = (board.selectedElements || []) as any[]
     selectedCells.value = cells
 
     if (cells.length === 0) {
@@ -169,7 +169,7 @@ export function useNodeStyle(getBoard: () => Board | null) {
 
     Object.assign(styleState.value, patch)
 
-    const cells = board.graph.getSelectedCells()
+    const cells = (board.selectedElements || []) as any[]
     for (const cell of cells) {
       if (cell.isEdge()) {
         if (patch.stroke !== undefined) cell.setAttrByPath('line/stroke', patch.stroke)
