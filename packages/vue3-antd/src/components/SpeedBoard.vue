@@ -837,6 +837,10 @@ const onKeyDown = (e: KeyboardEvent) => {
   }
 
   if (e.key === 'Escape') {
+    if (showQuickConnect.value) {
+      onQuickConnectClose()
+      return
+    }
     if (pendingPlacement.value) {
       cancelPlacement()
       return

@@ -90,8 +90,8 @@ export function findClosestPort(
         const finalY = cy + (pdx * sin + pdy * cos)
         const dist = Math.hypot(localPt.x - finalX, localPt.y - finalY)
 
-        // 1. 优先检测强吸附中心落点 (阈值 14px)
-        if (dist <= 14) {
+        // 1. 优先检测贴合真实几何轮廓的连接桩（Ports），在吸附阈值（默认 36~38px）内强吸附中心点
+        if (dist <= snapThreshold) {
           if (!closestNodePort || dist < closestNodePort.dist) {
             closestNodePort = { port: p, dist, finalX, finalY }
           }

@@ -1,6 +1,7 @@
 import type { Node } from '@antv/x6'
 import type { Board, DrawingMode, DrawingOptions } from '../Board'
 import { findClosestPort } from './portSnapping'
+import { calculateWhiteboardRoute, verticesToSvgPath } from '../routers/whiteboardRouter'
 
 export class DrawingController {
   private board: Board
@@ -239,11 +240,11 @@ export class DrawingController {
           targetPt = portResult.point || portResult.localPoint
         } else {
           this.lineEndSnapped = null
-          // 正交拉线阈值吸附 (24px 宽容度内自动锁平/锁直，彻底杜绝尾部微小弯折步阶)
+          // 空白画布处拖拽拉线：正交阈值吸附 (16px 宽容度内自动锁平/锁直纯直线，方便徒手画横线/竖线)
           if (this.lineType === 'elbow' || this.lineType === 'straight') {
-            if (Math.abs(targetPt.y - this.lineStartPt.y) <= 24) {
+            if (Math.abs(targetPt.y - this.lineStartPt.y) <= 16) {
               targetPt = { x: targetPt.x, y: this.lineStartPt.y }
-            } else if (Math.abs(targetPt.x - this.lineStartPt.x) <= 24) {
+            } else if (Math.abs(targetPt.x - this.lineStartPt.x) <= 16) {
               targetPt = { x: this.lineStartPt.x, y: targetPt.y }
             }
           }
@@ -253,38 +254,15 @@ export class DrawingController {
         const p2 = targetPt
         let d = ''
         if (this.lineType === 'elbow') {
-          const dx = p2.x - p1.x
-          const dy = p2.y - p1.y
-          // 1. 水平或垂直 20px 阈值内：直接锁平纯直线
-          if (Math.abs(dy) <= 20) {
-            d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p1.y.toFixed(1)}`
-          } else if (Math.abs(dx) <= 20) {
-            d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p1.x.toFixed(1)} ${p2.y.toFixed(1)}`
-          } else {
-            const srcPort = this.lineStartSnapped?.port || ''
-            const tgtPort = this.lineEndSnapped?.port || ''
-            const isSrcH = srcPort.includes('left') || srcPort.includes('right')
-            const isSrcV = srcPort.includes('top') || srcPort.includes('bottom')
-            const isTgtH = tgtPort.includes('left') || tgtPort.includes('right')
-            const isTgtV = tgtPort.includes('top') || tgtPort.includes('bottom')
-
-            if (isSrcH && isTgtV) {
-              // 水平出，垂直入：L-形拐角，在 p2.x 转折垂直入桩
-              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-            } else if (isSrcV && isTgtH) {
-              // 垂直出，水平入：L-形拐角，在 p1.x 转折水平入桩
-              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p1.x.toFixed(1)} ${p2.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-            } else if (isSrcH || isTgtH) {
-              const midX = p1.x + dx / 2
-              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p2.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-            } else if (isSrcV || isTgtV) {
-              const midY = p1.y + dy / 2
-              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${p1.x.toFixed(1)} ${midY.toFixed(1)} L ${p2.x.toFixed(1)} ${midY.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-            } else {
-              const midX = p1.x + dx / 2
-              d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p1.y.toFixed(1)} L ${midX.toFixed(1)} ${p2.y.toFixed(1)} L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-            }
-          }
+          // 拖拽中与松手释放后 100% 采用同一套白板路由算法，杜绝路径形态与吸附点的不一致
+          const srcPort = this.lineStartSnapped?.port || ''
+          const tgtPort = this.lineEndSnapped?.port || (portResult ? portResult.edge : '')
+          const sourceCell = this.lineStartSnapped?.cell ? this.board.graph.getCellById(this.lineStartSnapped.cell) : null
+          const targetCell = this.lineEndSnapped?.cell ? this.board.graph.getCellById(this.lineEndSnapped.cell) : null
+          const sourceBBox = sourceCell?.getBBox?.()
+          const targetBBox = targetCell?.getBBox?.()
+          const vertices = calculateWhiteboardRoute(p1, p2, srcPort, tgtPort, sourceBBox, targetBBox)
+          d = verticesToSvgPath(p1, p2, vertices)
         } else if (this.lineType === 'curve') {
           const dx = p2.x - p1.x
           d = `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${(p1.x + dx / 2).toFixed(1)} ${p1.y.toFixed(1)}, ${(p1.x + dx / 2).toFixed(1)} ${p2.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
@@ -349,9 +327,9 @@ export class DrawingController {
           const finalStart: any = this.lineStartSnapped || this.lineStartPt
           let finalEnd: any = this.lineEndSnapped || curPt
           if (!this.lineEndSnapped && (this.lineType === 'elbow' || this.lineType === 'straight')) {
-            if (Math.abs(curPt.y - this.lineStartPt.y) <= 24) {
+            if (Math.abs(curPt.y - this.lineStartPt.y) <= 16) {
               finalEnd = { x: curPt.x, y: this.lineStartPt.y }
-            } else if (Math.abs(curPt.x - this.lineStartPt.x) <= 24) {
+            } else if (Math.abs(curPt.x - this.lineStartPt.x) <= 16) {
               finalEnd = { x: this.lineStartPt.x, y: curPt.y }
             }
           }
@@ -429,16 +407,36 @@ export class DrawingController {
       }
     })
 
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && this.isDrawing && this.drawingMode === 'line') {
+        e.preventDefault()
+        e.stopPropagation()
+        this.cancelLineDrawing()
+      }
+    }
+
+    const onContextMenu = (e: MouseEvent) => {
+      if (this.isDrawing && this.drawingMode === 'line') {
+        e.preventDefault()
+        e.stopPropagation()
+        this.cancelLineDrawing()
+      }
+    }
+
     this.board.container.addEventListener('pointerdown', onPointerDown, { capture: true })
     this.board.container.addEventListener('dblclick', onDblClick, { capture: true })
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('keydown', onKeyDown)
+    this.board.container.addEventListener('contextmenu', onContextMenu, { capture: true })
 
     this.cleanupFns.push(() => {
       this.board.container.removeEventListener('pointerdown', onPointerDown, { capture: true })
       this.board.container.removeEventListener('dblclick', onDblClick, { capture: true })
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('keydown', onKeyDown)
+      this.board.container.removeEventListener('contextmenu', onContextMenu, { capture: true })
     })
   }
 
@@ -495,6 +493,22 @@ export class DrawingController {
 
     const stage = this.getStage()
     stage?.appendChild(this.tempLinePath)
+  }
+
+  /**
+   * 取消当前连线拖拽预览，清理临时图层并重置状态 (按 Esc / 右键随时取消)
+   */
+  public cancelLineDrawing() {
+    this.isDrawing = false
+    if (this.tempLinePath && this.tempLinePath.parentNode) {
+      this.tempLinePath.parentNode.removeChild(this.tempLinePath)
+      this.tempLinePath = null
+    }
+    this.lineStartPt = null
+    this.lineStartSnapped = null
+    this.lineEndSnapped = null
+    this.hoveredPortNode = null
+    this.board.container.querySelectorAll('.speed-port-highlight').forEach((el) => el.remove())
   }
 
   private eraseAtPoint(clientX: number, clientY: number) {
