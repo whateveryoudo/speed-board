@@ -32,7 +32,7 @@ type FreehandAppState = {
 };
 
 export function getFreehandPointers() {
-  return [FreehandShape.feltTipPen, FreehandShape.eraser];
+  return [FreehandShape.nibPen, FreehandShape.feltTipPen, FreehandShape.eraser];
 }
 
 export const getFreehandDrawOptions = (board: PlaitBoard) => {

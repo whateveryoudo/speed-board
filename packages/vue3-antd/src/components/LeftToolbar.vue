@@ -447,8 +447,15 @@ const setTool = (tool: 'select' | 'brush' | 'vector' | 'line' | 'text' | 'shape'
   }
   iconPickerOpen.value = false
 
+  if (tool !== 'select') {
+    props.board?.clearSelection()
+  }
+
   if (tool === 'brush') {
     applyDrawingMode()
+  } else if (tool === 'vector') {
+    props.board?.setPointer(ArrowLineShape.curve)
+    emit('mode-change', { mode: 'line', lineType: 'curve' })
   } else if (tool === 'select') {
     props.board?.setPointer(PlaitPointerType.selection)
     emit('mode-change', { mode: 'select' })
@@ -536,16 +543,6 @@ const currentSelectedShapeId = useCellAttributes(
   'shapeId',
   ''
 )
-
-// 当选中有元素时，左侧自动切回 select 指针工具
-useBoardEvent(() => props.board, ['selection:change', 'change'], () => {
-  if (props.board && props.board.selectedElements && props.board.selectedElements.length > 0) {
-    if (currentTool.value !== 'select' && !props.activePlacementType) {
-      currentTool.value = 'select'
-      props.board.setDrawingMode('select')
-    }
-  }
-})
 
 const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) => {
   if (!props.board) return
