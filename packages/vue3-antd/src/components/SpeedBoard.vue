@@ -44,6 +44,7 @@ import {
   BasicShapes,
   ArrowLineShape,
   MindPointerType,
+  FreehandShape,
 } from '@speed-board/core';
 import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
@@ -116,6 +117,9 @@ const onToolbarModeChange = (payload: {
     case 'diamond':
       boardInstance.value.setPointer(BasicShapes.diamond);
       break;
+    case 'text':
+      boardInstance.value.setPointer(BasicShapes.text);
+      break;
     case 'line': {
       const lineType = payload.lineType || 'elbow';
       if (lineType === 'elbow') {
@@ -128,10 +132,22 @@ const onToolbarModeChange = (payload: {
       break;
     }
     case 'mindmap':
+    case 'mind':
       boardInstance.value.setPointer(MindPointerType.mind);
       break;
+    case 'pencil':
+    case 'nibPen':
+      boardInstance.value.setPointer(FreehandShape.nibPen);
+      break;
+    case 'marker':
+    case 'feltTipPen':
+      boardInstance.value.setPointer(FreehandShape.feltTipPen);
+      break;
+    case 'eraser':
+      boardInstance.value.setPointer(FreehandShape.eraser);
+      break;
     default:
-      boardInstance.value.setPointer(payload.mode);
+      boardInstance.value.setPointer(boardInstance.value.mapShapeToPointer(payload.mode));
       break;
   }
 };

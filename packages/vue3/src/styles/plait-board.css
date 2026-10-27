@@ -54,6 +54,18 @@
   cursor: default;
 }
 
+.plait-board-container.pointer-hand {
+  cursor: grab;
+}
+
+.plait-board-container.pointer-hand:active {
+  cursor: grabbing;
+}
+
+.plait-board-container:not(.pointer-selection):not(.pointer-hand) {
+  cursor: crosshair;
+}
+
 .plait-board-container.ns-resize { cursor: ns-resize; }
 .plait-board-container.ew-resize { cursor: ew-resize; }
 .plait-board-container.nwse-resize { cursor: nwse-resize; }

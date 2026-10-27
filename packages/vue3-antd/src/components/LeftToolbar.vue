@@ -12,7 +12,7 @@
           </template>
           <a-tooltip title="图标" placement="right">
             <a-button type="text" class="shadow-btn-wrapper iconfont-entry-btn"
-              :class="{ 'is-active': props.activePlacementType === 'icon' || iconPickerOpen }">
+              :class="{ 'is-active': iconPickerOpen }">
               <SIconFont type="icon-kl-a-iconfonticon" :size="19" />
             </a-button>
           </a-tooltip>
@@ -21,7 +21,7 @@
         <!-- 1.1 选择指针 (Select - 'V') -->
         <a-tooltip title="选择指针 (V)" placement="right">
           <a-button type="text" class="shadow-btn-wrapper"
-            :class="{ 'is-active': currentTool === 'select' && !props.activePlacementType }" @click="setTool('select')">
+            :class="{ 'is-active': currentTool === 'select' }" @click="setTool('select')">
             <SIconFont type="icon-kl-board-select-cursor" :size="20" />
           </a-button>
         </a-tooltip>
@@ -106,7 +106,7 @@
           <a-tooltip :title="brushPopoverOpen ? '' : '画笔/随手画'" :open="brushPopoverOpen ? false : undefined"
             placement="right">
             <a-button type="text" class="shadow-btn-wrapper"
-              :class="{ 'is-active': currentTool === 'brush' && !props.activePlacementType }">
+              :class="{ 'is-active': currentTool === 'brush' || brushPopoverOpen }">
               <SIconFont type="icon-kl-board-brush" :size="20" />
             </a-button>
           </a-tooltip>
@@ -115,7 +115,7 @@
         <!-- 1.3 矢量钢笔绘图 -->
         <a-tooltip title="矢量钢笔" placement="right">
           <a-button type="text" class="shadow-btn-wrapper"
-            :class="{ 'is-active': currentTool === 'vector' && !props.activePlacementType }" @click="setTool('vector')">
+            :class="{ 'is-active': currentTool === 'vector' }" @click="setTool('vector')">
             <SIconFont type="icon-kl-board-vector-drawing" :size="20" />
           </a-button>
         </a-tooltip>
@@ -123,8 +123,7 @@
         <!-- 1.4 插入文本 (Text - 'T') -->
         <a-tooltip title="插入文本 (T)" placement="right">
           <a-button type="text" class="shadow-btn-wrapper"
-            :class="{ 'is-active': props.activePlacementType === 'text' }"
-            @pointerdown="(e: PointerEvent) => handleButtonPointerDown(e, startTextPlacement)"
+            :class="{ 'is-active': currentTool === 'text' }"
             @click="onTextButtonClick">
             <SIconFont type="icon-kl-text1" :size="20" />
           </a-button>
@@ -140,7 +139,7 @@
           <a-tooltip :title="shapePickerOpen ? '' : '图形库'" :open="shapePickerOpen ? false : undefined"
             placement="right">
             <a-button type="text" class="shadow-btn-wrapper"
-              :class="{ 'is-active': props.activePlacementType === 'shape' || shapePickerOpen }">
+              :class="{ 'is-active': currentTool === 'shape' || shapePickerOpen }">
               <SIconFont type="icon-kl-board-shape-circle" :size="20" />
             </a-button>
           </a-tooltip>
@@ -178,7 +177,8 @@
           <a-tooltip :title="linePopoverOpen ? '' : '连线工具'" :open="linePopoverOpen ? false : undefined"
             placement="right">
             <a-button type="text" class="shadow-btn-wrapper"
-              :class="{ 'is-active': currentTool === 'line' && !props.activePlacementType }">
+              :class="{ 'is-active': currentTool === 'line' || linePopoverOpen }"
+              @click="setTool('line')">
               <SIconFont type="icon-kl-line2" :size="20" />
             </a-button>
           </a-tooltip>
@@ -187,8 +187,7 @@
         <!-- 1.7 思维导图 (Mindmap) -->
         <a-tooltip title="思维导图" placement="right">
           <a-button type="text" class="shadow-btn-wrapper"
-            :class="{ 'is-active': props.activePlacementType === 'mindmap' }"
-            @pointerdown="(e: PointerEvent) => handleButtonPointerDown(e, startMindmapPlacement)"
+            :class="{ 'is-active': currentTool === 'mindmap' }"
             @click="onMindmapButtonClick">
             <SIconFont type="icon-kl-board-mindmap" :size="20" />
           </a-button>
@@ -217,7 +216,15 @@ import {
 } from 'ant-design-vue'
 import { AppstoreOutlined, PictureOutlined } from '@ant-design/icons-vue'
 import { IconFont as SIconFont, SPEED_COMPONENTS_CONFIG_TOKEN } from 'speed-components-ui/components'
-import type { Board, ShapeType } from '@speed-board/core'
+import {
+  type Board,
+  type ShapeType,
+  PlaitPointerType,
+  BasicShapes,
+  ArrowLineShape,
+  MindPointerType,
+  FreehandShape,
+} from '@speed-board/core'
 import { useCellAttributes } from '../composables/useCellAttributes'
 import { useBoardEvent } from '../composables/useBoardEvent'
 import IconfontPopover from './IconfontPopover.vue'
@@ -317,7 +324,7 @@ const emit = defineEmits<{
 }>()
 
 // 基础模式状态
-const currentTool = ref<'select' | 'brush' | 'vector' | 'line'>('select')
+const currentTool = ref<'select' | 'brush' | 'vector' | 'line' | 'text' | 'shape' | 'mindmap'>('select')
 const currentBrush = ref<'pencil' | 'marker' | 'eraser'>('pencil')
 const currentLineType = ref<'elbow' | 'straight' | 'curve'>('straight')
 
@@ -406,39 +413,25 @@ const presetColors = [
 // 应用手绘模式到画板引擎
 const applyDrawingMode = () => {
   if (currentTool.value === 'select') {
-    props.board?.setDrawingMode('select')
+    props.board?.setPointer(PlaitPointerType.selection)
     emit('mode-change', { mode: 'select' })
     return
   }
 
   if (currentTool.value === 'brush') {
-    if (currentBrush.value === 'pencil') {
-      const payload = {
-        mode: 'pencil' as const,
-        color: strokeColor.value,
-        width: strokeWidth.value,
-        opacity: 1,
-      }
-      props.board?.setDrawingMode('pencil', payload)
-      emit('mode-change', payload)
-    } else if (currentBrush.value === 'marker') {
-      const payload = {
-        mode: 'marker' as const,
-        color: strokeColor.value,
-        width: Math.max(strokeWidth.value * 3, 12),
-        opacity: 0.5,
-      }
-      props.board?.setDrawingMode('marker', payload)
-      emit('mode-change', payload)
-    } else if (currentBrush.value === 'eraser') {
-      props.board?.setDrawingMode('eraser')
-      emit('mode-change', { mode: 'eraser' })
-    }
+    const pointer =
+      currentBrush.value === 'eraser'
+        ? FreehandShape.eraser
+        : currentBrush.value === 'marker'
+        ? FreehandShape.feltTipPen
+        : FreehandShape.nibPen
+    props.board?.setPointer(pointer)
+    emit('mode-change', { mode: pointer as any })
   }
 }
 
 // 切换主工具
-const setTool = (tool: 'select' | 'brush' | 'vector' | 'line') => {
+const setTool = (tool: 'select' | 'brush' | 'vector' | 'line' | 'text' | 'shape' | 'mindmap') => {
   currentTool.value = tool
   emit('cancel-placement')
   widthPopoverOpen.value = false
@@ -449,24 +442,24 @@ const setTool = (tool: 'select' | 'brush' | 'vector' | 'line') => {
   if (tool !== 'line') {
     linePopoverOpen.value = false
   }
-  shapePickerOpen.value = false
+  if (tool !== 'shape') {
+    shapePickerOpen.value = false
+  }
   iconPickerOpen.value = false
+
   if (tool === 'brush') {
     applyDrawingMode()
   } else if (tool === 'select') {
-    props.board?.setDrawingMode('select')
+    props.board?.setPointer(PlaitPointerType.selection)
     emit('mode-change', { mode: 'select' })
-  } else if (tool === 'vector') {
-    props.board?.setDrawingMode('vector')
-    emit('mode-change', { mode: 'vector' })
+  } else if (tool === 'text') {
+    props.board?.setPointer(BasicShapes.text)
+    emit('mode-change', { mode: 'text' })
+  } else if (tool === 'mindmap') {
+    props.board?.setPointer(MindPointerType.mind)
+    emit('mode-change', { mode: 'mindmap' })
   } else if (tool === 'line') {
-    props.board?.setDrawingMode('select')
-    emit('mode-change', {
-      mode: 'line',
-      lineType: currentLineType.value,
-      color: '#374151',
-      width: 2,
-    })
+    selectLineType(currentLineType.value)
   }
 }
 
@@ -477,6 +470,7 @@ const selectBrush = (brush: 'pencil' | 'marker' | 'eraser') => {
   currentTool.value = 'brush'
   widthPopoverOpen.value = false
   colorPopoverOpen.value = false
+  brushPopoverOpen.value = false
   applyDrawingMode()
 }
 
@@ -500,16 +494,41 @@ const setStrokeColor = (c: string) => {
   applyDrawingMode()
 }
 
-// 监听画板实例就绪与绘图模式
-watch(
-  () => props.board,
-  (b) => {
-    if (b) {
-      applyDrawingMode()
-    }
-  },
-  { immediate: true }
-)
+// 监听画板实例指针变动同步工具激活状态
+useBoardEvent(() => props.board, ['pointer:change', 'change'], () => {
+  if (!props.board) return
+  const ptr = props.board.pointer
+  if (ptr === PlaitPointerType.selection) {
+    currentTool.value = 'select'
+  } else if (ptr === BasicShapes.text) {
+    currentTool.value = 'text'
+  } else if (ptr === MindPointerType.mind) {
+    currentTool.value = 'mindmap'
+  } else if (
+    ptr === ArrowLineShape.straight ||
+    ptr === ArrowLineShape.curve ||
+    ptr === ArrowLineShape.elbow
+  ) {
+    currentTool.value = 'line'
+    currentLineType.value = ptr as any
+  } else if (
+    ptr === FreehandShape.nibPen ||
+    ptr === FreehandShape.feltTipPen ||
+    ptr === FreehandShape.eraser
+  ) {
+    currentTool.value = 'brush'
+    currentBrush.value =
+      ptr === FreehandShape.eraser
+        ? 'eraser'
+        : ptr === FreehandShape.feltTipPen
+        ? 'marker'
+        : 'pencil'
+  } else if (ptr === PlaitPointerType.hand) {
+    // hand
+  } else {
+    currentTool.value = 'shape'
+  }
+})
 
 // 响应式图元 shapeId 追踪（对齐 editor useAttributes）
 const currentSelectedShapeId = useCellAttributes(
@@ -543,176 +562,75 @@ const addShape = (shape: ShapeType | string, extra: Record<string, any> = {}) =>
   emit('shape-added', { shape: shape as string, node })
 }
 
-let justDragged = false
 
-const handleButtonPointerDown = (
-  e: PointerEvent,
-  startPlacementFn: () => void
-) => {
-  if (e.button !== 0) return
-  const startX = e.clientX
-  const startY = e.clientY
-  let dragging = false
-
-  const onPointerMove = (ev: PointerEvent) => {
-    if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) {
-      dragging = true
-      justDragged = true
-      startPlacementFn()
-    }
-  }
-
-  const onPointerUp = () => {
-    window.removeEventListener('pointermove', onPointerMove)
-    window.removeEventListener('pointerup', onPointerUp)
-    if (dragging) {
-      setTimeout(() => {
-        justDragged = false
-      }, 50)
-    }
-  }
-
-  window.addEventListener('pointermove', onPointerMove)
-  window.addEventListener('pointerup', onPointerUp)
-}
-
-// 文本按钮点击：若已处于文本放置模式则取消，否则触发放置模式 (1:1 语雀白板交互)
+// 文本按钮点击：切换文本指针模式 (在画布上点击或拖拽即可创建文本)
 const onTextButtonClick = () => {
-  if (justDragged) return
-  if (props.activePlacementType === 'text') {
-    emit('cancel-placement')
-    return
+  if (currentTool.value === 'text') {
+    setTool('select')
+  } else {
+    setTool('text')
   }
-  startTextPlacement()
 }
 
-const startTextPlacement = () => {
-  shapePickerOpen.value = false
-  iconPickerOpen.value = false
-  brushPopoverOpen.value = false
-  linePopoverOpen.value = false
-  currentTool.value = 'select'
-  const text = '文本'
-  const measured = measureTextWidth(text, '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif')
-  emit('start-placement', {
-    type: 'text',
-    width: Math.max(36, Math.round(measured + 8)),
-    height: 28,
-    textConfig: {
-      text,
-      fontSize: 14,
-      fill: '#262626',
-    },
-  })
-}
-
-// 思维导图按钮点击：触发中心主题放置模式
+// 思维导图按钮点击：切换思维导图指针模式 (在画布上点击即可创建思维导图)
 const onMindmapButtonClick = () => {
-  if (justDragged) return
-  if (props.activePlacementType === 'mindmap') {
-    emit('cancel-placement')
-    return
+  if (currentTool.value === 'mindmap') {
+    setTool('select')
+  } else {
+    setTool('mindmap')
   }
-  startMindmapPlacement()
 }
 
-const startMindmapPlacement = () => {
-  shapePickerOpen.value = false
-  iconPickerOpen.value = false
-  brushPopoverOpen.value = false
-  linePopoverOpen.value = false
-  currentTool.value = 'select'
-  const initText = '思维导图'
-  const initWidth = calculateMindmapNodeWidth(initText, true)
-  emit('start-placement', {
-    type: 'mindmap',
-    width: initWidth,
-    height: 42,
-    basicConfig: {
-      shape: 'rect',
-      text: initText,
-      fill: '#f3f4f6',
-      stroke: '#8b5cf6',
-    },
-  })
-}
-
-// 图形库选择图元：触发跟随鼠标放置虚影 (1:1 语雀白板交互)
+// 图形库选择图元：切换对应形状指针模式 (在画布上点击或拖拽即可创建该形状)
 const onShapeLibrarySelect = (shape: ShapeDefinition) => {
   shapePickerOpen.value = false
-  currentTool.value = 'select'
-  props.board?.setDrawingMode('select')
-  emit('mode-change', { mode: 'select' })
-
-  // 默认纯白底色填充，经典深灰边框 (1:1 语雀白板规范)
-  const fill = '#ffffff'
-  const stroke = '#374151'
-  const strokeWidth = 2
-  const svgContent = renderShapeCanvasSvg(shape, {
-    fill,
-    stroke,
-    strokeWidth,
-  })
-  const viewBox = getShapeTightViewBox(svgContent, shape.id)
-
-  emit('start-placement', {
-    type: 'shape',
-    width: 100,
-    height: 80,
-    shapeConfig: {
-      shapeId: shape.id,
-      shapeName: shape.name,
-      svgContent,
-      viewBox,
-      fill,
-      stroke,
-      strokeWidth,
-      strokeDasharray: 'none',
-      opacity: 1,
-      text: '',
-    },
-  })
+  currentTool.value = 'shape'
+  const pointer = props.board ? props.board.mapShapeToPointer(shape.id) : shape.id
+  if (props.board) {
+    props.board.setPointer(pointer)
+  }
+  emit('mode-change', { mode: pointer as any })
 }
 
 // 切换连线子类型 (直线 / 曲线 / 折线)
 const selectLineType = (type: 'elbow' | 'straight' | 'curve') => {
-  emit('cancel-placement')
   currentLineType.value = type
   currentTool.value = 'line'
   widthPopoverOpen.value = false
   colorPopoverOpen.value = false
   shapePickerOpen.value = false
-  if (!props.board) return
-  props.board.setDrawingMode('select')
+  linePopoverOpen.value = false
+  const shapeType =
+    type === 'straight'
+      ? ArrowLineShape.straight
+      : type === 'curve'
+      ? ArrowLineShape.curve
+      : ArrowLineShape.elbow
+  if (props.board) {
+    props.board.setPointer(shapeType)
+  }
   emit('mode-change', {
     mode: 'line',
     lineType: type,
-    color: '#374151',
-    width: 2,
   })
 }
 const onSelectLineTool = selectLineType
 
-// 素材库选择图标：触发跟随鼠标放置虚影 (1:1 语雀白板交互)
+// 素材库选择图标：直接在当前画布视口居中插入图标
 const onSelectIcon = (icon: BoardIconItem) => {
   iconPickerOpen.value = false
   currentTool.value = 'select'
-  props.board?.setDrawingMode('select')
+  if (props.board) {
+    if (icon.url) {
+      props.board.insertImage({ url: icon.url, width: 64, height: 64, name: icon.name })
+    } else if (icon.svg) {
+      const svgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(icon.svg)}`
+      props.board.insertImage({ url: svgUrl, width: 64, height: 64, name: icon.name })
+    }
+    props.board.setPointer(PlaitPointerType.selection)
+  }
   emit('mode-change', { mode: 'select' })
-
-  const svgContent =
-    icon.svg ||
-    (icon.url ? `<img src="${icon.url}" width="60" height="60" style="pointer-events:none;"/>` : '')
-
-  emit('start-placement', {
-    type: 'icon',
-    width: 60,
-    height: 60,
-    iconConfig: {
-      svg: svgContent,
-      name: icon.name,
-    },
-  })
+  message.success(`已插入图标: ${icon.name}`)
 }
 
 // --- 1.8 图片上传与插入 (1:1 语雀交互：视口中心自适应插入) ---

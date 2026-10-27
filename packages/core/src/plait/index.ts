@@ -1,6 +1,8 @@
 export * from './with-vue';
 export * from './with-pinch-zoom';
 export * from './board-factory';
+export * from './freehand/type';
+export * from './freehand/with-freehand';
 
 export * as PlaitCore from '@plait/core';
 export * as PlaitCommon from '@plait/common';
@@ -50,12 +52,23 @@ export {
   updateViewportByScrolling,
   isFromViewportChange,
   setIsFromViewportChange,
+  RectangleClient,
+  CoreTransforms,
+  addSelectedElement,
+  clearSelectedElement,
+  NODE_TO_INDEX,
+  NODE_TO_PARENT,
 } from '@plait/core';
 
 export {
   BasicShapes,
+  FlowchartSymbols,
   ArrowLineShape,
   DrawTransforms,
+  createTextElement,
+  createDefaultGeometry,
+  getDefaultGeometryPoints,
+  insertElement,
   getGeometryPointers,
   getBasicPointers,
   getArrowLinePointers,
@@ -66,6 +79,7 @@ export {
   MindElement,
   MindThemeColors,
   MindPointerType,
+  createEmptyMind,
 } from '@plait/mind';
 
 export {
@@ -73,4 +87,5 @@ export {
   setCreationMode,
   getCreationMode,
   PlaitCommonElementRef,
+  AlignTransform,
 } from '@plait/common';

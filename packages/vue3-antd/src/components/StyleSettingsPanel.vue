@@ -221,7 +221,7 @@ const currentSections = computed<PanelSectionKey[]>(() => {
 const currentShapeId = computed(() => {
   const cell = selectedCells.value[0]
   if (cell && props.board?.isShapeNode(cell)) {
-    return cell.getData()?.shapeId || 'rect'
+    return cell.shape || cell.data?.shapeId || 'rect'
   }
   return 'rect'
 })
