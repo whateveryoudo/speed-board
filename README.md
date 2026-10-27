@@ -1,5 +1,28 @@
 # speed-board
 
+> 📢 **重要重构通告 (重大版本迁移)**：
+>
+> SpeedBoard 项目已完成**全面底层架构重构**，彻底淘汰了旧版 `@antv/x6` 拓扑方案，全量切换至现代化原生无界白板引擎 **[Plait](https://github.com/worktile/plait)**（参考工业级实现 **[Drawnix](https://github.com/plait-board/drawnix/tree/develop)**），并落地面向多框架（Vue 3 / React / Solid）的工业级无头分层体系（Headless Architecture）。
+>
+> 🚀 **全新重构代码、核心动机深度剖析、架构设计图及最新体验，请直接前往迁移分支：**
+> 
+> 👉 **[【点击跳转至全新 Plait 原生白板分支：feat/plait-migration】](https://github.com/whateveryoudo/speed-board/tree/feat/plait-migration)**
+>
+> ---
+>
+> ### 💡 为什么必须从 X6 迁移？核心原因速览：
+> 1. **连线交互降维打击**：旧版 X6 在**正交折线避障路由（Manhattan Router）**和**边缘桩位吸附**上投入了巨大成本，但实现依然脆弱且容易产生折返死结、斜穿节点与吸附漂移；新版 Plait 底层直接内置专用正交折线算法（`generateElbowLineRoute` 与 `simplifyOrthogonalPoints`）及几何边缘吸附联动（`boundReaction`），彻底解决连线打结与吸附错位问题。
+> 2. **100% 纯原生 SVG 渲染**：彻底告别 X6 沉重的 DOM / `<foreignObject>` 容器外挂，缩放平移无任何亚像素抖动与层级错位。
+> 3. **原子级 Slate 富文本集成**：文字直接依托 Slate.js 不可变数据流，支持双击内联排版与连线文字自适应居中。
+> 4. **底层中空点击穿透攻坚**：封装 `withHitEnhance` 增强插件，修复了 Plait 默认无填充无文字图形必须瞄准 4px 边框点击的缺陷，实现点击图形内部任意区域秒级响应。
+> 5. **工业级无头分层体系**：`@speed-board/core` (纯TS) + `@speed-board/view` (零DOM控制器) + `@speed-board/vue3` (无UI耦合Hook) + `@speed-board/vue3-antd` (视觉UI)，解耦彻底，未来可直接无缝扩展至 React / Solid。
+>
+> 📖 欢迎查阅重构分支首页完整文档：[https://github.com/whateveryoudo/speed-board/tree/feat/plait-migration](https://github.com/whateveryoudo/speed-board/tree/feat/plait-migration)
+
+---
+
+*(以下为旧版 @antv/x6 历史存档说明)*
+
 轻量级现代化协同画板（白板 / 流程图）引擎，基于 **AntV X6** 与 **Yjs CRDT** 构建，采用与 `speed-sheet`、`speed-editor` 高度对称的插件化与分层架构。
 
 ## 特性规划
