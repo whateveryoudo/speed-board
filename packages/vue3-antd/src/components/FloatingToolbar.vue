@@ -185,63 +185,7 @@
 
     <div class="floating-divider" />
 
-    <!-- 5. 更多选项 (排列 / 对齐 / 图层 / 成组) -->
-    <a-popover
-      v-model:open="moreOpen"
-      trigger="click"
-      placement="bottom"
-      overlay-class-name="floating-popover-overlay plait-board-attached"
-      :arrow="false"
-    >
-      <template #content>
-        <div class="more-options-panel">
-          <div class="section-label">图层顺序</div>
-          <div class="layer-btn-row">
-            <a-tooltip title="置于顶层" placement="top">
-              <button class="action-btn" @click="props.board?.bringSelectedToFront()">置顶</button>
-            </a-tooltip>
-            <a-tooltip title="置于底层" placement="top">
-              <button class="action-btn" @click="props.board?.sendSelectedToBack()">置底</button>
-            </a-tooltip>
-            <a-tooltip title="上移一层" placement="top">
-              <button class="action-btn" @click="props.board?.bringSelectedForward()">上移</button>
-            </a-tooltip>
-            <a-tooltip title="下移一层" placement="top">
-              <button class="action-btn" @click="props.board?.sendSelectedBackward()">下移</button>
-            </a-tooltip>
-          </div>
-
-          <div class="section-label" style="margin-top: 8px;">对齐方式</div>
-          <div class="align-btn-grid">
-            <button class="action-btn" @click="props.board?.alignSelectedNodes('left')">左对齐</button>
-            <button class="action-btn" @click="props.board?.alignSelectedNodes('center')">水平居中</button>
-            <button class="action-btn" @click="props.board?.alignSelectedNodes('right')">右对齐</button>
-            <button class="action-btn" @click="props.board?.alignSelectedNodes('top')">顶对齐</button>
-            <button class="action-btn" @click="props.board?.alignSelectedNodes('middle')">垂直居中</button>
-            <button class="action-btn" @click="props.board?.alignSelectedNodes('bottom')">底对齐</button>
-          </div>
-
-          <div class="section-label" style="margin-top: 8px;">操作</div>
-          <div class="layer-btn-row">
-            <button class="action-btn" @click="props.board?.groupSelected()">成组</button>
-            <button class="action-btn" @click="props.board?.ungroupSelected()">解组</button>
-            <button class="action-btn" @click="props.board?.duplicateSelected()">复制</button>
-            <button class="action-btn" @click="props.board?.toggleLockSelected()">锁定</button>
-          </div>
-        </div>
-      </template>
-      <a-tooltip title="更多设置" placement="top">
-        <button class="floating-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="19" cy="12" r="1" />
-            <circle cx="5" cy="12" r="1" />
-          </svg>
-        </button>
-      </a-tooltip>
-    </a-popover>
-
-    <!-- 6. 打开右侧设置面板 (取代原删除按钮，1:1 复原原生设计器) -->
+    <!-- 5. 打开右侧设置面板 (1:1 复原原生设计器) -->
     <a-tooltip title="打开设置面板" placement="top">
       <button class="floating-btn" @click="emit('toggle-settings')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -276,7 +220,6 @@ const emit = defineEmits<{
 
 const fillOpen = ref(false)
 const strokeOpen = ref(false)
-const moreOpen = ref(false)
 
 const presetColors = [
   '#000000',
@@ -469,44 +412,6 @@ const updateFill = (color: string) => {
         background: #eff6ff;
         color: #3b82f6;
       }
-    }
-  }
-}
-
-.more-options-panel {
-  padding: 8px;
-  width: 180px;
-
-  .section-label {
-    font-size: 11px;
-    color: #6b7280;
-    margin-bottom: 4px;
-  }
-
-  .layer-btn-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-  }
-
-  .align-btn-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-  }
-
-  .action-btn {
-    height: 24px;
-    border: 1px solid #e5e7eb;
-    background: #ffffff;
-    border-radius: 4px;
-    font-size: 11px;
-    color: #374151;
-    cursor: pointer;
-
-    &:hover {
-      border-color: #3b82f6;
-      color: #3b82f6;
     }
   }
 }
