@@ -18,12 +18,6 @@ import {
   type PlaitTheme,
 } from '@plait/core';
 import { withGroup, withImage, withText } from '@plait/common';
-import { withDraw } from '@plait/draw';
-import { withSpeedMind } from '@speed-board/extension-mindmap';
-import { withFreehand } from './freehand/with-freehand';
-import { withHitEnhance } from './with-hit-enhance';
-import { withDrawEnhance } from './with-draw-enhance';
-import { withVectorEnhance } from './with-vector-enhance';
 import { withGlobalEsc } from './with-global-esc';
 import { withVue } from './with-vue';
 import { withPinchZoom } from './with-pinch-zoom';
@@ -36,19 +30,23 @@ export interface CreatePlaitBoardOptions {
   theme?: PlaitTheme;
 }
 
+/**
+ * 创建纯净的 SpeedBoard 底座实例 (只包含画布视口、历史记录、选区、文本/图片公共基础)
+ * 所有业务功能 (流程图、手绘、思维导图) 100% 走 plugins 插件注入！
+ */
 export function createSpeedPlaitBoard(config: CreatePlaitBoardOptions = {}): PlaitBoard {
   const initialValue = config.value || [];
   const options: PlaitBoardOptions = {
     readonly: false,
     hideScrollbar: true,
     disabledScrollOnNonFocus: false,
-    themeColors: (DefaultThemeColor as any),
+    themeColors: DefaultThemeColor as any,
     ...(config.options || {}),
   };
 
   let board = createBoard(initialValue, options);
 
-  // 挂载纯 TS 核心流水线
+  // 挂载纯 TS 中立核心流水线 (文本/图片/选区/历史/视口缩放)
   board = withText(board);
   board = withImage(board);
   board = withVue(board);
@@ -61,20 +59,11 @@ export function createSpeedPlaitBoard(config: CreatePlaitBoardOptions = {}): Pla
   board = withHandPointer(board);
   board = withHotkey(board);
   board = withRelatedFragment(board);
-
-  // 挂载图形与脑图核心插件
   board = withGroup(board);
-  board = withDraw(board);
-  board = withDrawEnhance(board);
-  board = withSpeedMind(board);
-  board = withFreehand(board);
-  board = withHitEnhance(board);
-  board = withVectorEnhance(board);
   board = withGlobalEsc(board);
-
-  // 自定义插件 (手势缩放等)
   board = withPinchZoom(board);
 
+  // 纯插件注入：按需挂载外部业务扩展 (Draw / Mindmap 等)
   if (config.plugins) {
     config.plugins.forEach((plugin) => {
       board = plugin(board);

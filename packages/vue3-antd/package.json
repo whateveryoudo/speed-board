@@ -9,6 +9,10 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./mindmap": {
+      "import": "./src/components/SpeedMindmap.vue",
+      "types": "./src/components/SpeedMindmap.vue"
     }
   },
   "dependencies": {
@@ -17,6 +21,7 @@
     "@speed-board/core": "workspace:*",
     "@speed-board/vue3": "workspace:*",
     "@speed-board/shared": "workspace:*",
+    "@speed-board/extension-draw": "workspace:*",
     "@speed-board/extension-mindmap": "workspace:*",
     "ant-design-vue": "^4.2.0",
     "lodash-es": "^4.17.21",

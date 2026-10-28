@@ -69,7 +69,7 @@ export class SpeedVectorLineComponent
         return RectangleClient.getRectangleByPoints(element.points);
       },
       hasResizeHandle: () => true,
-    });
+    }) as any;
 
     this.getRef().updateActiveSection = () => {
       this.activeGenerator.processDrawing(
@@ -77,7 +77,7 @@ export class SpeedVectorLineComponent
         PlaitBoard.getActiveHost(this.board),
         {
           selected: this.selected,
-        }
+        } as any
       );
     };
   }

@@ -14,13 +14,10 @@
   "dependencies": {
     "@plait/common": "^0.94.1",
     "@plait/core": "^0.94.1",
-    "@plait/draw": "^0.94.1",
-    "@plait/layouts": "^0.94.1",
     "@plait/text-plugins": "^0.94.1",
-    "@speed-board/extension-mindmap": "workspace:*",
+    "@speed-board/shared": "workspace:*",
     "is-hotkey": "^0.2.0",
     "lodash-es": "^4.17.21",
-    "roughjs": "^4.6.6",
     "slate": "^0.103.0"
   },
   "devDependencies": {

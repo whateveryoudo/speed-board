@@ -36,24 +36,26 @@
 
     <!-- 主画布承载容器 (100% 纯正 Plait 原生 SVG 容器) -->
     <div ref="canvasWrapperRef" class="speed-board-canvas-wrapper">
-      <BoardCanvas :options="props.options" @created="onBoardCreated" />
+      <BoardCanvas :options="mergedOptions" @created="onBoardCreated" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef } from 'vue';
+import { ref, shallowRef, computed } from 'vue';
 import { message } from 'ant-design-vue';
 import {
   Board,
   type BoardOptions,
   PlaitPointerType,
+} from '@speed-board/core';
+import {
+  withDrawKit,
   BasicShapes,
   ArrowLineShape,
-  MindPointerType,
-  FreehandShape,
   VectorLinePointerType,
-} from '@speed-board/core';
+} from '@speed-board/extension-draw';
+import { withSpeedMind } from '@speed-board/extension-mindmap';
 import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
 import LeftToolbar from './LeftToolbar.vue';
@@ -92,6 +94,11 @@ const canvasWrapperRef = ref<HTMLDivElement | null>(null);
 const showLeftToolbar = ref(true);
 const showSettingsPanel = ref(false);
 const activeMode = ref<string>('select');
+
+const mergedOptions = computed(() => ({
+  ...props.options,
+  plugins: [withDrawKit, withSpeedMind, ...(props.options?.plugins || [])],
+}));
 
 const onBoardCreated = (board: Board) => {
   boardInstance.value = board;

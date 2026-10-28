@@ -221,12 +221,13 @@ import {
   type Board,
   type ShapeType,
   PlaitPointerType,
+} from '@speed-board/core'
+import {
   BasicShapes,
   ArrowLineShape,
-  MindPointerType,
   FreehandShape,
   VectorLinePointerType,
-} from '@speed-board/core'
+} from '@speed-board/extension-draw'
 import { useCellAttributes, useBoardEvent } from '@speed-board/vue3'
 import IconfontPopover from './IconfontPopover.vue'
 import ShapePickerPopover from './ShapePickerPopover.vue'
@@ -480,7 +481,7 @@ const setTool = (tool: 'select' | 'brush' | 'vector' | 'line' | 'text' | 'shape'
     props.board?.setPointer(BasicShapes.text)
     emit('mode-change', { mode: 'text' })
   } else if (tool === 'mindmap') {
-    props.board?.setPointer(MindPointerType.mind)
+    props.board?.setPointer('mind' as any)
     emit('mode-change', { mode: 'mindmap' })
   } else if (tool === 'line') {
     applyLineMode(currentLineType.value)
@@ -531,7 +532,7 @@ useBoardEvent(() => props.board, ['pointer:change', 'change'], () => {
     currentTool.value = 'select'
   } else if (ptr === BasicShapes.text) {
     currentTool.value = 'text'
-  } else if (ptr === MindPointerType.mind) {
+  } else if (ptr === 'mind') {
     currentTool.value = 'mindmap'
   } else if (
     ptr === ArrowLineShape.straight ||

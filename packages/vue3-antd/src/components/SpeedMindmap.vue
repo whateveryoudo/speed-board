@@ -11,19 +11,19 @@
     />
 
     <!-- 思维导图专属选区浮动工具栏 (布局/分支颜色/节点形状/标记图标/概要) -->
-    <FloatingToolbar
+    <MindmapFloatingToolbarHost
       :board="boardInstance"
       @open-panel="showSettingsPanel = true"
       @toggle-settings="showSettingsPanel = !showSettingsPanel"
     />
 
-    <!-- 右侧属性深度设置抽屉 -->
-    <StyleSettingsPanel
+    <!-- 思维导图专属属性深度设置抽屉 -->
+    <MindmapSettingsPanel
       v-model:visible="showSettingsPanel"
       :board="boardInstance"
     />
 
-    <!-- 主画布承载容器 -->
+    <!-- 主画布承载容器 (只挂载 withSpeedMind 导图引擎) -->
     <div ref="canvasWrapperRef" class="speed-board-canvas-wrapper speed-mindmap-canvas">
       <BoardCanvas :options="mergedOptions" @created="onBoardCreated" />
     </div>
@@ -33,12 +33,16 @@
 <script setup lang="ts">
 import { ref, shallowRef, computed } from 'vue';
 import { message } from 'ant-design-vue';
-import { Board, type BoardOptions } from '@speed-board/core';
-import { createEmptyMindmap, type SpeedMindElement } from '@speed-board/extension-mindmap';
+import type { Board, BoardOptions } from '@speed-board/core';
+import {
+  createEmptyMindmap,
+  withSpeedMind,
+  type SpeedMindElement,
+} from '@speed-board/extension-mindmap';
 import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
-import FloatingToolbar from './FloatingToolbar.vue';
-import StyleSettingsPanel from './StyleSettingsPanel.vue';
+import MindmapFloatingToolbarHost from './floatingToolbar/MindmapFloatingToolbarHost.vue';
+import MindmapSettingsPanel from './MindmapSettingsPanel.vue';
 import { useAntdCssVars } from 'speed-components-ui/hooks';
 import '../style/index.less';
 
@@ -79,7 +83,11 @@ const mergedOptions = computed(() => {
 
   return {
     ...props.options,
-    value: props.options?.value && props.options.value.length > 0 ? props.options.value : [initialData],
+    plugins: [withSpeedMind, ...(props.options?.plugins || [])],
+    value:
+      props.options?.value && props.options.value.length > 0
+        ? props.options.value
+        : [initialData],
   };
 });
 

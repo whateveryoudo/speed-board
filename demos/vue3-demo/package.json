@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@speed-board/core": "workspace:*",
+    "@speed-board/extension-draw": "workspace:*",
     "@speed-board/extension-mindmap": "workspace:*",
     "@speed-board/shared": "workspace:*",
     "@speed-board/vue3": "workspace:*",

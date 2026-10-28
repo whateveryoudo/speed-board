@@ -6,30 +6,10 @@ import {
   getSelectedElements,
   toHostPoint,
   toViewBoxPoint,
-  BasicShapes,
-  FlowchartSymbols,
-  ArrowLineShape,
-  MindPointerType,
-  MindTransforms,
-  MindElement,
-  BranchShape,
-  MindElementShape,
-  MindLayoutType,
-  AbstractNode,
-  createEmptyMind,
-  editTopic,
-  canSetAbstract,
-  createTextElement,
-  createDefaultGeometry,
-  createArrowLineElement,
-  getDefaultGeometryPoints,
-  insertElement,
-  DrawTransforms,
   BoardCreationMode,
   setCreationMode,
   deleteFragment,
   Transforms,
-  FreehandShape,
   AlignTransform,
   addSelectedElement,
   clearSelectedElement,
@@ -39,10 +19,7 @@ import {
   toHostPointFromViewBoxPoint,
   toScreenPointFromHostPoint,
   RectangleClient,
-  VectorLinePointerType,
-  isClosedPoints,
 } from './plait';
-import { isSpeedMind, createEmptyMindmap } from '@speed-board/extension-mindmap';
 import { createSpeedPlaitBoard, type CreatePlaitBoardOptions } from './plait/board-factory';
 import {
   getShapeById,
@@ -248,36 +225,42 @@ export class Board {
         this.setPointer(PlaitPointerType.hand);
         break;
       case 'text':
-        this.setPointer(BasicShapes.text);
+        this.setPointer('text');
         break;
       case 'mind':
       case 'mindmap':
-        this.setPointer(MindPointerType.mind);
+        this.setPointer('mind');
         break;
       case 'pencil':
       case 'nibPen':
-        this.setPointer(FreehandShape.nibPen);
+        this.setPointer('nibPen');
         break;
       case 'marker':
       case 'feltTipPen':
-        this.setPointer(FreehandShape.feltTipPen);
+        this.setPointer('feltTipPen');
         break;
       case 'eraser':
-        this.setPointer(FreehandShape.eraser);
+        this.setPointer('eraser');
         break;
       case 'straight':
-        this.setPointer(ArrowLineShape.straight);
+        this.setPointer('straight');
         break;
       case 'curve':
-        this.setPointer(ArrowLineShape.curve);
+        this.setPointer('curve');
         break;
       case 'elbow':
-        this.setPointer(ArrowLineShape.elbow);
+        this.setPointer('elbow');
         break;
       default:
         this.setPointer(this.mapShapeToPointer(tool));
     }
   }
+
+  // 扩展插件静态注册处理器
+  static insertShapeHandler?: (board: Board, shape: string, options?: any, point?: [number, number]) => any;
+  static insertLineHandler?: (board: Board, shape?: string, options?: any, point?: [number, number]) => any;
+  static insertTextHandler?: (board: Board, text?: string, point?: [number, number]) => any;
+  static insertImageHandler?: (board: Board, image: any, point?: [number, number]) => any;
 
   // 获取当前视口中心坐标 (用于默认就地插入)
   getViewportCenterPoint(): [number, number] {
@@ -289,27 +272,30 @@ export class Board {
 
   // --- 直接插入图元 API ---
   insertText(text = '文本', point?: [number, number]) {
-    const center = point || this.getViewportCenterPoint();
-    const width = 120;
-    const height = 36;
-    const points: [number, number][] = [
-      [center[0] - width / 2, center[1] - height / 2],
-      [center[0] + width / 2, center[1] + height / 2],
-    ];
-    const textElement = createTextElement(this.raw, points as any, text);
-    insertElement(this.raw, textElement);
-    this.setPointer(PlaitPointerType.selection);
-    this.emit('change', {});
-    return textElement;
+    if (Board.insertTextHandler) {
+      return Board.insertTextHandler(this, text, point);
+    }
   }
 
   insertMindmap(topic = '思维导图', point?: [number, number]) {
     const center = point || this.getViewportCenterPoint();
-    const emptyMind = createEmptyMindmap(topic, {
+    const emptyMind: PlaitElement = {
+      id: `mind-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      type: 'mind',
       points: [[center[0] - 55, center[1] - 21]],
+      isRoot: true,
+      shape: 'roundRectangle',
       fill: '#2563eb',
       strokeColor: '#2563eb',
-    });
+      strokeWidth: 2,
+      data: {
+        topic: {
+          children: [{ text: topic, color: '#ffffff', fontSize: 16, fontWeight: '500' }],
+          align: 'center',
+        },
+      },
+      children: [],
+    } as any;
 
     Transforms.insertNode(this.raw, emptyMind, [this.raw.children.length]);
     this.setPointer(PlaitPointerType.selection);
@@ -333,7 +319,7 @@ export class Board {
       upward: 'upward',
     };
     const targetLayout = layoutMap[layout] || layout;
-    const selected = (this.selectedElements || []).find((el) => isSpeedMind(el));
+    const selected = (this.selectedElements || []).find((el) => this.isMindmapNode(el));
     if (selected) {
       selected.layout = targetLayout;
       const path = this.getElementPath(selected);
@@ -346,7 +332,7 @@ export class Board {
 
   setMindmapBranchShape(shape: string) {
     const branchShape = shape === 'curve' || shape === 'bight' ? 'curve' : 'polyline';
-    const selected = (this.selectedElements || []).find((el) => isSpeedMind(el));
+    const selected = (this.selectedElements || []).find((el) => this.isMindmapNode(el));
     if (selected) {
       selected.branchShape = branchShape as any;
       const path = this.getElementPath(selected);
@@ -359,7 +345,7 @@ export class Board {
 
   setMindmapShape(shape: string) {
     const plaitShape = shape === 'none' || shape === 'underline' ? 'underline' : 'roundRectangle';
-    const selected = (this.selectedElements || []).find((el) => isSpeedMind(el));
+    const selected = (this.selectedElements || []).find((el) => this.isMindmapNode(el));
     if (selected) {
       selected.shape = plaitShape as any;
       const path = this.getElementPath(selected);
@@ -371,7 +357,7 @@ export class Board {
   }
 
   addMindmapSummary() {
-    const selected = (this.selectedElements || []).filter((el) => isSpeedMind(el));
+    const selected = (this.selectedElements || []).filter((el) => this.isMindmapNode(el));
     if (selected.length === 0) return;
     this.syncNodeIndices();
     this.emit('change', {});
@@ -428,52 +414,21 @@ export class Board {
   }
 
   insertShape(shape: string, options: any = {}, point?: [number, number]) {
-    const center = point || this.getViewportCenterPoint();
-    const pointer = this.mapShapeToPointer(shape);
-    const points = getDefaultGeometryPoints(pointer as any, center);
-    const geometry = createDefaultGeometry(this.raw, points, pointer as any);
-    if (options.fill) geometry.fill = options.fill;
-    if (options.stroke) geometry.stroke = options.stroke;
-    if (options.strokeWidth) geometry.strokeWidth = options.strokeWidth;
-    insertElement(this.raw, geometry);
-    this.setPointer(PlaitPointerType.selection);
-    this.emit('change', {});
-    return geometry;
+    if (Board.insertShapeHandler) {
+      return Board.insertShapeHandler(this, shape, options, point);
+    }
   }
 
-  insertLine(
-    points: [[number, number], [number, number]] = [
-      [100, 100],
-      [300, 300],
-    ],
-    shape: ArrowLineShape | string = ArrowLineShape.straight,
-    options: any = {}
-  ) {
-    const arrowLine = createArrowLineElement(
-      shape as any,
-      points as any,
-      options.source || { marker: options.sourceMarker || 'none' },
-      options.target || { marker: options.targetMarker || 'arrow' },
-      options.texts || []
-    );
-    if (options.stroke) (arrowLine as any).stroke = options.stroke;
-    if (options.strokeWidth) (arrowLine as any).strokeWidth = options.strokeWidth;
-    insertElement(this.raw, arrowLine);
-    this.setPointer(PlaitPointerType.selection);
-    this.emit('change', {});
-    return arrowLine;
+  insertLine(shape = 'straight', options: any = {}, point?: [number, number]) {
+    if (Board.insertLineHandler) {
+      return Board.insertLineHandler(this, shape, options, point);
+    }
   }
 
   insertImage(image: { url: string; width: number; height: number; name?: string }, point?: [number, number]) {
-    const center = point || this.getViewportCenterPoint();
-    const maxWidth = 400;
-    const width = image.width > maxWidth ? maxWidth : (image.width || 200);
-    const height = image.height ? (width / (image.width || 200)) * image.height : 150;
-    const startPoint: [number, number] = [center[0] - width / 2, center[1] - height / 2];
-    DrawTransforms.insertImage(this.raw, { url: image.url, width, height }, startPoint);
-    this.setPointer(PlaitPointerType.selection);
-    this.emit('change', {});
-    return { ...image, width, height };
+    if (Board.insertImageHandler) {
+      return Board.insertImageHandler(this, image, point);
+    }
   }
 
   // 兼容别名
@@ -933,13 +888,14 @@ export class Board {
 
     const type = first.type || first.shape || '';
     if (first.type === 'vector-line') {
-      const isClosed = isClosedPoints(first.points || []);
+      const pts = first.points || [];
+      const isClosed = pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1];
       selectedType = isClosed ? 'vector' : 'line';
     } else if (this.isLineNode(first) || first.shape === 'straight' || first.shape === 'elbow' || first.shape === 'curve') {
       selectedType = 'line';
     } else if (this.isMindmapNode(first) || first.type === 'mind' || first.isRoot || first.children) {
-      if (first.isSummary || AbstractNode.isAbstract(first)) selectedType = 'mindmap-summary';
-      else if (first.isRoot || isSpeedMind(first)) selectedType = 'mindmap-root';
+      if (first.isSummary) selectedType = 'mindmap-summary';
+      else if (first.isRoot) selectedType = 'mindmap-root';
       else selectedType = 'mindmap-node';
     } else if (this.isImageNode(first) || type === 'image') {
       selectedType = 'image';
@@ -987,7 +943,7 @@ export class Board {
 
     if (this.isMindmapNode(cell)) {
       return {
-        fill: cell.fill || (isSpeedMind(cell) ? '#2563eb' : '#ffffff'),
+        fill: cell.fill || (cell.isRoot ? '#2563eb' : '#ffffff'),
         stroke: cell.strokeColor || cell.branchColor || cell.stroke || '#374151',
         strokeWidth: cell.strokeWidth ?? 2,
         strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',
