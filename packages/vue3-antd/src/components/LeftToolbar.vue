@@ -177,9 +177,10 @@
           <a-tooltip :title="linePopoverOpen ? '' : '连线工具'" :open="linePopoverOpen ? false : undefined"
             placement="right">
             <a-button type="text" class="shadow-btn-wrapper"
-              :class="{ 'is-active': currentTool === 'line' || linePopoverOpen }"
-              @click="setTool('line')">
-              <SIconFont type="icon-kl-line2" :size="20" />
+              :class="{ 'is-active': currentTool === 'line' || linePopoverOpen }">
+              <SIconFont v-if="currentLineType === 'straight'" type="icon-kl-line2" :size="20" />
+              <SIconFont v-else-if="currentLineType === 'curve'" type="icon-kl-line21" :size="20" />
+              <SIconFont v-else type="icon-kl-line11" :size="20" />
             </a-button>
           </a-tooltip>
         </a-popover>
@@ -355,7 +356,8 @@ const onLineOpenChange = (open: boolean) => {
     brushPopoverOpen.value = false
     shapePickerOpen.value = false
     iconPickerOpen.value = false
-    setTool('line')
+    currentTool.value = 'line'
+    applyLineMode(currentLineType.value)
   }
 }
 
@@ -481,7 +483,7 @@ const setTool = (tool: 'select' | 'brush' | 'vector' | 'line' | 'text' | 'shape'
     props.board?.setPointer(MindPointerType.mind)
     emit('mode-change', { mode: 'mindmap' })
   } else if (tool === 'line') {
-    selectLineType(currentLineType.value)
+    applyLineMode(currentLineType.value)
   }
 }
 
@@ -611,14 +613,8 @@ const onShapeLibrarySelect = (shape: ShapeDefinition) => {
   emit('mode-change', { mode: pointer as any })
 }
 
-// 切换连线子类型 (直线 / 曲线 / 折线)
-const selectLineType = (type: 'elbow' | 'straight' | 'curve') => {
-  currentLineType.value = type
-  currentTool.value = 'line'
-  widthPopoverOpen.value = false
-  colorPopoverOpen.value = false
-  shapePickerOpen.value = false
-  linePopoverOpen.value = false
+// 激活连线模式
+const applyLineMode = (type = currentLineType.value) => {
   const shapeType =
     type === 'straight'
       ? ArrowLineShape.straight
@@ -632,6 +628,17 @@ const selectLineType = (type: 'elbow' | 'straight' | 'curve') => {
     mode: 'line',
     lineType: type,
   })
+}
+
+// 切换连线子类型 (直线 / 曲线 / 折线)
+const selectLineType = (type: 'elbow' | 'straight' | 'curve') => {
+  currentLineType.value = type
+  currentTool.value = 'line'
+  widthPopoverOpen.value = false
+  colorPopoverOpen.value = false
+  shapePickerOpen.value = false
+  linePopoverOpen.value = false
+  applyLineMode(type)
 }
 const onSelectLineTool = selectLineType
 
