@@ -45,12 +45,10 @@ const props = defineProps<{
 }>()
 
 const { isOpen } = useToolbarPopover('fill')
-const { syncFromSelection, updateStyle } = useNodeStyle(() => props.board)
+const { styleState, updateStyle } = useNodeStyle(() => props.board)
 
 const currentColor = computed(() => {
-  const cell = (props.board?.selectedElements?.[0] || null) as any
-  if (!cell) return '#ffffff'
-  return cell.fill || cell.data?.fill || cell.getData?.()?.fill || '#ffffff'
+  return styleState.value.fill || '#ffffff'
 })
 
 const onColorSelect = (color: string) => {

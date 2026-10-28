@@ -24,7 +24,7 @@
             </button>
             <button
               class="dash-btn"
-              :class="{ 'is-active': currentDash === '6,4' }"
+              :class="{ 'is-active': currentDash !== 'none' }"
               title="虚线"
               @click="setDash('6,4')"
             >
@@ -111,7 +111,7 @@ watch(isOpen, (v) => {
     colorOpen.value = false
   }
 })
-const { updateStyle } = useNodeStyle(() => props.board)
+const { styleState, updateStyle } = useNodeStyle(() => props.board)
 
 const getActiveCell = () => (props.board?.selectedElements?.[0] || null) as any
 
@@ -119,62 +119,25 @@ const isMindmapNode = computed(() => {
   const cell = getActiveCell()
   if (!cell) return false
   return (
-    cell.getData()?.type === 'mindmap-node' ||
-    cell.shape === 'speed-mindmap-root' ||
-    cell.shape === 'speed-mindmap-node'
+    cell.type === 'mind' ||
+    cell.type?.startsWith('mindmap') ||
+    Boolean(cell.data?.topic) ||
+    Boolean(cell.isRoot)
   )
 })
 
 const currentColor = computed(() => {
-  const cell = getActiveCell()
-  if (!cell) return '#374151'
-  if (cell.isEdge()) {
-    return (cell.getAttrByPath('line/stroke') as string) || '#374151'
-  }
-  if (props.board?.isShapeNode(cell)) {
-    return cell.getData()?.stroke || '#374151'
-  }
-  if (cell.shape === 'speed-vector-polygon') {
-    return (cell.getAttrByPath('body/stroke') as string) || '#374151'
-  }
-  if (isMindmapNode.value) {
-    return (cell.getAttrByPath('body/stroke') as string) || (cell.getData() as any)?.stroke || '#374151'
-  }
-  return '#374151'
+  return styleState.value.stroke || '#374151'
 })
 
 const currentWidth = computed(() => {
-  const cell = getActiveCell()
-  if (!cell) return 2
-  if (cell.isEdge()) {
-    return (cell.getAttrByPath('line/strokeWidth') as number) || 2
-  }
-  if (props.board?.isShapeNode(cell)) {
-    return cell.getData()?.strokeWidth ?? 2
-  }
-  if (cell.shape === 'speed-vector-polygon') {
-    return (cell.getAttrByPath('body/strokeWidth') as number) || 2
-  }
-  if (isMindmapNode.value) {
-    const sw = cell.getAttrByPath('body/strokeWidth')
-    return sw !== undefined ? Number(sw) : ((cell.getData() as any)?.strokeWidth ?? 1.5)
-  }
-  return 2
+  return styleState.value.strokeWidth ?? 2
 })
 
 const currentDash = computed(() => {
-  const cell = getActiveCell()
-  if (!cell) return 'none'
-  if (cell.isEdge()) {
-    return (cell.getAttrByPath('line/strokeDasharray') as string) || 'none'
-  }
-  if (props.board?.isShapeNode(cell)) {
-    return cell.getData()?.strokeDasharray || 'none'
-  }
-  if (cell.shape === 'speed-vector-polygon') {
-    return (cell.getAttrByPath('body/strokeDasharray') as string) || 'none'
-  }
-  return 'none'
+  const dash = styleState.value.strokeDasharray
+  if (!dash || dash === 'none' || dash === 'solid') return 'none'
+  return '6,4'
 })
 
 const setDash = (dash: string) => {

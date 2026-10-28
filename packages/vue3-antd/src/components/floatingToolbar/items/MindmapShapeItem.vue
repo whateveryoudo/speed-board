@@ -60,8 +60,8 @@ const selectedCell = computed(() => {
 
 const currentShapeStyle = computed<MindmapShapeStyle>(() => {
   if (!selectedCell.value) return 'rect'
-  const data = selectedCell.value.getData() as any
-  const style = data?.shapeStyle
+  const data = (selectedCell.value.getData ? selectedCell.value.getData() : selectedCell.value.data) || selectedCell.value || {}
+  const style = data?.shapeStyle || selectedCell.value?.shapeStyle
   if (!style || style === 'underline') {
     return 'rect'
   }
@@ -76,44 +76,30 @@ const currentShapeIcon = computed(() => {
 const selectShape = (style: MindmapShapeStyle) => {
   if (!props.board || !selectedCell.value) return
   const node = selectedCell.value
-  const data = (node.getData() || {}) as any
-
-  const primaryColor = data.branch?.color || '#3b82f6'
+  const data = ((node.getData ? node.getData() : node.data) || node || {}) as any
 
   if (style === 'none') {
-    node.setData({ ...data, shapeStyle: style })
-    node.setAttrByPath('body/fill', 'transparent')
-    node.setAttrByPath('body/stroke', 'transparent')
-    node.setAttrByPath('body/strokeWidth', 0)
-    node.setAttrByPath('underline/display', 'none')
+    props.board.setShapeProperty({
+      shapeStyle: style,
+      fill: 'transparent',
+      stroke: 'transparent',
+      strokeWidth: 0,
+    })
   } else if (style === 'capsule') {
-    const rx = data.isRoot ? 21 : 16
-    const stroke = (data.stroke && data.stroke !== 'transparent') ? data.stroke : primaryColor
-    const strokeWidth = (data.strokeWidth && data.strokeWidth > 0) ? data.strokeWidth : 1.5
-    const fill = (data.fill && data.fill !== 'transparent') ? data.fill : (data.isRoot ? '#f3f4f6' : '#ffffff')
-
-    node.setData({ ...data, shapeStyle: style, stroke, strokeWidth, fill })
-    node.setAttrByPath('body/rx', rx)
-    node.setAttrByPath('body/ry', rx)
-    node.setAttrByPath('body/fill', fill)
-    node.setAttrByPath('body/stroke', stroke)
-    node.setAttrByPath('body/strokeWidth', strokeWidth)
-    node.setAttrByPath('underline/display', 'none')
+    props.board.setShapeProperty({
+      shapeStyle: style,
+      shape: 'capsule',
+    })
   } else if (style === 'rect') {
-    const stroke = (data.stroke && data.stroke !== 'transparent') ? data.stroke : (data.isRoot ? '#e5e7eb' : primaryColor)
-    const strokeWidth = (data.strokeWidth && data.strokeWidth > 0) ? data.strokeWidth : 1.5
-    const fill = (data.fill && data.fill !== 'transparent') ? data.fill : (data.isRoot ? '#f3f4f6' : '#ffffff')
-
-    node.setData({ ...data, shapeStyle: style, stroke, strokeWidth, fill })
-    node.setAttrByPath('body/rx', data.isRoot ? 8 : 6)
-    node.setAttrByPath('body/ry', data.isRoot ? 8 : 6)
-    node.setAttrByPath('body/fill', fill)
-    node.setAttrByPath('body/stroke', stroke)
-    node.setAttrByPath('body/strokeWidth', strokeWidth)
-    node.setAttrByPath('underline/display', 'none')
+    props.board.setShapeProperty({
+      shapeStyle: style,
+      shape: 'rectangle',
+    })
   }
 
-  ;(props.board as any).commands?.updateMindmapLayout?.(data.mindmapId || node.id)
+  try {
+    ;(props.board as any).commands?.updateMindmapLayout?.(data.mindmapId || node.id)
+  } catch (err) {}
   isOpen.value = false
 }
 </script>

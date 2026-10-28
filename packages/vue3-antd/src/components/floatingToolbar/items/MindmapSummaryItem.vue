@@ -26,16 +26,22 @@ const selectedCell = computed(() => {
 })
 
 const isSummaryNode = computed(() => {
-  if (!selectedCell.value || !selectedCell.value.isNode()) return false
-  const data = selectedCell.value.getData() as MindmapNodeData | undefined
-  return !!data?.isSummary
+  if (!selectedCell.value) return false
+  const cell = selectedCell.value
+  const data = (cell.getData ? cell.getData() : cell.data) as MindmapNodeData | undefined
+  return Boolean(data?.isSummary || cell.isSummary)
 })
 
 const handleAddSummary = () => {
-  if (!props.board || !selectedCell.value || !selectedCell.value.isNode()) return
-  const data = selectedCell.value.getData() as MindmapNodeData | undefined
-  if (data?.isRoot || data?.isSummary) return
-  addMindmapSummary(props.board, selectedCell.value.id)
+  if (!props.board || !selectedCell.value) return
+  const cell = selectedCell.value
+  const data = ((cell.getData ? cell.getData() : cell.data) || cell) as MindmapNodeData | undefined
+  if (data?.isRoot || data?.isSummary || cell.isRoot || cell.isSummary) return
+  try {
+    addMindmapSummary(props.board, cell.id)
+  } catch (err) {
+    console.warn('addMindmapSummary error', err)
+  }
 }
 </script>
 

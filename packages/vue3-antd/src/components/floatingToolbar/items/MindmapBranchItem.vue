@@ -60,14 +60,10 @@ const selectedCell = computed(() => {
 
 const currentBranchType = computed<'curve' | 'straight'>(() => {
   if (!selectedCell.value || !props.board) return 'curve'
-  const data = (selectedCell.value.getData?.() || selectedCell.value.data || selectedCell.value) as any
+  const cell = selectedCell.value
+  const data = (cell.getData ? cell.getData() : cell.data) || cell || {}
   if (data?.branch?.type) return data.branch.type
-  // 若当前选中的是子节点，回退读取根节点的分支类型
-  const root = (props.board.raw?.children || []).find((n: any) => {
-    const d = (n.getData?.() || n.data || n) as any
-    return d?.type === 'mindmap-node' && d?.mindmapId === data?.mindmapId && d?.isRoot
-  })
-  return (root?.getData?.() || root?.data || root)?.branch?.type || 'curve'
+  return cell.branchType || 'curve'
 })
 
 const currentBranchIcon = computed(() => {
@@ -77,7 +73,11 @@ const currentBranchIcon = computed(() => {
 const selectBranchType = (type: 'curve' | 'straight') => {
   if (!props.board || !selectedCell.value) return
   const node = selectedCell.value
-  ;(props.board as any).commands?.setMindmapBranchStyle?.(node.id, { type })
+  if ((props.board as any).commands?.setMindmapBranchStyle) {
+    (props.board as any).commands.setMindmapBranchStyle(node.id, { type })
+  } else {
+    props.board.setShapeProperty({ branchType: type })
+  }
   isOpen.value = false
 }
 </script>

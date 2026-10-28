@@ -57,7 +57,7 @@ const { isOpen } = useToolbarPopover('shape-switch')
 
 const currentShapeId = useCellAttributes(
   () => props.board,
-  'shapeId',
+  (cell: any) => cell?.shape || cell?.shapeId || 'rect',
   'rect'
 )
 

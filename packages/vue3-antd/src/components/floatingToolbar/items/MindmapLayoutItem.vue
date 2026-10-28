@@ -66,14 +66,10 @@ const selectedCell = computed(() => {
 
 const currentStructure = computed<string>(() => {
   if (!selectedCell.value || !props.board) return 'balanced'
-  const data = (selectedCell.value.getData?.() || selectedCell.value.data || selectedCell.value) as any
+  const cell = selectedCell.value
+  const data = (cell.getData ? cell.getData() : cell.data) || cell || {}
   if (data?.structure) return data.structure
-  // 若当前选中的是子节点，回退读取根节点的结构
-  const root = (props.board.raw?.children || []).find((n: any) => {
-    const d = (n.getData?.() || n.data || n) as any
-    return d?.type === 'mindmap-node' && d?.mindmapId === data?.mindmapId && d?.isRoot
-  })
-  return (root?.getData?.() || root?.data || root)?.structure || 'balanced'
+  return cell.structure || cell.layout || 'balanced'
 })
 
 const currentLayoutIcon = computed(() => {
@@ -83,7 +79,13 @@ const currentLayoutIcon = computed(() => {
 
 const selectLayout = (layoutKey: string) => {
   if (!props.board || !selectedCell.value) return
-  ;(props.board as any).commands?.setMindmapStructure?.(selectedCell.value.id, layoutKey)
+  if (typeof (props.board as any).setMindmapLayout === 'function') {
+    (props.board as any).setMindmapLayout(layoutKey)
+  } else if ((props.board as any).commands?.setMindmapStructure) {
+    (props.board as any).commands.setMindmapStructure(selectedCell.value.id, layoutKey)
+  } else {
+    props.board.setShapeProperty({ layout: layoutKey, structure: layoutKey })
+  }
   isOpen.value = false
 }
 </script>

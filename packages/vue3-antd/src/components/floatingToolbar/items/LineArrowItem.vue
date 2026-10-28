@@ -76,13 +76,8 @@ const { arrowheadPresets, setArrowMarker, getSelectedEdge } = useLineOperations(
 const currentMarkerId = computed(() => {
   const edge = getSelectedEdge()
   if (!edge) return 'none'
-  const path = activePos.value === 'source' ? 'line/sourceMarker' : 'line/targetMarker'
-  const marker = edge.getAttrByPath(path)
-  if (!marker) return 'none'
-  if (typeof marker === 'object') {
-    return (marker as any).name || 'block'
-  }
-  return 'classic-arrow'
+  const marker = activePos.value === 'source' ? edge.sourceMarker : edge.targetMarker
+  return marker || 'none'
 })
 
 const onSelectMarker = (markerId: string) => {

@@ -118,9 +118,10 @@ const selectedCell = computed(() => {
 })
 
 const currentMarkers = computed<MindmapMarkers>(() => {
-  if (!selectedCell.value || !selectedCell.value.isNode()) return {}
-  const data = selectedCell.value.getData() as MindmapNodeData | undefined
-  return data?.markers || {}
+  if (!selectedCell.value) return {}
+  const cell = selectedCell.value
+  const data = (cell.getData ? cell.getData() : cell.data) as MindmapNodeData | undefined
+  return data?.markers || (cell.markers as MindmapMarkers) || {}
 })
 
 const hasActiveMarkers = computed(() => {
@@ -128,26 +129,11 @@ const hasActiveMarkers = computed(() => {
   return typeof m.priority === 'number' || typeof m.progress === 'number' || !!m.flag
 })
 
-const firstActiveSymbol = computed<string | null>(() => {
-  const m = currentMarkers.value
-  if (typeof m.priority === 'number') {
-    return `marker-priority-${m.priority}`
-  }
-  if (typeof m.progress === 'number') {
-    return `marker-progress-${m.progress}`
-  }
-  if (m.flag) {
-    const f = m.flag.startsWith('flag-') ? m.flag : `flag-${m.flag}`
-    return `marker-${f}`
-  }
-  return null
-})
-
 const updateMarkers = (updater: (prev: MindmapMarkers) => MindmapMarkers) => {
   const cell = selectedCell.value
-  if (!cell || !cell.isNode() || !props.board) return
+  if (!cell || !props.board) return
 
-  const currentData = (cell.getData() || {}) as MindmapNodeData
+  const currentData = ((cell.getData ? cell.getData() : cell.data) || cell || {}) as MindmapNodeData
   const prev = currentData.markers || {}
   const next = updater({ ...prev })
 
@@ -157,15 +143,31 @@ const updateMarkers = (updater: (prev: MindmapMarkers) => MindmapMarkers) => {
   if (typeof next.progress === 'number') cleaned.progress = next.progress
   if (next.flag) cleaned.flag = next.flag
 
-  cell.setData(
-    {
-      ...currentData,
-      markers: Object.keys(cleaned).length > 0 ? cleaned : undefined,
-    },
-    { overwrite: true }
-  )
+  const markersVal = Object.keys(cleaned).length > 0 ? cleaned : undefined
 
-  updateMindmapLayout(props.board, currentData.mindmapId || cell.id)
+  if (typeof cell.setData === 'function') {
+    cell.setData(
+      {
+        ...currentData,
+        markers: markersVal,
+      },
+      { overwrite: true }
+    )
+  } else if (props.board.setShapeProperty) {
+    props.board.setShapeProperty({
+      data: {
+        ...currentData,
+        markers: markersVal,
+      },
+      markers: markersVal,
+    })
+  }
+
+  try {
+    updateMindmapLayout(props.board, currentData.mindmapId || cell.id)
+  } catch (err) {
+    // optional layout sync
+  }
 }
 
 const togglePriority = (val: number) => {
