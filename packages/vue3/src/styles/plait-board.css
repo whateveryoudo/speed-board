@@ -31,6 +31,8 @@
 
 .plait-board-container .plait-text-container {
   position: initial !important;
+  white-space: pre !important;
+  word-break: keep-all !important;
 }
 
 .plait-board-container .text foreignObject {

@@ -1,6 +1,6 @@
 import type { PlaitBoard } from '@plait/core';
 import type { PlaitTextBoard, TextProps, RenderComponentRef, PlaitImageBoard, ImageProps } from '@plait/common';
-import { createEditor, type Descendant } from 'slate';
+import { createEditor } from 'slate';
 
 /**
  * Vue 3 适配插件：接管 Plait 的富文本和图片渲染
@@ -22,31 +22,15 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
     let currentText = props.text;
     let isReadonly = props.readonly !== false;
 
-    // 动态调整 foreignObject 尺寸与溢出表现，防止排版边界过窄引发中文字符异常折行
-    const adjustForeignObject = () => {
+    const renderDOM = () => {
+      // 保持 SVG foreignObject 不发生意外剪裁
       if (el && el.tagName?.toLowerCase() === 'foreignobject') {
         el.style.overflow = 'visible';
-        const w = parseFloat(el.getAttribute('width') || '0');
-        // 当初始测量宽度较小（如 28/29px）时，设置自适应冗余（至少 60px），确保多字符不被挤压
-        if (w > 0 && w < 80) {
-          el.setAttribute('width', `${Math.max(w + 24, 60)}`);
-        }
       }
-    };
-
-    const renderDOM = () => {
-      adjustForeignObject();
-
-      const plaitId = el.closest?.('[plait-data-id]')?.getAttribute('plait-data-id');
-      const element = plaitId ? (board.children as any[])?.find((c: any) => c.id === plaitId) : null;
-      const isAutoSize = element ? (element.autoSize ?? element.shape === 'text') : true;
 
       // 提取纯文本内容
       const rawText = (currentText as any)?.children?.map((c: any) => c.text || '').join('') || '';
-      const whiteSpace = isAutoSize ? 'pre' : 'pre-wrap';
-      const wordBreak = isAutoSize ? 'keep-all' : 'break-word';
-
-      const baseStyle = `outline: none; white-space: ${whiteSpace}; word-break: ${wordBreak}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; line-height: 1.4;`;
+      const baseStyle = `outline: none; white-space: pre; word-break: keep-all; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; line-height: 1.4;`;
 
       if (isReadonly) {
         // 只读模式：直接渲染轻量 HTML，零组件创建开销
@@ -65,31 +49,37 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
           sel?.removeAllRanges();
           sel?.addRange(range);
 
-          editableEl.oninput = () => {
-            const val = editableEl.innerText;
+          const handleInput = () => {
+            const raw = editableEl.innerText || editableEl.textContent || '';
+            const val = raw.replace(/\r\n/g, '\n').replace(/\n$/, '');
             const newText = {
               ...(currentText as any),
               children: [{ text: val }],
             };
             editor.children = [newText];
+            currentText = newText as any;
 
-            // 输入时若文本宽度接近或超出，动态拓宽 foreignObject
-            if (el && el.tagName?.toLowerCase() === 'foreignobject') {
-              const currentW = parseFloat(el.getAttribute('width') || '0');
-              const neededW = editableEl.scrollWidth || 0;
-              if (neededW > currentW - 10) {
-                el.setAttribute('width', `${neededW + 20}`);
-              }
-            }
-
+            // 关键：必须提供有效的非 selection Slate 操作，Plait TextManage 才会触发尺寸重算与 DrawTransforms.setText 存储！
             props.onChange?.({
               newText: newText as any,
-              operations: [],
+              operations: [
+                {
+                  type: 'insert_text',
+                  path: [0, 0],
+                  offset: 0,
+                  text: val,
+                } as any,
+              ],
             });
           };
 
+          editableEl.oninput = handleInput;
+
           editableEl.addEventListener('compositionstart', (e) => props.onComposition?.(e as CompositionEvent));
-          editableEl.addEventListener('compositionend', (e) => props.onComposition?.(e as CompositionEvent));
+          editableEl.addEventListener('compositionend', (e) => {
+            props.onComposition?.(e as CompositionEvent);
+            handleInput();
+          });
         }
       }
     };
@@ -101,6 +91,7 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         el.innerHTML = '';
       },
       update: (updatedProps: Partial<TextProps>) => {
+        const readonlyChanged = updatedProps.readonly !== undefined && (updatedProps.readonly !== false) !== isReadonly;
         if (updatedProps.text) {
           currentText = updatedProps.text;
           editor.children = [currentText as any];
@@ -108,7 +99,12 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         if (updatedProps.readonly !== undefined) {
           isReadonly = updatedProps.readonly !== false;
         }
-        renderDOM();
+
+        // 仅在只读状态发生变化，或者在只读模式下文本更新时才重绘 DOM。
+        // 如果正在编辑输入中，DOM 由用户输入实时更新，千万不能重构 innerHTML 破坏光标位置！
+        if (readonlyChanged || isReadonly) {
+          renderDOM();
+        }
       },
     };
 
