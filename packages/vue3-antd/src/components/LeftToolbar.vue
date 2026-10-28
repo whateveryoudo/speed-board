@@ -31,7 +31,7 @@
           overlay-class-name="tool-sub-capsule-popover" :arrow="false"
           :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }" @update:open="onBrushOpenChange">
           <template #content>
-            <div class="brush-sub-picker">
+            <div class="brush-sub-picker" @pointerdown.stop @click.stop>
               <!-- 2.1 普通铅笔 -->
               <a-tooltip title="铅笔" placement="right">
                 <a-button type="text" class="shadow-btn-wrapper sub-capsule-btn"
@@ -336,6 +336,9 @@ const widthPopoverOpen = ref(false)
 const colorPopoverOpen = ref(false)
 
 const onBrushOpenChange = (open: boolean) => {
+  if (!open && (widthPopoverOpen.value || colorPopoverOpen.value)) {
+    return
+  }
   brushPopoverOpen.value = open
   if (open) {
     linePopoverOpen.value = false
@@ -424,7 +427,19 @@ const applyDrawingMode = () => {
         : currentBrush.value === 'marker'
         ? FreehandShape.feltTipPen
         : FreehandShape.nibPen
+
+    let activeWidth = strokeWidth.value
+    if (currentBrush.value === 'marker' && activeWidth <= 3) {
+      activeWidth = 8
+      strokeWidth.value = 8
+    }
+
     props.board?.setPointer(pointer)
+    props.board?.setFreehandOptions({
+      brushType: currentBrush.value,
+      strokeColor: strokeColor.value,
+      strokeWidth: activeWidth,
+    })
     emit('mode-change', { mode: pointer as any })
   }
 }
@@ -476,7 +491,6 @@ const selectBrush = (brush: 'pencil' | 'marker' | 'eraser') => {
   currentTool.value = 'brush'
   widthPopoverOpen.value = false
   colorPopoverOpen.value = false
-  brushPopoverOpen.value = false
   applyDrawingMode()
 }
 
@@ -488,6 +502,9 @@ const setStrokeWidth = (w: number) => {
     currentBrush.value = 'pencil'
   }
   applyDrawingMode()
+  if (props.board?.selectedElements?.length) {
+    props.board.setShapeProperty({ strokeWidth: w })
+  }
 }
 
 // 调整颜色 (选定后立刻关闭弹窗并生效，恢复画笔)
@@ -498,6 +515,9 @@ const setStrokeColor = (c: string) => {
     currentBrush.value = 'pencil'
   }
   applyDrawingMode()
+  if (props.board?.selectedElements?.length) {
+    props.board.setShapeProperty({ strokeColor: c, stroke: c })
+  }
 }
 
 // 监听画板实例指针变动同步工具激活状态

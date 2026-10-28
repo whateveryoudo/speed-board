@@ -7,8 +7,8 @@ import { getStrokeWidthByElement } from '@plait/draw';
 
 export class FreehandGenerator extends Generator<Freehand> {
   protected draw(element: Freehand): SVGGElement | undefined {
-    const strokeWidth = getStrokeWidthByElement(element);
-    const strokeColor = getStrokeColorByElement(this.board, element);
+    const strokeWidth = element.strokeWidth ?? getStrokeWidthByElement(element);
+    const strokeColor = (element as any).strokeColor || (element as any).stroke || getStrokeColorByElement(this.board, element);
     const fill = getFillByElement(this.board, element);
     const option: Options = { strokeWidth, stroke: strokeColor, fill, fillStyle: 'solid' };
     const g = PlaitBoard.getRoughSVG(this.board).curve(
@@ -16,6 +16,9 @@ export class FreehandGenerator extends Generator<Freehand> {
       option
     );
     setStrokeLinecap(g, 'round');
+    if (element.opacity !== undefined && element.opacity < 1) {
+      g.setAttribute('opacity', String(element.opacity));
+    }
     return g;
   }
 

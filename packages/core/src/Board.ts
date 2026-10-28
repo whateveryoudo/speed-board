@@ -111,6 +111,31 @@ export class Board {
     return this.raw.children;
   }
 
+  // --- 手绘配置 ---
+  public freehandOptions: {
+    brushType?: 'pencil' | 'marker' | 'eraser';
+    strokeColor?: string;
+    strokeWidth?: number;
+  } = {
+    brushType: 'pencil',
+    strokeColor: '#333333',
+    strokeWidth: 2,
+  };
+
+  setFreehandOptions(options: {
+    brushType?: 'pencil' | 'marker' | 'eraser';
+    strokeColor?: string;
+    strokeWidth?: number;
+  }) {
+    this.freehandOptions = { ...this.freehandOptions, ...options };
+    (this.raw as any).freehandOptions = this.freehandOptions;
+    this.emit('freehand:options-change', this.freehandOptions);
+  }
+
+  getFreehandOptions() {
+    return this.freehandOptions;
+  }
+
   // --- 指针与绘制模式 ---
   get pointer(): string {
     return this.raw.pointer;

@@ -36,6 +36,10 @@ export function getFreehandPointers() {
 }
 
 export const getFreehandDrawOptions = (board: PlaitBoard) => {
+  const custom = (board as any).freehandOptions;
+  if (custom) {
+    return resolveFreehandDrawOptions(custom);
+  }
   const appState = (board as PlaitBoard & { appState?: FreehandAppState }).appState;
   const activePresetIndex = appState?.toolState?.activeFreehandPresetIndex || 0;
   const activePreset =
@@ -51,12 +55,21 @@ export const createFreehandElement = (
   points: Point[],
   drawOptions: Partial<FreehandDrawOptions> = {}
 ): Freehand => {
+  const options = resolveFreehandDrawOptions(drawOptions);
+  const isMarker = shape === FreehandShape.feltTipPen;
+  const color = options.strokeColor || (isMarker ? '#3b82f6' : '#333333');
+  const width = options.strokeWidth ?? (isMarker ? 8 : 2);
+  const opacity = isMarker ? 0.5 : 1;
+
   const element: Freehand = {
     id: idCreator(),
     type: 'freehand',
     shape,
     points,
-    ...resolveFreehandDrawOptions(drawOptions),
+    strokeColor: color,
+    stroke: color,
+    strokeWidth: width,
+    opacity,
   };
   return element;
 };
@@ -95,7 +108,7 @@ export const getFreehandDefaultFill = (theme: ThemeColorMode) => {
 
 export const getStrokeColorByElement = (board: PlaitBoard, element: PlaitElement) => {
   const defaultColor = getFreehandDefaultStrokeColor(board.theme.themeColorMode);
-  const strokeColor = element.strokeColor || defaultColor;
+  const strokeColor = (element as any).strokeColor || (element as any).stroke || defaultColor;
   return strokeColor;
 };
 
