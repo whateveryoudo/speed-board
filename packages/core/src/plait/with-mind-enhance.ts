@@ -1,23 +1,34 @@
 import {
   PlaitBoard,
+  BoardTransforms,
+  PlaitPointerType,
+  toHostPoint,
+  toViewBoxPoint,
   getSelectedElements,
+  clearSelectedElement,
+  addSelectedElement,
   type PlaitPlugin,
 } from '@plait/core';
 import {
   MindElement,
+  PlaitMind,
   MindNodeComponent,
+  MindTransforms,
+  MindPointerType,
+  MindElementShape,
   editTopic,
-  WithMindPluginKey,
 } from '@plait/mind';
+import { MindLayoutType } from '@plait/layouts';
 import isHotkey from 'is-hotkey';
 
 const isEnterHotkey = isHotkey('enter');
+const isTabHotkey = isHotkey('tab');
+const isSpaceHotkey = isHotkey('space');
 
 export function ensureMarkerSprite(): void {
   if (typeof document === 'undefined') return;
   const SPRITE_ID = '__speed_mindmap_markers_sprite__';
   if (document.getElementById(SPRITE_ID)) return;
-  // If the shared sprite is in document, return
 }
 
 export function renderMarkerSvgHtml(symbolId: string, size = 18): string {
@@ -175,20 +186,90 @@ export const withMindEnhance: PlaitPlugin = (board: PlaitBoard) => {
     };
   };
 
-  // 2. 增强键盘事件：Enter 键进入编辑模式
+  // 2. 接管画布点击创建思维导图（彻底解决灰底与未居中问题）
+  const { pointerDown } = board;
+  board.pointerDown = (event: PointerEvent) => {
+    const isMindPointer = PlaitBoard.isPointer(board, MindPointerType.mind);
+    if (!PlaitBoard.isReadonly(board) && isMindPointer) {
+      event.preventDefault();
+      const point = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
+      const width = 110;
+      const height = 42;
+      const newMind: any = {
+        id: `mind-${Date.now()}`,
+        type: 'mind',
+        points: [[point[0] - width / 2, point[1] - height / 2]],
+        shape: MindElementShape.roundRectangle,
+        fill: '#2563eb',
+        strokeColor: '#2563eb',
+        layout: MindLayoutType.standard,
+        data: {
+          topic: {
+            children: [{ text: '思维导图', color: '#ffffff' }],
+            align: 'center',
+          },
+        },
+        children: [],
+      };
+      MindTransforms.insertMind(board, newMind);
+      BoardTransforms.updatePointerType(board, PlaitPointerType.selection);
+      clearSelectedElement(board);
+      addSelectedElement(board, [newMind]);
+      const wrapper = (board as any).boardWrapper;
+      wrapper?.emit?.('change', {});
+      wrapper?.emit?.('selection:change', { selected: [newMind] });
+      return;
+    }
+    pointerDown(event);
+  };
+
+  // 3. 增强键盘事件：输入中按 Enter 退出保存（杜绝 removeChild 报错）；选中态按 Enter/Tab 增删节点
   const { keyDown } = board;
   board.keyDown = (event: KeyboardEvent) => {
-    if (isEnterHotkey(event)) {
-      const selectedElements = getSelectedElements(board);
-      if (selectedElements.length === 1 && MindElement.isMindElement(board, selectedElements[0])) {
-        // 如果当前不在编辑文字，Enter 触发进入文字编辑模式
-        if (!PlaitBoard.hasBeenTextEditing(board)) {
-          event.preventDefault();
-          editTopic(selectedElements[0]);
-          return;
+    // 3.1 用户如果在富文本 contenteditable 中正在打字：
+    const isTyping =
+      (event.target as HTMLElement)?.isContentEditable ||
+      Boolean((event.target as HTMLElement)?.closest?.('[contenteditable="true"]'));
+    if (isTyping) {
+      if (isEnterHotkey(event) && !event.shiftKey) {
+        event.preventDefault();
+        (event.target as HTMLElement)?.blur();
+        return;
+      }
+      keyDown(event);
+      return;
+    }
+
+    // 3.2 用户在画布选中态（非打字中）：
+    const selectedElements = getSelectedElements(board);
+    const isSingleMind =
+      selectedElements.length === 1 && MindElement.isMindElement(board, selectedElements[0]);
+    if (isSingleMind && !PlaitBoard.isReadonly(board)) {
+      const target = selectedElements[0];
+      // Enter 键：根节点或分支节点直接添加子/同级节点
+      if (isEnterHotkey(event)) {
+        event.preventDefault();
+        if (PlaitMind.isMind(target)) {
+          MindTransforms.insertChildNode(board, target);
+        } else {
+          MindTransforms.insertSiblingNode(board, target);
         }
+        return;
+      }
+      // Tab 键：添加子节点
+      if (isTabHotkey(event)) {
+        event.preventDefault();
+        MindTransforms.insertChildNode(board, target);
+        return;
+      }
+      // Space 键：进入编辑态
+      if (isSpaceHotkey(event)) {
+        event.preventDefault();
+        editTopic(target);
+        return;
       }
     }
+
     keyDown(event);
   };
 

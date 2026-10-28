@@ -27,7 +27,13 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
       const firstChild = (currentText as any)?.children?.[0] || {};
       const fontSize = firstChild['font-size'] ? parseFloat(firstChild['font-size']) : 14;
       const lineHeight = fontSize === 14 ? 20 : Math.round(fontSize * 1.5);
-      const textAlign = (currentText as any)?.align || 'left';
+      const isMindTopic =
+        (currentText as any)?.align === 'center' ||
+        (currentText as any)?.id?.startsWith?.('mind') ||
+        (props as any)?.isMind;
+      const textAlign = (currentText as any)?.align || (isMindTopic ? 'center' : 'left');
+      const flexJustify =
+        textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start';
       const color = firstChild.color || '#333333';
       const fontWeight = firstChild.bold ? 'bold' : 'normal';
       const fontStyle = firstChild.italic ? 'italic' : 'normal';
@@ -41,7 +47,7 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
       }
 
       const rawText = (currentText as any)?.children?.map((c: any) => c.text || '').join('') || '';
-      const baseStyle = `outline: none; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft Yahei', 'Hiragino Sans GB', Arial, sans-serif; text-align: ${textAlign}; color: ${color}; font-weight: ${fontWeight}; font-style: ${fontStyle}; text-decoration: ${textDecoration}; white-space: pre-wrap; word-break: break-all; overflow-wrap: break-word; box-sizing: border-box; width: 100%;`;
+      const baseStyle = `outline: none; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft Yahei', 'Hiragino Sans GB', Arial, sans-serif; text-align: ${textAlign}; color: ${color}; font-weight: ${fontWeight}; font-style: ${fontStyle}; text-decoration: ${textDecoration}; white-space: pre-wrap; word-break: break-all; overflow-wrap: break-word; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; justify-content: ${flexJustify};`;
 
       if (isReadonly) {
         // 只读模式：直接渲染轻量 HTML，零组件创建开销
@@ -53,16 +59,24 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         const editableEl = el.firstElementChild as HTMLElement;
         if (editableEl) {
           editableEl.focus();
-          // 获得焦点与失焦时，通知气泡工具栏实时隐藏与恢复
+          let typingTimer: any = null;
+
+          // 获得焦点时，浮动工具条不强制隐藏，方便用户直接使用格式面板
           editableEl.addEventListener('focus', () => {
             const wrapper = (newBoard as any).boardWrapper;
-            wrapper?.emit?.('text:editing', true);
-            wrapper?.emit?.('selection:change');
+            if (wrapper) {
+              wrapper.isTyping = false;
+              wrapper.emit?.('selection:change');
+            }
           });
           editableEl.addEventListener('blur', () => {
+            clearTimeout(typingTimer);
             const wrapper = (newBoard as any).boardWrapper;
-            wrapper?.emit?.('text:editing', false);
-            wrapper?.emit?.('selection:change');
+            if (wrapper) {
+              wrapper.isTyping = false;
+              wrapper.emit?.('text:editing', false);
+              wrapper.emit?.('selection:change');
+            }
           });
 
           // 移动光标到末尾
@@ -73,7 +87,21 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
           sel?.removeAllRanges();
           sel?.addRange(range);
 
+          const notifyTyping = () => {
+            const wrapper = (newBoard as any).boardWrapper;
+            if (wrapper) {
+              wrapper.isTyping = true;
+              wrapper.emit?.('selection:change');
+              clearTimeout(typingTimer);
+              typingTimer = setTimeout(() => {
+                wrapper.isTyping = false;
+                wrapper.emit?.('selection:change');
+              }, 600);
+            }
+          };
+
           const handleInput = () => {
+            notifyTyping();
             const raw = editableEl.innerText || editableEl.textContent || '';
             const val = raw.replace(/\r\n/g, '\n').replace(/\n$/, '');
             const newText = {

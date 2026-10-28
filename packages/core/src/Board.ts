@@ -326,13 +326,6 @@ export class Board {
     this.select([emptyMind]);
     this.emit('change', {});
 
-    // 默认创建后立即聚焦并进入文本编辑态
-    setTimeout(() => {
-      try {
-        editTopic(emptyMind);
-      } catch (e) {}
-    }, 50);
-
     return emptyMind;
   }
 
@@ -995,7 +988,7 @@ export class Board {
 
     if (this.isMindmapNode(cell)) {
       return {
-        fill: cell.fill || (PlaitMind.isMind(cell) ? '#2563eb' : 'transparent'),
+        fill: cell.fill || (PlaitMind.isMind(cell) ? '#2563eb' : '#ffffff'),
         stroke: cell.strokeColor || cell.branchColor || cell.stroke || '#374151',
         strokeWidth: cell.strokeWidth ?? 2,
         strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',

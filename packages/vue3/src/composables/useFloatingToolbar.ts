@@ -87,8 +87,8 @@ export function computeFloatingToolbarProperties(board: Board | null): FloatingT
 
   if (!board) return defaultState;
 
-  // 绘制中、任意非选择模式、或正在编辑/输入文本时，气泡工具栏不显示
-  if (board.raw.pointer !== PlaitPointerType.selection || PlaitBoard.hasBeenTextEditing(board.raw)) {
+  // 绘制中、任意非选择模式、或正在键盘打字输入中时，气泡工具栏暂隐
+  if (board.raw.pointer !== PlaitPointerType.selection || (board as any).isTyping) {
     return defaultState;
   }
 
