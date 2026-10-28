@@ -90,12 +90,45 @@ export function renderNodeSvg(
   foreign.style.overflow = 'visible';
   foreign.style.pointerEvents = 'none';
 
-  const text = getNodeTopicText(elem) || (isRoot ? '思维导图' : '分支主题');
-  const textColor =
-    elem.data?.topic?.children?.[0]?.color || (isRoot ? '#ffffff' : '#1f2937');
-  const fontSize = elem.data?.topic?.children?.[0]?.fontSize || (isRoot ? 15 : 13);
-  const fontWeight = elem.data?.topic?.children?.[0]?.fontWeight || (isRoot ? '600' : 'normal');
   const align = elem.data?.topic?.align || (isRoot ? 'center' : 'left');
+
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function renderTopicSpans(): string {
+    const children = elem.data?.topic?.children;
+    if (Array.isArray(children) && children.length > 0) {
+      return children
+        .map((c: any) => {
+          const text = c.text ?? '';
+          if (!text) return '';
+          const fs = c['font-size']
+            ? parseFloat(c['font-size'])
+            : (c.fontSize || (isRoot ? 16 : 14));
+          const fw = c.bold ? '600' : (c.fontWeight || (isRoot ? '600' : 'normal'));
+          const fst = c.italic ? 'italic' : 'normal';
+          let td = 'none';
+          if (c.underlined && c.strike) td = 'underline line-through';
+          else if (c.underlined) td = 'underline';
+          else if (c.strike) td = 'line-through';
+          const col = c.color || (isRoot ? '#ffffff' : '#1f2937');
+
+          return `<span class="speed-mind-span" style="font-size: ${fs}px; font-weight: ${fw}; font-style: ${fst}; text-decoration: ${td}; color: ${col}; vertical-align: baseline; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">${escapeHtml(text)}</span>`;
+        })
+        .join('');
+    }
+    const defaultText = getNodeTopicText(elem) || (isRoot ? '思维导图' : '分支主题');
+    const defaultColor = isRoot ? '#ffffff' : '#1f2937';
+    const defaultSize = isRoot ? 16 : 14;
+    const defaultWeight = isRoot ? '600' : 'normal';
+    return `<span class="speed-mind-span" style="font-size: ${defaultSize}px; font-weight: ${defaultWeight}; color: ${defaultColor}; vertical-align: baseline; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">${escapeHtml(defaultText)}</span>`;
+  }
 
   // 构建 markers HTML
   let markersHtml = '';
@@ -141,15 +174,15 @@ export function renderNodeSvg(
 
   containerDiv.innerHTML = `
     ${markersHtml}
-    <span class="speed-mind-topic-text" style="
-      font-size: ${fontSize}px;
-      font-weight: ${fontWeight};
-      color: ${textColor};
+    <div class="speed-mind-topic-wrapper" style="
+      display: inline-flex;
+      align-items: baseline;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    ">${text}</span>
+    ">
+      ${renderTopicSpans()}
+    </div>
   `;
 
   foreign.appendChild(containerDiv);

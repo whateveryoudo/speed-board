@@ -46,16 +46,45 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         textDecoration = 'line-through';
       }
 
-      const rawText = (currentText as any)?.children?.map((c: any) => c.text || '').join('') || '';
+      const renderSlateSpans = (children: any[]) => {
+        if (!children || children.length === 0) return '&ZeroWidthSpace;';
+        const rendered = children
+          .map((c: any) => {
+            const spanText = c.text || '';
+            if (!spanText) return '';
+            const fs = c['font-size'] ? parseFloat(c['font-size']) : (c.fontSize || fontSize);
+            const fw = c.bold ? 'bold' : (c.fontWeight || 'normal');
+            const fst = c.italic ? 'italic' : 'normal';
+            let td = 'none';
+            if (c.underlined && c.strike) td = 'underline line-through';
+            else if (c.underlined) td = 'underline';
+            else if (c.strike) td = 'line-through';
+            const clr = c.color || color;
+
+            const spanStyles: string[] = [];
+            if (fs) spanStyles.push(`font-size: ${fs}px`);
+            if (fw !== 'normal') spanStyles.push(`font-weight: ${fw}`);
+            if (fst !== 'normal') spanStyles.push(`font-style: ${fst}`);
+            if (td !== 'none') spanStyles.push(`text-decoration: ${td}`);
+            if (clr) spanStyles.push(`color: ${clr}`);
+            spanStyles.push('vertical-align: baseline');
+
+            return `<span class="slate-span" style="${spanStyles.join('; ')}">${escapeHtml(spanText)}</span>`;
+          })
+          .join('');
+        return rendered || '&ZeroWidthSpace;';
+      };
+
       const baseStyle = `outline: none; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft Yahei', 'Hiragino Sans GB', Arial, sans-serif; text-align: ${textAlign}; color: ${color}; font-weight: ${fontWeight}; font-style: ${fontStyle}; text-decoration: ${textDecoration}; white-space: pre-wrap; word-break: break-all; overflow-wrap: break-word; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; justify-content: ${flexJustify};`;
 
       if (isReadonly) {
         // 只读模式：直接渲染轻量 HTML，零组件创建开销
-        const html = rawText ? escapeHtml(rawText) : '&ZeroWidthSpace;';
+        const html = renderSlateSpans((currentText as any)?.children);
         el.innerHTML = `<div class="plait-text-container slate-editable-container" style="${baseStyle} user-select: none;">${html}</div>`;
       } else {
         // 编辑模式：渲染 contenteditable 容器
-        el.innerHTML = `<div class="plait-text-container slate-editable-container" contenteditable="true" style="${baseStyle} min-width: 20px; min-height: ${lineHeight}px; caret-color: auto;">${escapeHtml(rawText)}</div>`;
+        const html = renderSlateSpans((currentText as any)?.children);
+        el.innerHTML = `<div class="plait-text-container slate-editable-container" contenteditable="true" style="${baseStyle} min-width: 20px; min-height: ${lineHeight}px; caret-color: auto;">${html}</div>`;
         const editableEl = el.firstElementChild as HTMLElement;
         if (editableEl) {
           editableEl.focus();

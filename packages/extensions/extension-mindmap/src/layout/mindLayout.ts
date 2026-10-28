@@ -10,21 +10,33 @@ export function calculateNodeSize(
     return { width: node.width, height: node.height };
   }
 
-  const text = getNodeTopicText(node) || (isRoot ? '思维导图' : '分支主题');
-  let charUnits = 0;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    // 宽字符（中文、日文、韩文、全角标点）占 1.8 字符宽度单位
-    if (code > 255) {
-      charUnits += 1.8;
-    } else {
-      charUnits += 1.0;
-    }
-  }
+  const children = node.data?.topic?.children;
+  let estimatedTextWidth = 0;
+  let maxFontSize = isRoot ? 16 : 14;
 
-  // 基础字体大小
-  const fontSize = isRoot ? 16 : 14;
-  let estimatedTextWidth = Math.ceil(charUnits * (fontSize * 0.55));
+  if (Array.isArray(children) && children.length > 0) {
+    for (const span of children) {
+      const spanText = span.text || '';
+      const spanFontSize = span['font-size']
+        ? parseFloat(span['font-size'])
+        : (span.fontSize || (isRoot ? 16 : 14));
+      maxFontSize = Math.max(maxFontSize, spanFontSize);
+      let charUnits = 0;
+      for (let i = 0; i < spanText.length; i++) {
+        const code = spanText.charCodeAt(i);
+        charUnits += code > 255 ? 1.8 : 1.0;
+      }
+      estimatedTextWidth += Math.ceil(charUnits * (spanFontSize * 0.55));
+    }
+  } else {
+    const text = getNodeTopicText(node) || (isRoot ? '思维导图' : '分支主题');
+    let charUnits = 0;
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      charUnits += code > 255 ? 1.8 : 1.0;
+    }
+    estimatedTextWidth = Math.ceil(charUnits * (maxFontSize * 0.55));
+  }
 
   // 标记 (priority, progress, flag)
   const markers = node.data?.markers;
@@ -43,7 +55,7 @@ export function calculateNodeSize(
   const paddingX = isRoot ? 32 : 24;
   const minWidth = isRoot ? 110 : 70;
   const width = Math.max(minWidth, estimatedTextWidth + markerWidth + paddingX);
-  const height = isRoot ? 42 : 32;
+  const height = Math.max(isRoot ? 42 : 32, Math.round(maxFontSize * 1.5) + (isRoot ? 16 : 12));
 
   return { width, height };
 }

@@ -618,18 +618,21 @@ export class Board {
   getSelectedTextData(): any {
     const selected = this.selectedElements[0] as any;
     if (!selected) return null;
-    const textNode = selected.text || selected;
+    const isMind = this.isMindmapNode(selected);
+    const textNode = isMind
+      ? (selected.data?.topic || selected.topic || selected)
+      : (selected.text || selected);
     const child = textNode.children?.[0] || textNode;
     return {
       text: typeof child.text === 'string' ? child.text : (typeof textNode.text === 'string' ? textNode.text : ''),
       link: selected.data?.link || selected.link || child.url || child.link || '',
-      fontSize: child['font-size'] || child.fontSize || 14,
-      fill: child.color || child.fill || textNode.color || textNode.fill || '#262626',
-      bold: Boolean(child.bold || textNode.bold),
+      fontSize: child['font-size'] || child.fontSize || (isMind ? (selected.isRoot ? 16 : 14) : 14),
+      fill: child.color || child.fill || textNode.color || textNode.fill || (isMind && selected.isRoot ? '#ffffff' : '#262626'),
+      bold: Boolean(child.bold || textNode.bold || (isMind && selected.isRoot)),
       italic: Boolean(child.italic || textNode.italic),
       strike: Boolean(child.strikethrough || child.strike || textNode.strike),
       underline: Boolean(child.underlined || child.underline || textNode.underline),
-      align: textNode.align || child.align || 'left',
+      align: textNode.align || child.align || (isMind ? 'center' : 'left'),
       verticalAlign: textNode.verticalAlign || child.verticalAlign || 'middle',
     };
   }
@@ -639,6 +642,38 @@ export class Board {
     selected.forEach((element: any) => {
       const path = this.getElementPath(element);
       if (!path) return;
+
+      if (this.isMindmapNode(element)) {
+        const topic = element.data?.topic || { children: [{ text: '' }] };
+        const children = topic.children || [{ text: '' }];
+        const first = children[0] || { text: '' };
+        const updated = { ...first };
+        if (patch.text !== undefined) updated.text = patch.text;
+        if (patch.fontSize !== undefined) {
+          updated['font-size'] = patch.fontSize;
+          updated.fontSize = patch.fontSize;
+        }
+        if (patch.fill !== undefined) {
+          updated.color = patch.fill;
+          updated.fill = patch.fill;
+        }
+        if (patch.bold !== undefined) updated.bold = patch.bold;
+        if (patch.italic !== undefined) updated.italic = patch.italic;
+        if (patch.underline !== undefined) updated.underlined = patch.underline;
+        if (patch.strike !== undefined) updated.strikethrough = patch.strike;
+
+        const newTopic = {
+          ...topic,
+          children: [updated, ...children.slice(1)],
+        };
+        if (patch.align !== undefined) newTopic.align = patch.align;
+        const newData = {
+          ...(element.data || {}),
+          topic: newTopic,
+        };
+        Transforms.setNode(this.raw, { data: newData } as any, path);
+        return;
+      }
 
       const currentText = element.text || { children: [{ text: '' }] };
       const currentChildren = currentText.children || [{ text: '' }];

@@ -9,6 +9,32 @@ export function createEmptyMindmap(
   options?: Partial<SpeedMindElement>
 ): SpeedMindElement {
   const rootId = options?.id || generateNodeId('mind-root');
+  const defaultChildren: SpeedMindElement[] = [
+    createChildMindNode('分支主题 1'),
+    {
+      id: generateNodeId('mind-node'),
+      type: 'mind',
+      shape: 'roundRectangle',
+      fill: '#f3f4f6',
+      strokeColor: '#3b82f6',
+      strokeWidth: 1,
+      branchColor: '#2563eb',
+      branchWidth: 2,
+      branchShape: 'curve',
+      data: {
+        topic: {
+          children: [
+            { text: '思维', color: '#1f2937', fontSize: 20, bold: true },
+            { text: '导图', color: '#4b5563', fontSize: 13 },
+          ],
+          align: 'left',
+        },
+        markers: { priority: 1 },
+      },
+      children: [],
+    },
+  ];
+
   return {
     id: rootId,
     type: 'mind',
@@ -22,7 +48,7 @@ export function createEmptyMindmap(
     branchWidth: options?.branchWidth || 2,
     branchShape: options?.branchShape || 'curve',
     layout: options?.layout || 'standard',
-    rightNodeCount: options?.rightNodeCount ?? 0,
+    rightNodeCount: options?.rightNodeCount ?? 2,
     data: {
       topic: {
         children: [{ text: topic, color: '#ffffff', fontSize: 16, fontWeight: '500' }],
@@ -30,7 +56,7 @@ export function createEmptyMindmap(
       },
       ...options?.data,
     },
-    children: options?.children || [],
+    children: options?.children || defaultChildren,
     ...options,
   };
 }
