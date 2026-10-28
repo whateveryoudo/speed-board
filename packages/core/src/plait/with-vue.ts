@@ -23,21 +23,33 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
     let isReadonly = props.readonly !== false;
 
     const renderDOM = () => {
-      // 保持 SVG foreignObject 不发生意外剪裁
-      if (el && el.tagName?.toLowerCase() === 'foreignobject') {
-        el.style.overflow = 'visible';
+      // 提取纯文本内容与排版属性
+      const firstChild = (currentText as any)?.children?.[0] || {};
+      const fontSize = firstChild['font-size'] ? parseFloat(firstChild['font-size']) : 14;
+      const lineHeight = fontSize === 14 ? 20 : Math.round(fontSize * 1.5);
+      const textAlign = (currentText as any)?.align || 'left';
+      const color = firstChild.color || '#333333';
+      const fontWeight = firstChild.bold ? 'bold' : 'normal';
+      const fontStyle = firstChild.italic ? 'italic' : 'normal';
+      let textDecoration = 'none';
+      if (firstChild.underlined && firstChild.strike) {
+        textDecoration = 'underline line-through';
+      } else if (firstChild.underlined) {
+        textDecoration = 'underline';
+      } else if (firstChild.strike) {
+        textDecoration = 'line-through';
       }
 
-      // 提取纯文本内容
       const rawText = (currentText as any)?.children?.map((c: any) => c.text || '').join('') || '';
-      const baseStyle = `outline: none; white-space: pre; word-break: keep-all; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; line-height: 1.4;`;
+      const baseStyle = `outline: none; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft Yahei', 'Hiragino Sans GB', Arial, sans-serif; text-align: ${textAlign}; color: ${color}; font-weight: ${fontWeight}; font-style: ${fontStyle}; text-decoration: ${textDecoration}; white-space: pre-wrap; word-break: break-all; overflow-wrap: break-word; box-sizing: border-box; width: 100%;`;
 
       if (isReadonly) {
         // 只读模式：直接渲染轻量 HTML，零组件创建开销
-        el.innerHTML = `<div class="plait-text-container slate-editable-container" style="${baseStyle} user-select: none;">${escapeHtml(rawText)}</div>`;
+        const html = rawText ? escapeHtml(rawText) : '&ZeroWidthSpace;';
+        el.innerHTML = `<div class="plait-text-container slate-editable-container" style="${baseStyle} user-select: none;">${html}</div>`;
       } else {
         // 编辑模式：渲染 contenteditable 容器
-        el.innerHTML = `<div class="plait-text-container slate-editable-container" contenteditable="true" style="${baseStyle} min-width: 20px; caret-color: auto;">${escapeHtml(rawText)}</div>`;
+        el.innerHTML = `<div class="plait-text-container slate-editable-container" contenteditable="true" style="${baseStyle} min-width: 20px; min-height: ${lineHeight}px; caret-color: auto;">${escapeHtml(rawText)}</div>`;
         const editableEl = el.firstElementChild as HTMLElement;
         if (editableEl) {
           editableEl.focus();
@@ -54,7 +66,12 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
             const val = raw.replace(/\r\n/g, '\n').replace(/\n$/, '');
             const newText = {
               ...(currentText as any),
-              children: [{ text: val }],
+              children: [
+                {
+                  ...((currentText as any)?.children?.[0] || {}),
+                  text: val,
+                },
+              ],
             };
             editor.children = [newText];
             currentText = newText as any;
