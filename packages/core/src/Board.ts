@@ -42,7 +42,7 @@ import {
   VectorLinePointerType,
   isClosedPoints,
 } from './plait';
-import { PlaitMind } from '@plait/mind';
+import { isSpeedMind, createEmptyMindmap } from '@speed-board/extension-mindmap';
 import { createSpeedPlaitBoard, type CreatePlaitBoardOptions } from './plait/board-factory';
 import {
   getShapeById,
@@ -305,23 +305,13 @@ export class Board {
 
   insertMindmap(topic = '思维导图', point?: [number, number]) {
     const center = point || this.getViewportCenterPoint();
-    const emptyMind = createEmptyMind(this.raw, center);
-    if (topic && emptyMind.data?.topic?.children?.[0]) {
-      emptyMind.data.topic.children[0].text = topic;
-    }
-    // 1. 中心主题文本默认水平居中
-    if (emptyMind.data?.topic) {
-      emptyMind.data.topic.align = 'center';
-    }
-    // 2. 中心主题默认样式：圆角矩形、品牌蓝背景填充、白色文字
-    emptyMind.shape = MindElementShape.roundRectangle;
-    emptyMind.fill = '#2563eb';
-    emptyMind.strokeColor = '#2563eb';
-    if (emptyMind.data?.topic?.children?.[0]) {
-      emptyMind.data.topic.children[0].color = '#ffffff';
-    }
+    const emptyMind = createEmptyMindmap(topic, {
+      points: [[center[0] - 55, center[1] - 21]],
+      fill: '#2563eb',
+      strokeColor: '#2563eb',
+    });
 
-    MindTransforms.insertMind(this.raw, emptyMind);
+    Transforms.insertNode(this.raw, emptyMind, [this.raw.children.length]);
     this.setPointer(PlaitPointerType.selection);
     this.select([emptyMind]);
     this.emit('change', {});
@@ -331,49 +321,58 @@ export class Board {
 
   setMindmapLayout(layout: string) {
     const layoutMap: Record<string, string> = {
-      balanced: MindLayoutType.standard,
-      standard: MindLayoutType.standard,
-      right: MindLayoutType.right,
-      left: MindLayoutType.left,
-      'org-down': MindLayoutType.downward,
-      downward: MindLayoutType.downward,
-      'tree-right': MindLayoutType.rightBottomIndented,
-      'tree-left': MindLayoutType.leftBottomIndented,
-      'timeline-up': MindLayoutType.upward,
-      upward: MindLayoutType.upward,
+      balanced: 'standard',
+      standard: 'standard',
+      right: 'right',
+      left: 'left',
+      'org-down': 'downward',
+      downward: 'downward',
+      'tree-right': 'rightBottomIndented',
+      'tree-left': 'leftBottomIndented',
+      'timeline-up': 'upward',
+      upward: 'upward',
     };
     const targetLayout = layoutMap[layout] || layout;
-    this.syncNodeIndices();
-    MindTransforms.setLayout(this.raw, targetLayout as any);
-    this.syncNodeIndices();
-    this.emit('change', {});
+    const selected = (this.selectedElements || []).find((el) => isSpeedMind(el));
+    if (selected) {
+      selected.layout = targetLayout;
+      const path = this.getElementPath(selected);
+      if (path) {
+        Transforms.setNode(this.raw, { layout: targetLayout }, path);
+      }
+      this.emit('change', {});
+    }
   }
 
   setMindmapBranchShape(shape: string) {
-    const branchShape =
-      shape === 'curve' || shape === 'bight' ? BranchShape.bight : BranchShape.polyline;
-    this.syncNodeIndices();
-    MindTransforms.setBranchShape(this.raw, branchShape);
-    this.syncNodeIndices();
-    this.emit('change', {});
+    const branchShape = shape === 'curve' || shape === 'bight' ? 'curve' : 'polyline';
+    const selected = (this.selectedElements || []).find((el) => isSpeedMind(el));
+    if (selected) {
+      selected.branchShape = branchShape as any;
+      const path = this.getElementPath(selected);
+      if (path) {
+        Transforms.setNode(this.raw, { branchShape }, path);
+      }
+      this.emit('change', {});
+    }
   }
 
   setMindmapShape(shape: string) {
-    const plaitShape =
-      shape === 'none' || shape === 'underline'
-        ? MindElementShape.underline
-        : MindElementShape.roundRectangle;
-    this.syncNodeIndices();
-    MindTransforms.setShape(this.raw, plaitShape as any);
-    this.syncNodeIndices();
-    this.emit('change', {});
+    const plaitShape = shape === 'none' || shape === 'underline' ? 'underline' : 'roundRectangle';
+    const selected = (this.selectedElements || []).find((el) => isSpeedMind(el));
+    if (selected) {
+      selected.shape = plaitShape as any;
+      const path = this.getElementPath(selected);
+      if (path) {
+        Transforms.setNode(this.raw, { shape: plaitShape }, path);
+      }
+      this.emit('change', {});
+    }
   }
 
   addMindmapSummary() {
-    const selected = (this.selectedElements || []).filter((el) => MindElement.isMindElement(this.raw, el));
+    const selected = (this.selectedElements || []).filter((el) => isSpeedMind(el));
     if (selected.length === 0) return;
-    this.syncNodeIndices();
-    MindTransforms.insertAbstract(this.raw, selected);
     this.syncNodeIndices();
     this.emit('change', {});
   }
@@ -940,7 +939,7 @@ export class Board {
       selectedType = 'line';
     } else if (this.isMindmapNode(first) || first.type === 'mind' || first.isRoot || first.children) {
       if (first.isSummary || AbstractNode.isAbstract(first)) selectedType = 'mindmap-summary';
-      else if (first.isRoot || PlaitMind.isMind(first)) selectedType = 'mindmap-root';
+      else if (first.isRoot || isSpeedMind(first)) selectedType = 'mindmap-root';
       else selectedType = 'mindmap-node';
     } else if (this.isImageNode(first) || type === 'image') {
       selectedType = 'image';
@@ -988,7 +987,7 @@ export class Board {
 
     if (this.isMindmapNode(cell)) {
       return {
-        fill: cell.fill || (PlaitMind.isMind(cell) ? '#2563eb' : '#ffffff'),
+        fill: cell.fill || (isSpeedMind(cell) ? '#2563eb' : '#ffffff'),
         stroke: cell.strokeColor || cell.branchColor || cell.stroke || '#374151',
         strokeWidth: cell.strokeWidth ?? 2,
         strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',

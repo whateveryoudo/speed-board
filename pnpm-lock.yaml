@@ -20,6 +20,12 @@ importers:
       '@speed-board/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@speed-board/extension-mindmap':
+        specifier: workspace:*
+        version: link:../../packages/extensions/extension-mindmap
+      '@speed-board/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@speed-board/vue3':
         specifier: workspace:*
         version: link:../../packages/vue3
@@ -57,12 +63,12 @@ importers:
       '@plait/layouts':
         specifier: ^0.94.1
         version: 0.94.1
-      '@plait/mind':
-        specifier: ^0.94.1
-        version: 0.94.1
       '@plait/text-plugins':
         specifier: ^0.94.1
         version: 0.94.1
+      '@speed-board/extension-mindmap':
+        specifier: workspace:*
+        version: link:../extensions/extension-mindmap
       is-hotkey:
         specifier: ^0.2.0
         version: 0.2.1
@@ -88,13 +94,28 @@ importers:
 
   packages/extensions/extension-mindmap:
     dependencies:
-      '@speed-board/core':
-        specifier: workspace:*
-        version: link:../../core
+      '@plait/common':
+        specifier: ^0.94.1
+        version: 0.94.1
+      '@plait/core':
+        specifier: ^0.94.1
+        version: 0.94.1(immer@10.2.0)(is-hotkey@0.2.1)
+      '@plait/layouts':
+        specifier: ^0.94.1
+        version: 0.94.1
       '@speed-board/shared':
         specifier: workspace:*
         version: link:../../shared
+      is-hotkey:
+        specifier: ^0.2.0
+        version: 0.2.1
     devDependencies:
+      '@types/is-hotkey':
+        specifier: ^0.1.10
+        version: 0.1.10
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
@@ -394,9 +415,6 @@ packages:
   '@plait/layouts@0.94.1':
     resolution: {integrity: sha512-cV4zNnEx2IpUhpHEFgdtfvTU+gY3JQ6su4tPvkk8GvjI3KGO9aSFd0aWAPuxHgAhkkLlKiLPXy0oZxp4nUJAEQ==}
 
-  '@plait/mind@0.94.1':
-    resolution: {integrity: sha512-A+jX3HE1WFMvMRqwAvU493iWStZiDmeyC85ClQW0I2jgE+rjxp9/omsN099iwmsuKS5jTICFKFaiS9Rke5UGxQ==}
-
   '@plait/text-plugins@0.94.1':
     resolution: {integrity: sha512-DUEJ+bvIzFgvxKEUcpQpXyt8bBgM5PciV4HbQqP7KXf7a6XhM8AM7ylmzzlJeK1NyMvqph2Q1dQZ6U5pEMNn3g==}
 
@@ -530,6 +548,9 @@ packages:
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
+
+  '@types/is-hotkey@0.1.10':
+    resolution: {integrity: sha512-RvC8KMw5BCac1NvRRyaHgMMEtBaZ6wh0pyPTBu7izn4Sj/AX9Y4aXU5c7rX8PnM/knsuUpC1IeoBkANtxBypsQ==}
 
   '@types/lodash-es@4.17.12':
     resolution: {integrity: sha512-0NgftHUcV4v34VhXm8QBSftKVXtbkBG3ViCjs6+eJ5a6y6Mi/jiFGPc1sC7QK+9BFhWrURE3EOggmWaSxL9OzQ==}
@@ -996,10 +1017,6 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@plait/mind@0.94.1':
-    dependencies:
-      tslib: 2.8.1
-
   '@plait/text-plugins@0.94.1':
     dependencies:
       tslib: 2.8.1
@@ -1085,6 +1102,8 @@ snapshots:
       nanopop: 2.4.2
 
   '@types/estree@1.0.9': {}
+
+  '@types/is-hotkey@0.1.10': {}
 
   '@types/lodash-es@4.17.12':
     dependencies:

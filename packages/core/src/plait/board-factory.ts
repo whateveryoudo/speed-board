@@ -9,6 +9,7 @@ import {
   withRelatedFragment,
   withSelection,
   withI18n,
+  DefaultThemeColor,
   type PlaitBoard,
   type PlaitBoardOptions,
   type PlaitElement,
@@ -18,8 +19,7 @@ import {
 } from '@plait/core';
 import { withGroup, withImage, withText } from '@plait/common';
 import { withDraw } from '@plait/draw';
-import { withMind, MindThemeColors } from '@plait/mind';
-import { withMindEnhance } from './with-mind-enhance';
+import { withSpeedMind } from '@speed-board/extension-mindmap';
 import { withFreehand } from './freehand/with-freehand';
 import { withHitEnhance } from './with-hit-enhance';
 import { withDrawEnhance } from './with-draw-enhance';
@@ -42,7 +42,7 @@ export function createSpeedPlaitBoard(config: CreatePlaitBoardOptions = {}): Pla
     readonly: false,
     hideScrollbar: true,
     disabledScrollOnNonFocus: false,
-    themeColors: MindThemeColors,
+    themeColors: (DefaultThemeColor as any),
     ...(config.options || {}),
   };
 
@@ -66,8 +66,7 @@ export function createSpeedPlaitBoard(config: CreatePlaitBoardOptions = {}): Pla
   board = withGroup(board);
   board = withDraw(board);
   board = withDrawEnhance(board);
-  board = withMind(board);
-  board = withMindEnhance(board);
+  board = withSpeedMind(board);
   board = withFreehand(board);
   board = withHitEnhance(board);
   board = withVectorEnhance(board);

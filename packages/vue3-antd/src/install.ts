@@ -5,6 +5,7 @@ import {
 } from 'speed-components-ui/components'
 import 'speed-components-ui/dist/style.css'
 import SpeedBoard from './components/SpeedBoard.vue'
+import SpeedMindmap from './components/SpeedMindmap.vue'
 import LeftToolbar from './components/LeftToolbar.vue'
 import TopToolbar from './components/TopToolbar.vue'
 import IconfontPopover from './components/IconfontPopover.vue'
@@ -18,6 +19,7 @@ export interface SpeedBoardUiInstallOptions {
 
 const components: Record<string, Component> = {
   SpeedBoard,
+  SpeedMindmap,
   LeftToolbar,
   TopToolbar,
   IconfontPopover,
