@@ -198,12 +198,31 @@ export class Board {
         return BasicShapes.cross;
       case 'comment':
         return BasicShapes.comment;
+      case 'comment-2':
+      case 'roundComment':
+        return BasicShapes.roundComment;
       case 'hexagon':
         return BasicShapes.hexagon;
       case 'pentagon':
+      case 'polygon':
         return BasicShapes.pentagon;
       case 'octagon':
         return BasicShapes.octagon;
+      case 'arrow-1':
+      case 'leftArrow':
+        return BasicShapes.leftArrow;
+      case 'arrow-2':
+      case 'rightArrow':
+        return BasicShapes.rightArrow;
+      case 'arrow-3':
+      case 'twoWayArrow':
+        return BasicShapes.twoWayArrow;
+      case 'pentagon-arrow':
+      case 'pentagonArrow':
+        return BasicShapes.pentagonArrow;
+      case 'process-arrow':
+      case 'processArrow':
+        return BasicShapes.processArrow;
       case 'process':
         return FlowchartSymbols.process;
       case 'decision':
@@ -729,6 +748,9 @@ export class Board {
     if (props.strokeColor && !props.stroke) {
       props.stroke = props.strokeColor;
     }
+    if (props.shape) {
+      props.shape = this.mapShapeToPointer(props.shape);
+    }
     this.syncNodeIndices();
     const selected = getSelectedElements(this.raw);
     selected.forEach((element) => {
@@ -1072,34 +1094,15 @@ export class Board {
 
   // --- 形状切换 ---
   switchShape(targetShape: ShapeDefinition | string) {
-    const shapeDef =
-      typeof targetShape === 'string' ? getShapeById(targetShape) : targetShape;
-    if (!shapeDef) return;
+    const shapeId = typeof targetShape === 'string' ? targetShape : targetShape?.id;
+    if (!shapeId) return;
 
-    const selectedCells = this.selectedElements || [];
-    for (const cell of selectedCells) {
-      if (this.isShapeNode && !this.isShapeNode(cell)) continue;
+    const plaitShape = this.mapShapeToPointer(shapeId);
+    if (!plaitShape) return;
 
-      const oldData = (cell as any).getData ? (cell as any).getData() : (cell as any).data || cell;
-      const fill = oldData.fill || '#ffffff';
-      const stroke = oldData.stroke || '#374151';
-      const strokeWidth = oldData.strokeWidth ?? 2;
-      const strokeDasharray = oldData.strokeDasharray || 'none';
-      const opacity = oldData.opacity ?? 1;
-
-      this.setShapeProperty({
-        shape: shapeDef.id,
-        fill,
-        stroke,
-        strokeWidth,
-        strokeDasharray,
-        opacity,
-      });
-
-      this.emit('selection:change', {
-        selected: this.selectedElements,
-      });
-    }
+    this.setShapeProperty({
+      shape: plaitShape,
+    });
   }
 
   destroy() {

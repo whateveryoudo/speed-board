@@ -15,7 +15,7 @@
             v-for="shape in basicShapes"
             :key="shape.id"
             class="shape-item-btn"
-            :class="{ 'is-active': currentShapeId === shape.id }"
+            :class="{ 'is-active': activeShapeId === shape.id }"
             :title="shape.name"
             @click="onSelect(shape)"
           >
@@ -55,16 +55,75 @@ const props = defineProps<{
 
 const { isOpen } = useToolbarPopover('shape-switch')
 
-const currentShapeId = useCellAttributes(
+const rawShape = useCellAttributes(
   () => props.board,
-  (cell: any) => cell?.shape || cell?.shapeId || 'rect',
-  'rect'
+  (cell: any) => cell?.shape || 'rectangle',
+  'rectangle'
 )
+
+const activeShapeId = computed(() => {
+  const s = rawShape.value
+  switch (s) {
+    case 'rectangle':
+    case 'rect':
+      return 'rect'
+    case 'roundRectangle':
+    case 'rounded-rect':
+    case 'round-rect':
+      return 'rounded-rect'
+    case 'ellipse':
+    case 'circle':
+      return 'circle'
+    case 'diamond':
+      return 'diamond'
+    case 'triangle':
+      return 'triangle'
+    case 'parallelogram':
+      return 'parallelogram'
+    case 'trapezoid':
+      return 'trapezoid'
+    case 'cross':
+      return 'cross'
+    case 'star':
+      return 'star'
+    case 'pentagon':
+    case 'polygon':
+      return 'polygon'
+    case 'leftArrow':
+    case 'arrow-1':
+      return 'arrow-1'
+    case 'rightArrow':
+    case 'arrow-2':
+      return 'arrow-2'
+    case 'twoWayArrow':
+    case 'arrow-3':
+      return 'arrow-3'
+    case 'pentagonArrow':
+    case 'pentagon-arrow':
+      return 'pentagon-arrow'
+    case 'processArrow':
+    case 'process-arrow':
+      return 'process-arrow'
+    case 'comment':
+      return 'comment'
+    case 'roundComment':
+    case 'comment-2':
+      return 'comment-2'
+    case 'cloud':
+      return 'cloud'
+    case 'hexagon':
+      return 'hexagon'
+    case 'octagon':
+      return 'octagon'
+    default:
+      return s
+  }
+})
 
 const { basicShapes, switchShape } = useShapeSwitch(() => props.board)
 
 const currentShapeSvg = computed(() => {
-  const shape = getShapeById(currentShapeId.value) || basicShapes[0]
+  const shape = getShapeById(activeShapeId.value) || basicShapes[0]
   if (!shape) return ''
   return getShapeIconSvg(shape)
 })
