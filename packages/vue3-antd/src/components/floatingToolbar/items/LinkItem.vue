@@ -4,71 +4,83 @@
     trigger="click"
     placement="top"
     :arrow="false"
-    overlay-class-name="quick-bubble-popover plait-board-attached"
-    :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
+    overlay-class-name="link-bubble-popover plait-board-attached"
+    :overlay-inner-style="{ padding: '12px 14px 10px', borderRadius: '10px' }"
     @open-change="onOpenChange"
   >
     <template #content>
-      <div class="link-popover-content">
-        <!-- 1. 已有链接预览卡片 -->
-        <div v-if="currentLink && !isEditing" class="link-preview-box">
-          <a
-            :href="formattedLink"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="link-preview-url"
-            :title="currentLink"
-          >
-            <SIconFont type="icon-kl-link1" :size="14" style="margin-right: 4px; flex-shrink: 0;" />
-            <span class="url-text">{{ currentLink }}</span>
-          </a>
-          <div class="link-actions">
-            <a-tooltip title="打开链接" placement="top">
-              <button class="link-action-btn" @click="openLink">
-                <ExportOutlined />
-              </button>
-            </a-tooltip>
-            <a-tooltip title="编辑" placement="top">
-              <button class="link-action-btn" @click="startEdit">
-                <EditOutlined />
-              </button>
-            </a-tooltip>
-            <a-tooltip title="移除链接" placement="top">
-              <button class="link-action-btn danger" @click="removeLink">
-                <DeleteOutlined />
-              </button>
-            </a-tooltip>
-          </div>
+      <div class="link-editor-container">
+        <!-- 1. 文本输入框 (第一行) -->
+        <div class="overlay-field">
+          <label class="field-label">文本</label>
+          <a-input
+            ref="textInputRef"
+            v-model:value="formText"
+            size="small"
+            placeholder="文本内容"
+            class="field-input"
+            allow-clear
+            @pressEnter="confirmLink"
+          />
         </div>
 
-        <!-- 2. 编辑或新建链接输入框 -->
-        <div v-else class="link-edit-box">
+        <!-- 2. 链接输入框 (第二行) -->
+        <div class="overlay-field">
+          <label class="field-label">链接</label>
           <a-input
-            ref="inputRef"
-            v-model:value="inputValue"
+            ref="linkInputRef"
+            v-model:value="formLink"
             size="small"
-            placeholder="输入或粘贴链接 (如 https://...)"
+            placeholder="链接地址，如 https://..."
+            class="field-input is-link"
             allow-clear
             @pressEnter="confirmLink"
           >
             <template #prefix>
               <SIconFont type="icon-kl-link1" :size="14" style="color: #9ca3af; margin-right: 2px;" />
             </template>
-            <template #suffix>
-              <a-button size="small" type="primary" class="confirm-btn" @click="confirmLink">
-                确定
-              </a-button>
-            </template>
           </a-input>
-          <div v-if="currentLink" class="link-cancel-row">
-            <button class="cancel-text-btn" @click="isEditing = false">取消</button>
+        </div>
+
+        <!-- 3. 底部操作区 -->
+        <div class="overlay-actions">
+          <div class="actions-left">
+            <a
+              v-if="formattedLink && formattedLink !== '#'"
+              :href="formattedLink"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="link-open-anchor"
+              title="新标签页打开"
+            >
+              <ExportOutlined style="font-size: 12px; margin-right: 3px;" />
+              打开
+            </a>
+            <button
+              v-if="hasInitialLink"
+              class="action-text-btn danger"
+              title="清除链接"
+              @click="removeLink"
+            >
+              移除链接
+            </button>
+          </div>
+          <div class="actions-right">
+            <a-button
+              size="small"
+              type="primary"
+              class="confirm-btn"
+              @click="confirmLink"
+            >
+              确定
+            </a-button>
           </div>
         </div>
       </div>
     </template>
 
     <a-tooltip title="链接" placement="bottom" :open="isOpen ? false : undefined">
-      <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen || !!currentLink }">
+      <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen || !!hasInitialLink }">
         <SIconFont type="icon-kl-link1" :size="18"/>
       </button>
     </a-tooltip>
@@ -83,7 +95,7 @@ import {
   Input as AInput,
   Button as AButton,
 } from 'ant-design-vue'
-import { ExportOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { ExportOutlined } from '@ant-design/icons-vue'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
 import type { Board } from '@speed-board/core'
 import { useNodeStyle } from '@speed-board/vue3'
@@ -96,9 +108,14 @@ const props = defineProps<{
 const { isOpen } = useToolbarPopover('link')
 const { textState, updateTextStyle } = useNodeStyle(() => props.board)
 
-const inputValue = ref('')
-const isEditing = ref(false)
-const inputRef = ref()
+const formText = ref('')
+const formLink = ref('')
+const textInputRef = ref()
+const linkInputRef = ref()
+
+const currentText = computed(() => {
+  return textState.value.text || ''
+})
 
 const currentLink = computed(() => {
   const tLink = textState.value.link
@@ -107,8 +124,10 @@ const currentLink = computed(() => {
   return firstElem?.data?.link || firstElem?.link || ''
 })
 
+const hasInitialLink = computed(() => !!currentLink.value)
+
 const formattedLink = computed(() => {
-  const url = currentLink.value.trim()
+  const url = (formLink.value || currentLink.value).trim()
   if (!url) return '#'
   if (/^[a-zA-Z]+:\/\//.test(url)) return url
   return `https://${url}`
@@ -116,149 +135,135 @@ const formattedLink = computed(() => {
 
 const onOpenChange = (open: boolean) => {
   if (open) {
-    if (currentLink.value) {
-      isEditing.value = false
-      inputValue.value = currentLink.value
-    } else {
-      isEditing.value = true
-      inputValue.value = ''
-      nextTick(() => {
-        inputRef.value?.focus()
-      })
-    }
+    formText.value = currentText.value
+    formLink.value = currentLink.value
+    nextTick(() => {
+      if (formText.value && !formLink.value) {
+        linkInputRef.value?.focus()
+      } else {
+        textInputRef.value?.focus()
+      }
+    })
   }
-}
-
-const startEdit = () => {
-  isEditing.value = true
-  inputValue.value = currentLink.value
-  nextTick(() => {
-    inputRef.value?.focus()
-  })
 }
 
 const confirmLink = () => {
-  const val = inputValue.value.trim()
-  updateTextStyle({ link: val })
+  const tVal = formText.value
+  const lVal = formLink.value.trim()
+
+  updateTextStyle({
+    text: tVal,
+    link: lVal,
+  })
+
   if (props.board) {
-    props.board.setShapeProperty({ link: val })
+    props.board.setShapeProperty({ link: lVal })
   }
-  isEditing.value = false
-  if (!val) {
-    isOpen.value = false
-  }
+
+  isOpen.value = false
 }
 
 const removeLink = () => {
+  formLink.value = ''
   updateTextStyle({ link: '' })
   if (props.board) {
     props.board.setShapeProperty({ link: '' })
   }
-  inputValue.value = ''
-  isEditing.value = false
   isOpen.value = false
-}
-
-const openLink = () => {
-  if (formattedLink.value && formattedLink.value !== '#') {
-    window.open(formattedLink.value, '_blank', 'noopener,noreferrer')
-  }
 }
 </script>
 
-<style scoped>
-.link-popover-content {
-  min-width: 220px;
-  max-width: 320px;
+<style scoped lang="less">
+.link-editor-container {
+  width: 260px;
+  user-select: none;
 }
 
-.link-preview-box {
+.overlay-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+
+  .field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #4b5563;
+    margin-bottom: 4px;
+  }
+
+  .field-input {
+    border-radius: 6px;
+    font-size: 13px;
+
+    &:hover {
+      border-color: #9ca3af;
+    }
+
+    &:focus,
+    &.ant-input-focused {
+      border-color: #10b981 !important;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
+    }
+  }
+}
+
+.overlay-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 2px 4px;
-}
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid #f3f4f6;
 
-.link-preview-url {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  overflow: hidden;
-  color: #1677ff;
-  text-decoration: none;
-  font-size: 13px;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.url-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.link-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.link-action-btn {
-  border: none;
-  background: transparent;
-  padding: 4px;
-  font-size: 13px;
-  color: #6b7280;
-  cursor: pointer;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background-color: #f3f4f6;
-    color: #1f2937;
+  .actions-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
-  &.danger:hover {
-    color: #ef4444;
-    background-color: #fee2e2;
+  .actions-right {
+    display: flex;
+    align-items: center;
   }
-}
 
-.link-edit-box {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+  .link-open-anchor {
+    font-size: 12px;
+    color: #1677ff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
 
-.confirm-btn {
-  font-size: 11px;
-  height: 22px;
-  padding: 0 8px;
-  background-color: #10b981 !important;
-  border-color: #10b981 !important;
-}
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 
-.link-cancel-row {
-  display: flex;
-  justify-content: flex-end;
-}
+  .action-text-btn {
+    border: none;
+    background: transparent;
+    font-size: 12px;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 0 2px;
 
-.cancel-text-btn {
-  border: none;
-  background: transparent;
-  font-size: 12px;
-  color: #9ca3af;
-  cursor: pointer;
-  padding: 0 2px;
+    &.danger:hover {
+      color: #ef4444;
+    }
+  }
 
-  &:hover {
-    color: #4b5563;
+  .confirm-btn {
+    border-radius: 6px;
+    font-size: 12px;
+    height: 26px;
+    padding: 0 14px;
+    background-color: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+
+    &:hover {
+      background-color: #059669 !important;
+      border-color: #059669 !important;
+    }
   }
 }
 </style>

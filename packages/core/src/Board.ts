@@ -563,6 +563,9 @@ export class Board {
       const firstChild = currentChildren[0] || { text: '' };
 
       const updatedChild = { ...firstChild };
+      if (patch.text !== undefined) {
+        updatedChild.text = patch.text;
+      }
       if (patch.fontSize !== undefined) {
         updatedChild['font-size'] = patch.fontSize;
         updatedChild.fontSize = patch.fontSize;
