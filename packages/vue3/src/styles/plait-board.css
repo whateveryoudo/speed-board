@@ -35,6 +35,7 @@
 
 .plait-board-container .text foreignObject {
   outline: none;
+  overflow: visible !important;
 }
 
 .plait-board-container .text .slate-editable-container {

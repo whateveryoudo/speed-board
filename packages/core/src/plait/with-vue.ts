@@ -22,16 +22,38 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
     let currentText = props.text;
     let isReadonly = props.readonly !== false;
 
+    // 动态调整 foreignObject 尺寸与溢出表现，防止排版边界过窄引发中文字符异常折行
+    const adjustForeignObject = () => {
+      if (el && el.tagName?.toLowerCase() === 'foreignobject') {
+        el.style.overflow = 'visible';
+        const w = parseFloat(el.getAttribute('width') || '0');
+        // 当初始测量宽度较小（如 28/29px）时，设置自适应冗余（至少 60px），确保多字符不被挤压
+        if (w > 0 && w < 80) {
+          el.setAttribute('width', `${Math.max(w + 24, 60)}`);
+        }
+      }
+    };
+
     const renderDOM = () => {
+      adjustForeignObject();
+
+      const plaitId = el.closest?.('[plait-data-id]')?.getAttribute('plait-data-id');
+      const element = plaitId ? (board.children as any[])?.find((c: any) => c.id === plaitId) : null;
+      const isAutoSize = element ? (element.autoSize ?? element.shape === 'text') : true;
+
       // 提取纯文本内容
       const rawText = (currentText as any)?.children?.map((c: any) => c.text || '').join('') || '';
-      
+      const whiteSpace = isAutoSize ? 'pre' : 'pre-wrap';
+      const wordBreak = isAutoSize ? 'keep-all' : 'break-word';
+
+      const baseStyle = `outline: none; white-space: ${whiteSpace}; word-break: ${wordBreak}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; line-height: 1.4;`;
+
       if (isReadonly) {
         // 只读模式：直接渲染轻量 HTML，零组件创建开销
-        el.innerHTML = `<div class="plait-text-container slate-editable-container" style="outline: none; word-break: break-word; user-select: none;">${escapeHtml(rawText)}</div>`;
+        el.innerHTML = `<div class="plait-text-container slate-editable-container" style="${baseStyle} user-select: none;">${escapeHtml(rawText)}</div>`;
       } else {
         // 编辑模式：渲染 contenteditable 容器
-        el.innerHTML = `<div class="plait-text-container slate-editable-container" contenteditable="true" style="outline: none; word-break: break-word; min-width: 20px; caret-color: auto;">${escapeHtml(rawText)}</div>`;
+        el.innerHTML = `<div class="plait-text-container slate-editable-container" contenteditable="true" style="${baseStyle} min-width: 20px; caret-color: auto;">${escapeHtml(rawText)}</div>`;
         const editableEl = el.firstElementChild as HTMLElement;
         if (editableEl) {
           editableEl.focus();
@@ -50,6 +72,16 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
               children: [{ text: val }],
             };
             editor.children = [newText];
+
+            // 输入时若文本宽度接近或超出，动态拓宽 foreignObject
+            if (el && el.tagName?.toLowerCase() === 'foreignobject') {
+              const currentW = parseFloat(el.getAttribute('width') || '0');
+              const neededW = editableEl.scrollWidth || 0;
+              if (neededW > currentW - 10) {
+                el.setAttribute('width', `${neededW + 20}`);
+              }
+            }
+
             props.onChange?.({
               newText: newText as any,
               operations: [],
