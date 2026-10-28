@@ -12,6 +12,3 @@ export * from './state/text-state';
 export * from './operations/align';
 export * from './operations/layer';
 export * from './operations/line';
-
-// 导出底层富文本核心能力，供白板与思维导图共同使用
-export * from '@plait/text-plugins';
