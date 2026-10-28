@@ -607,8 +607,14 @@ export class Board {
       if (patch.align !== undefined) {
         newText.align = patch.align;
       }
+      if (patch.verticalAlign !== undefined) {
+        newText.verticalAlign = patch.verticalAlign;
+      }
 
       const newProps: any = { text: newText };
+      if (patch.verticalAlign !== undefined) {
+        newProps.verticalAlign = patch.verticalAlign;
+      }
       if (patch.link !== undefined) {
         newProps.link = patch.link;
         if (element.data) {

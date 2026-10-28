@@ -1,14 +1,7 @@
 <template>
   <transition name="drawer-slide">
-    <div
-      v-show="props.visible"
-      class="style-settings-panel plait-board-attached"
-      @pointerdown.stop
-      @pointerup.stop
-      @mousedown.stop
-      @mouseup.stop
-      @click.stop
-    >
+    <div v-show="props.visible" class="style-settings-panel plait-board-attached" @pointerdown.stop @pointerup.stop
+      @mousedown.stop @mouseup.stop @click.stop>
       <!-- 1. 顶部标头 (标题 + 关闭按钮) -->
       <div class="panel-header">
         <span class="panel-title">设置</span>
@@ -34,29 +27,15 @@
           <div v-if="hasFill" class="setter-row">
             <span class="label">填充颜色</span>
             <div class="color-control-wrapper">
-              <a-popover
-                v-model:open="fillOpen"
-                trigger="click"
-                placement="left"
-                overlay-class-name="style-popover-overlay plait-board-attached"
-                :arrow="false"
-              >
+              <a-popover v-model:open="fillOpen" trigger="click" placement="left"
+                overlay-class-name="style-popover-overlay plait-board-attached" :arrow="false">
                 <template #content>
                   <div class="color-picker-grid">
-                    <div
-                      class="color-dot is-transparent-dot"
-                      title="无填充"
-                      @click="updateFill('transparent')"
-                    >
+                    <div class="color-dot is-transparent-dot" title="无填充" @click="updateFill('transparent')">
                       <span class="transparent-slash" />
                     </div>
-                    <div
-                      v-for="color in presetColors"
-                      :key="color"
-                      class="color-dot"
-                      :style="{ backgroundColor: color }"
-                      @click="updateFill(color)"
-                    />
+                    <div v-for="color in presetColors" :key="color" class="color-dot"
+                      :style="{ backgroundColor: color }" @click="updateFill(color)" />
                   </div>
                 </template>
                 <div class="color-preview-block" :style="{ backgroundColor: styleState.fill }" />
@@ -68,22 +47,12 @@
           <div v-if="hasStroke" class="setter-row">
             <span class="label">边框描边</span>
             <div class="color-control-wrapper">
-              <a-popover
-                v-model:open="strokeOpen"
-                trigger="click"
-                placement="left"
-                overlay-class-name="style-popover-overlay plait-board-attached"
-                :arrow="false"
-              >
+              <a-popover v-model:open="strokeOpen" trigger="click" placement="left"
+                overlay-class-name="style-popover-overlay plait-board-attached" :arrow="false">
                 <template #content>
                   <div class="color-picker-grid">
-                    <div
-                      v-for="color in presetColors"
-                      :key="color"
-                      class="color-dot"
-                      :style="{ backgroundColor: color }"
-                      @click="updateStrokeColor(color)"
-                    />
+                    <div v-for="color in presetColors" :key="color" class="color-dot"
+                      :style="{ backgroundColor: color }" @click="updateStrokeColor(color)" />
                   </div>
                 </template>
                 <div class="color-preview-block" :style="{ backgroundColor: styleState.stroke }" />
@@ -94,27 +63,15 @@
           <!-- 描边粗细 -->
           <div v-if="hasStroke" class="setter-row">
             <span class="label">描边粗细</span>
-            <a-input-number
-              :value="styleState.strokeWidth"
-              :min="0"
-              :max="20"
-              size="small"
-              style="width: 80px;"
-              @change="(v) => updateStyle({ strokeWidth: Number(v) })"
-            />
+            <a-input-number :value="styleState.strokeWidth" :min="0" :max="20" size="small" style="width: 80px;"
+              @change="(v) => updateStyle({ strokeWidth: Number(v) })" />
           </div>
 
           <!-- 不透明度 -->
           <div class="setter-row">
             <span class="label">不透明度</span>
-            <a-slider
-              :value="Math.round(styleState.opacity * 100)"
-              :min="10"
-              :max="100"
-              size="small"
-              style="flex: 1; margin-left: 16px;"
-              @change="(v) => updateStyle({ opacity: Number(v) / 100 })"
-            />
+            <a-slider :value="Math.round(styleState.opacity * 100)" :min="10" :max="100" size="small"
+              style="flex: 1; margin-left: 16px;" @change="(v) => updateStyle({ opacity: Number(v) / 100 })" />
           </div>
 
           <!-- 脑图专属：结构布局 -->
@@ -122,22 +79,13 @@
             <div class="panel-divider" />
             <div class="setter-section-title">脑图结构</div>
             <div class="setter-row">
-              <button
-                class="struct-btn"
-                @click="props.board?.setMindmapLayout('standard')"
-              >
+              <button class="struct-btn" @click="props.board?.setMindmapLayout('standard')">
                 平衡 (双侧)
               </button>
-              <button
-                class="struct-btn"
-                @click="props.board?.setMindmapLayout('right')"
-              >
+              <button class="struct-btn" @click="props.board?.setMindmapLayout('right')">
                 向右分布
               </button>
-              <button
-                class="struct-btn"
-                @click="props.board?.setMindmapLayout('left')"
-              >
+              <button class="struct-btn" @click="props.board?.setMindmapLayout('left')">
                 向左分布
               </button>
             </div>
@@ -148,35 +96,19 @@
         <template v-else-if="activeTab === 'text'">
           <div class="setter-row">
             <span class="label">字号</span>
-            <a-input-number
-              :value="textState.fontSize"
-              :min="10"
-              :max="72"
-              size="small"
-              style="width: 80px;"
-              @change="(v) => updateTextStyle({ fontSize: Number(v) })"
-            />
+            <a-input-number :value="textState.fontSize" :min="10" :max="72" size="small" style="width: 80px;"
+              @change="(v) => updateTextStyle({ fontSize: Number(v) })" />
           </div>
 
           <div class="setter-row">
             <span class="label">颜色</span>
             <div class="color-control-wrapper">
-              <a-popover
-                v-model:open="textColorOpen"
-                trigger="click"
-                placement="left"
-                overlay-class-name="style-popover-overlay plait-board-attached"
-                :arrow="false"
-              >
+              <a-popover v-model:open="textColorOpen" trigger="click" placement="left"
+                overlay-class-name="style-popover-overlay plait-board-attached" :arrow="false">
                 <template #content>
                   <div class="color-picker-grid">
-                    <div
-                      v-for="color in presetColors"
-                      :key="color"
-                      class="color-dot"
-                      :style="{ backgroundColor: color }"
-                      @click="updateTextColor(color)"
-                    />
+                    <div v-for="color in presetColors" :key="color" class="color-dot"
+                      :style="{ backgroundColor: color }" @click="updateTextColor(color)" />
                   </div>
                 </template>
                 <div class="color-preview-block" :style="{ backgroundColor: textState.fill }" />
@@ -187,33 +119,104 @@
           <div class="setter-row">
             <span class="label">字形</span>
             <div class="btn-toggle-group">
-              <button
-                class="icon-toggle-btn"
-                :class="{ 'is-active': textState.bold }"
-                @click="updateTextStyle({ bold: !textState.bold })"
-              >
+              <button class="icon-toggle-btn" :class="{ 'is-active': textState.bold }"
+                @click="updateTextStyle({ bold: !textState.bold })">
                 <strong>B</strong>
               </button>
-              <button
-                class="icon-toggle-btn"
-                :class="{ 'is-active': textState.italic }"
-                @click="updateTextStyle({ italic: !textState.italic })"
-              >
+              <button class="icon-toggle-btn" :class="{ 'is-active': textState.italic }"
+                @click="updateTextStyle({ italic: !textState.italic })">
                 <em>I</em>
               </button>
+              <button class="icon-toggle-btn" :class="{ 'is-active': textState.underline }"
+                @click="updateTextStyle({ underline: !textState.underline })">
+                <u>U</u>
+              </button>
+              <button class="icon-toggle-btn" :class="{ 'is-active': textState.strike }"
+                @click="updateTextStyle({ strike: !textState.strike })">
+                <s>S</s>
+              </button>
+            </div>
+          </div>
+
+          <!-- 水平对齐 -->
+          <div class="setter-row">
+            <span class="label">水平对齐</span>
+            <div class="btn-toggle-group">
               <button
                 class="icon-toggle-btn"
-                :class="{ 'is-active': textState.underline }"
-                @click="updateTextStyle({ underline: !textState.underline })"
+                :class="{ 'is-active': (textState.align || 'left') === 'left' }"
+                title="左对齐"
+                @click="updateTextStyle({ align: 'left' })"
               >
-                <u>U</u>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="15" y2="12" />
+                  <line x1="3" y1="18" x2="18" y2="18" />
+                </svg>
               </button>
               <button
                 class="icon-toggle-btn"
-                :class="{ 'is-active': textState.strike }"
-                @click="updateTextStyle({ strike: !textState.strike })"
+                :class="{ 'is-active': textState.align === 'center' }"
+                title="居中对齐"
+                @click="updateTextStyle({ align: 'center' })"
               >
-                <s>S</s>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="6" y1="12" x2="18" y2="12" />
+                  <line x1="4" y1="18" x2="20" y2="18" />
+                </svg>
+              </button>
+              <button
+                class="icon-toggle-btn"
+                :class="{ 'is-active': textState.align === 'right' }"
+                title="右对齐"
+                @click="updateTextStyle({ align: 'right' })"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="9" y1="12" x2="21" y2="12" />
+                  <line x1="6" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- 垂直对齐 -->
+          <div class="setter-row">
+            <span class="label">垂直对齐</span>
+            <div class="btn-toggle-group">
+              <button
+                class="icon-toggle-btn"
+                :class="{ 'is-active': textState.verticalAlign === 'top' }"
+                title="顶部对齐"
+                @click="updateTextStyle({ verticalAlign: 'top' })"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="4" y1="4" x2="20" y2="4" stroke-width="2.5" />
+                  <path d="M12 7v13M8 11l4-4 4 4" />
+                </svg>
+              </button>
+              <button
+                class="icon-toggle-btn"
+                :class="{ 'is-active': (textState.verticalAlign || 'middle') === 'middle' }"
+                title="垂直居中"
+                @click="updateTextStyle({ verticalAlign: 'middle' })"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5" />
+                  <path d="M12 5v14M8 8l4-3 4 3M8 16l4 3 4-3" />
+                </svg>
+              </button>
+              <button
+                class="icon-toggle-btn"
+                :class="{ 'is-active': textState.verticalAlign === 'bottom' }"
+                title="底部对齐"
+                @click="updateTextStyle({ verticalAlign: 'bottom' })"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="4" y1="20" x2="20" y2="20" stroke-width="2.5" />
+                  <path d="M12 17V4M8 13l4 4 4-4" />
+                </svg>
               </button>
             </div>
           </div>
@@ -222,24 +225,15 @@
           <div class="panel-divider" />
           <div class="setter-section-title">链接</div>
           <div class="setter-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
-            <a-input
-              :value="textState.link"
-              size="small"
-              placeholder="输入链接地址 (如 https://...)"
-              allow-clear
-              @change="(e: any) => updateTextStyle({ link: e.target.value })"
-            >
+            <a-input :value="textState.link" size="small" placeholder="输入链接地址 (如 https://...)" allow-clear
+              @change="(e: any) => updateTextStyle({ link: e.target.value })">
               <template #prefix>
                 <SIconFont type="icon-kl-link1" :size="14" style="color: #9ca3af; margin-right: 2px;" />
               </template>
             </a-input>
             <div v-if="textState.link" style="display: flex; justify-content: flex-end;">
-              <a
-                :href="/^[a-zA-Z]+:\/\//.test(textState.link) ? textState.link : `https://${textState.link}`"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="panel-link-open"
-              >
+              <a :href="/^[a-zA-Z]+:\/\//.test(textState.link) ? textState.link : `https://${textState.link}`"
+                target="_blank" rel="noopener noreferrer" class="panel-link-open">
                 打开链接 ↗
               </a>
             </div>
@@ -392,7 +386,8 @@ watch(
 <style scoped lang="less">
 .style-settings-panel {
   position: absolute;
-  top: 104px; /* 紧随右上角胶囊下方垂直排列，避免遮挡顶部视口工具胶囊 */
+  top: 104px;
+  /* 紧随右上角胶囊下方垂直排列，避免遮挡顶部视口工具胶囊 */
   right: 16px;
   width: 280px;
   max-height: calc(100vh - 120px);
@@ -447,8 +442,10 @@ watch(
 }
 
 .panel-tabs-wrapper {
-  padding: 0 12px;
-  border-bottom: 1px solid #f3f4f6;
+  :deep(.ant-tabs .ant-tabs-nav) {
+    padding-left: 10px;
+    margin-bottom: 0;
+  }
 }
 
 .panel-content {
@@ -533,6 +530,15 @@ watch(
     border-radius: 4px;
     font-size: 12px;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #4b5563;
+    padding: 0;
+
+    svg {
+      display: block;
+    }
 
     &.is-active {
       border-color: #3b82f6;

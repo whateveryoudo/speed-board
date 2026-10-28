@@ -16,7 +16,6 @@
           <a-input
             ref="textInputRef"
             v-model:value="formText"
-            size="small"
             placeholder="文本内容"
             class="field-input"
             allow-clear
@@ -30,7 +29,6 @@
           <a-input
             ref="linkInputRef"
             v-model:value="formLink"
-            size="small"
             placeholder="链接地址，如 https://..."
             class="field-input is-link"
             allow-clear
@@ -67,7 +65,6 @@
           </div>
           <div class="actions-right">
             <a-button
-              size="small"
               type="primary"
               class="confirm-btn"
               @click="confirmLink"
@@ -175,7 +172,7 @@ const removeLink = () => {
 
 <style scoped lang="less">
 .link-editor-container {
-  width: 260px;
+  width: 270px;
   user-select: none;
 }
 
@@ -211,8 +208,8 @@ const removeLink = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 4px;
-  padding-top: 6px;
+  margin-top: 6px;
+  padding-top: 8px;
   border-top: 1px solid #f3f4f6;
 
   .actions-left {
@@ -253,9 +250,9 @@ const removeLink = () => {
 
   .confirm-btn {
     border-radius: 6px;
-    font-size: 12px;
-    height: 26px;
-    padding: 0 14px;
+    font-size: 13px;
+    height: 32px;
+    padding: 0 16px;
     background-color: #10b981 !important;
     border-color: #10b981 !important;
     color: #ffffff !important;
