@@ -21,6 +21,8 @@ import { withDraw } from '@plait/draw';
 import { withMind, MindThemeColors } from '@plait/mind';
 import { withFreehand } from './freehand/with-freehand';
 import { withHitEnhance } from './with-hit-enhance';
+import { withVectorEnhance } from './with-vector-enhance';
+import { withGlobalEsc } from './with-global-esc';
 import { withVue } from './with-vue';
 import { withPinchZoom } from './with-pinch-zoom';
 
@@ -64,6 +66,8 @@ export function createSpeedPlaitBoard(config: CreatePlaitBoardOptions = {}): Pla
   board = withMind(board);
   board = withFreehand(board);
   board = withHitEnhance(board);
+  board = withVectorEnhance(board);
+  board = withGlobalEsc(board);
 
   // 自定义插件 (手势缩放等)
   board = withPinchZoom(board);

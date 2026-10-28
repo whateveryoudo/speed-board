@@ -185,6 +185,11 @@ onMounted(() => {
         parent: board,
         parentG: PlaitBoard.getElementHost(board),
       });
+      const selectedElements = getSelectedElements(board);
+      selectedElements.forEach((element) => {
+        const elementRef = (PlaitBoard as any).getElementRef?.(element) || (element as any).elementRef;
+        elementRef?.updateActiveSection?.();
+      });
       return;
     }
 

@@ -32,6 +32,7 @@ import {
   toHostPointFromViewBoxPoint,
   RectangleClient,
   VectorLinePointerType,
+  isClosedPoints,
 } from './plait';
 import { createSpeedPlaitBoard, type CreatePlaitBoardOptions } from './plait/board-factory';
 import {
@@ -78,10 +79,12 @@ export class Board {
 
   set plaitBoard(b: PlaitBoard) {
     this.raw = b;
+    (b as any).boardWrapper = this;
   }
 
   constructor(options: CreatePlaitBoardOptions = {}) {
     this.raw = createSpeedPlaitBoard(options);
+    (this.raw as any).boardWrapper = this;
   }
 
   // --- 事件发射与侦听 ---
@@ -146,6 +149,7 @@ export class Board {
   setPointer(pointer: BoardPointer | string) {
     if (pointer === 'selection' || pointer === PlaitPointerType.selection) {
       BoardTransforms.updatePointerType(this.raw, PlaitPointerType.selection);
+      setCreationMode(this.raw, BoardCreationMode.dnd);
     } else if (pointer === 'hand' || pointer === PlaitPointerType.hand) {
       BoardTransforms.updatePointerType(this.raw, PlaitPointerType.hand);
     } else if (pointer === 'vector' || pointer === 'vectorLine' || pointer === VectorLinePointerType.vectorLine) {
@@ -477,6 +481,7 @@ export class Board {
 
   isLineNode = (element: any): boolean => {
     if (!element) return false;
+    if (element.type === 'vector-line' || element.type === 'freehand') return false;
     return element.type === 'arrow-line' || element.shape === 'straight' || element.shape === 'curve' || element.shape === 'elbow';
   };
 
@@ -675,12 +680,19 @@ export class Board {
 
   // --- 属性修改 ---
   setShapeProperty(properties: Record<string, any>) {
+    const props = { ...properties };
+    if (props.stroke && !props.strokeColor) {
+      props.strokeColor = props.stroke;
+    }
+    if (props.strokeColor && !props.stroke) {
+      props.stroke = props.strokeColor;
+    }
     this.syncNodeIndices();
     const selected = getSelectedElements(this.raw);
     selected.forEach((element) => {
       const path = this.getElementPath(element);
       if (path) {
-        Transforms.setNode(this.raw, properties, path);
+        Transforms.setNode(this.raw, props, path);
         const newEl = this.raw.children[path[0]];
         if (newEl) {
           clearSelectedElement(this.raw);
@@ -736,7 +748,10 @@ export class Board {
     let selectedShapeId = '';
 
     const type = first.type || first.shape || '';
-    if (this.isLineNode(first) || first.shape === 'straight' || first.shape === 'elbow' || first.shape === 'curve' || first.type === 'vector-line') {
+    if (first.type === 'vector-line') {
+      const isClosed = isClosedPoints(first.points || []);
+      selectedType = isClosed ? 'shape' : 'line';
+    } else if (this.isLineNode(first) || first.shape === 'straight' || first.shape === 'elbow' || first.shape === 'curve') {
       selectedType = 'line';
     } else if (this.isMindmapNode(first) || first.type === 'mind' || first.isRoot || first.children) {
       if (first.isSummary) selectedType = 'mindmap-summary';
@@ -825,6 +840,11 @@ export class Board {
       targetMarker: 'none',
     };
 
+    // 绘制中或任意非选择模式下，气泡工具栏不显示
+    if (this.raw.pointer !== PlaitPointerType.selection) {
+      return defaultState;
+    }
+
     const selectionInfo = this.getSelectionInfo();
     if (selectionInfo.selectedCount === 0 || !selectionInfo.selectedCell) {
       return defaultState;
@@ -834,20 +854,21 @@ export class Board {
     if (!pos) return defaultState;
 
     const cell = selectionInfo.selectedCell;
-    const isLine =
-      selectionInfo.selectedType === 'line' ||
-      this.isLineNode(cell) ||
-      cell.shape === 'straight' ||
-      cell.shape === 'elbow' ||
-      cell.shape === 'curve';
+    const isArrowLine =
+      (selectionInfo.selectedType === 'line' || this.isLineNode(cell)) &&
+      cell.type !== 'vector-line' &&
+      cell.type !== 'freehand';
+    const isVectorLine = cell.type === 'vector-line';
+    const isClosedVector = isVectorLine && isClosedPoints(cell.points || []);
     const isMind =
       selectionInfo.selectedType.startsWith('mindmap') ||
       this.isMindmapNode(cell) ||
       Boolean(cell.data?.topic);
     const isImage = selectionInfo.selectedType === 'image';
 
-    const hasFill = !isLine && !isImage;
+    const hasFill = !isArrowLine && !isImage && (!isVectorLine || isClosedVector);
     const hasStroke = !isImage;
+    const isLine = isArrowLine;
 
     return {
       visible: true,
@@ -857,8 +878,8 @@ export class Board {
       hasStroke,
       isLine,
       isMind,
-      currentFill: cell.fill || '#ffffff',
-      currentStrokeColor: cell.stroke || '#374151',
+      currentFill: cell.fill || (isClosedVector ? '#ffffff' : 'transparent'),
+      currentStrokeColor: cell.strokeColor || cell.stroke || '#374151',
       currentStrokeWidth: cell.strokeWidth ?? 2,
       currentStrokeStyle: cell.strokeStyle || 'solid',
       currentLineShape: cell.shape || 'elbow',

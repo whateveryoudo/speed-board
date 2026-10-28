@@ -3,6 +3,8 @@ export * from './with-pinch-zoom';
 export * from './board-factory';
 export * from './freehand/type';
 export * from './freehand/with-freehand';
+export * from './with-vector-enhance';
+export * from './with-global-esc';
 
 export * as PlaitCore from '@plait/core';
 export * as PlaitCommon from '@plait/common';
@@ -80,6 +82,8 @@ export {
   VectorLineShape,
   type PlaitVectorLine,
   getVectorLinePointers,
+  isClosedPoints,
+  isClosedDrawElement,
 } from '@plait/draw';
 
 export {
