@@ -75,7 +75,7 @@
         <!-- 5. 链接 -->
         <LinkItem
           v-else-if="item === 'link'"
-          @open-link="emit('open-link-overlay'); closePopover()"
+          :board="props.board"
         />
 
         <!-- 6. 不透明度 (图片等) -->
@@ -160,7 +160,7 @@
         <!-- 18. 打开/聚焦右侧深度设置面板 (🎛) -->
         <OpenPanelItem
           v-else-if="item === 'open-panel'"
-          @click="emit('open-panel'); emit('toggle-settings'); closePopover()"
+          @click="emit('open-panel'); closePopover()"
         />
       </template>
     </div>

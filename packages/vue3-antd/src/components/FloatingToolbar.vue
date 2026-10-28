@@ -1,7 +1,7 @@
 <template>
   <FloatingToolbarHost
     :board="props.board"
-    @open-panel="emit('toggle-settings')"
+    @open-panel="emit('open-panel')"
     @toggle-settings="emit('toggle-settings')"
   />
 </template>
@@ -16,5 +16,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'toggle-settings'): void
+  (e: 'open-panel'): void
 }>()
 </script>

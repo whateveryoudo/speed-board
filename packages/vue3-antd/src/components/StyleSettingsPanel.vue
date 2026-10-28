@@ -217,6 +217,33 @@
               </button>
             </div>
           </div>
+
+          <!-- 链接配置 -->
+          <div class="panel-divider" />
+          <div class="setter-section-title">链接</div>
+          <div class="setter-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <a-input
+              :value="textState.link"
+              size="small"
+              placeholder="输入链接地址 (如 https://...)"
+              allow-clear
+              @change="(e: any) => updateTextStyle({ link: e.target.value })"
+            >
+              <template #prefix>
+                <SIconFont type="icon-kl-link1" :size="14" style="color: #9ca3af; margin-right: 2px;" />
+              </template>
+            </a-input>
+            <div v-if="textState.link" style="display: flex; justify-content: flex-end;">
+              <a
+                :href="/^[a-zA-Z]+:\/\//.test(textState.link) ? textState.link : `https://${textState.link}`"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="panel-link-open"
+              >
+                打开链接 ↗
+              </a>
+            </div>
+          </div>
         </template>
 
         <!-- 3.3 排列 Tab -->
@@ -265,9 +292,11 @@ import {
   Tabs as ATabs,
   TabPane as ATabPane,
   InputNumber as AInputNumber,
+  Input as AInput,
   Slider as ASlider,
   Popover as APopover,
 } from 'ant-design-vue'
+import { IconFont as SIconFont } from 'speed-components-ui/components'
 import type { Board } from '@speed-board/core'
 import { useNodeStyle } from '@speed-board/vue3'
 
@@ -372,9 +401,19 @@ watch(
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  z-index: 99;
+  z-index: 1000;
   overflow: hidden;
   user-select: none;
+}
+
+.panel-link-open {
+  font-size: 12px;
+  color: #1677ff;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .panel-header {

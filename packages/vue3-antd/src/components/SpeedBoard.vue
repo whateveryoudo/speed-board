@@ -24,6 +24,7 @@
     <!-- 选区浮动工具栏 (贴合所选图元的 Tip Config，支持描边/填充/连线箭头/脑图结构/更多图层对齐操作) -->
     <FloatingToolbar
       :board="boardInstance"
+      @open-panel="showSettingsPanel = true"
       @toggle-settings="showSettingsPanel = !showSettingsPanel"
     />
 

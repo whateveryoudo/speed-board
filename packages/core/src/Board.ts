@@ -540,6 +540,7 @@ export class Board {
     const child = textNode.children?.[0] || textNode;
     return {
       text: typeof child.text === 'string' ? child.text : (typeof textNode.text === 'string' ? textNode.text : ''),
+      link: selected.data?.link || selected.link || child.url || child.link || '',
       fontSize: child['font-size'] || child.fontSize || 14,
       fill: child.color || child.fill || textNode.color || textNode.fill || '#262626',
       bold: Boolean(child.bold || textNode.bold),
@@ -583,7 +584,15 @@ export class Board {
         newText.align = patch.align;
       }
 
-      Transforms.setNode(this.raw, { text: newText } as any, path);
+      const newProps: any = { text: newText };
+      if (patch.link !== undefined) {
+        newProps.link = patch.link;
+        if (element.data) {
+          newProps.data = { ...element.data, link: patch.link };
+        }
+      }
+
+      Transforms.setNode(this.raw, newProps as any, path);
     });
 
     this.syncNodeIndices();
