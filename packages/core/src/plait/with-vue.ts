@@ -53,6 +53,18 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         const editableEl = el.firstElementChild as HTMLElement;
         if (editableEl) {
           editableEl.focus();
+          // 获得焦点与失焦时，通知气泡工具栏实时隐藏与恢复
+          editableEl.addEventListener('focus', () => {
+            const wrapper = (newBoard as any).boardWrapper;
+            wrapper?.emit?.('text:editing', true);
+            wrapper?.emit?.('selection:change');
+          });
+          editableEl.addEventListener('blur', () => {
+            const wrapper = (newBoard as any).boardWrapper;
+            wrapper?.emit?.('text:editing', false);
+            wrapper?.emit?.('selection:change');
+          });
+
           // 移动光标到末尾
           const range = document.createRange();
           range.selectNodeContents(editableEl);
@@ -106,6 +118,11 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
     const ref: RenderComponentRef<TextProps> = {
       destroy: () => {
         el.innerHTML = '';
+        if (!isReadonly) {
+          const wrapper = (newBoard as any).boardWrapper;
+          wrapper?.emit?.('text:editing', false);
+          wrapper?.emit?.('selection:change');
+        }
       },
       update: (updatedProps: Partial<TextProps>) => {
         const readonlyChanged = updatedProps.readonly !== undefined && (updatedProps.readonly !== false) !== isReadonly;
@@ -115,6 +132,12 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         }
         if (updatedProps.readonly !== undefined) {
           isReadonly = updatedProps.readonly !== false;
+        }
+
+        if (readonlyChanged) {
+          const wrapper = (newBoard as any).boardWrapper;
+          wrapper?.emit?.('text:editing', !isReadonly);
+          wrapper?.emit?.('selection:change');
         }
 
         // 仅在只读状态发生变化，或者在只读模式下文本更新时才重绘 DOM。

@@ -515,6 +515,10 @@ export class Board {
     return element.type === 'image' || element.shape === 'image';
   };
 
+  isTextEditing = (): boolean => {
+    return PlaitBoard.hasBeenTextEditing(this.raw);
+  };
+
   getShapeNodeData(): any {
     const selected = this.selectedElements[0] as any;
     if (!selected) return null;
@@ -913,8 +917,8 @@ export class Board {
       targetMarker: 'none',
     };
 
-    // 绘制中或任意非选择模式下，气泡工具栏不显示
-    if (this.raw.pointer !== PlaitPointerType.selection) {
+    // 绘制中、任意非选择模式、或正在编辑/输入文本时，气泡工具栏不显示
+    if (this.raw.pointer !== PlaitPointerType.selection || PlaitBoard.hasBeenTextEditing(this.raw)) {
       return defaultState;
     }
 

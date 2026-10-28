@@ -30,7 +30,7 @@ export function useFloatingToolbar(source: BoardSource) {
   watch(
     () => resolveBoard(source),
     (board, oldBoard) => {
-      const events = ['selection:change', 'change', 'scale', 'viewport:change', 'pointer:change'];
+      const events = ['selection:change', 'change', 'scale', 'viewport:change', 'pointer:change', 'text:editing'];
       if (oldBoard) {
         for (const ev of events) {
           oldBoard.off(ev, sync);
