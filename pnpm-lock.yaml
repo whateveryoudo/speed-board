@@ -86,6 +86,19 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/extensions/extension-mindmap:
+    dependencies:
+      '@speed-board/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@speed-board/shared':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/shared:
     devDependencies:
       typescript:
@@ -122,9 +135,18 @@ importers:
       '@ant-design/icons-vue':
         specifier: ^7.0.0
         version: 7.0.1(vue@3.5.44(typescript@5.9.3))
+      '@floating-ui/dom':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@speed-board/core':
         specifier: workspace:*
         version: link:../core
+      '@speed-board/extension-mindmap':
+        specifier: workspace:*
+        version: link:../extensions/extension-mindmap
+      '@speed-board/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@speed-board/vue3':
         specifier: workspace:*
         version: link:../vue3
@@ -338,6 +360,15 @@ packages:
     engines: {node: '>=12'}
     cpu: [x64]
     os: [win32]
+
+  '@floating-ui/core@1.8.0':
+    resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
+
+  '@floating-ui/dom@1.8.0':
+    resolution: {integrity: sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg==}
+
+  '@floating-ui/utils@0.2.12':
+    resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
@@ -928,6 +959,17 @@ snapshots:
 
   '@esbuild/win32-x64@0.21.5':
     optional: true
+
+  '@floating-ui/core@1.8.0':
+    dependencies:
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/dom@1.8.0':
+    dependencies:
+      '@floating-ui/core': 1.8.0
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/utils@0.2.12': {}
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
 

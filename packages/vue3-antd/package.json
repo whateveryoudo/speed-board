@@ -13,8 +13,11 @@
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.0",
+    "@floating-ui/dom": "^1.8.0",
     "@speed-board/core": "workspace:*",
     "@speed-board/vue3": "workspace:*",
+    "@speed-board/shared": "workspace:*",
+    "@speed-board/extension-mindmap": "workspace:*",
     "ant-design-vue": "^4.2.0",
     "lodash-es": "^4.17.21",
     "speed-components-ui": "link:../../../speed-components",

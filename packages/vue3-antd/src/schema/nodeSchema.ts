@@ -63,7 +63,7 @@ export interface NodeSchema {
 export const shapeSchema: NodeSchema = {
   type: 'shape',
   label: '图形',
-  quickToolbar: ['fill', 'stroke', 'text', 'open-panel'],
+  quickToolbar: ['shape-switch', 'fill', 'stroke', 'text', 'link', 'open-panel'],
   panel: {
     tabs: ['style', 'text', 'arrange'],
     sections: {
@@ -93,7 +93,7 @@ export const imageSchema: NodeSchema = {
 export const lineSchema: NodeSchema = {
   type: 'line',
   label: '线条',
-  quickToolbar: ['line-type', 'stroke', 'arrow-head', 'open-panel'],
+  quickToolbar: ['line-type', 'stroke', 'line-reverse', 'arrow-head', 'line-text', 'open-panel'],
   panel: {
     tabs: ['style', 'text', 'arrange'],
     sections: {
@@ -122,7 +122,7 @@ export const vectorSchema: NodeSchema = {
 export const textSchema: NodeSchema = {
   type: 'text',
   label: '文本',
-  quickToolbar: ['font-size', 'text-color', 'bold', 'align-h', 'open-panel'],
+  quickToolbar: ['text', 'link', 'open-panel'],
   panel: {
     tabs: ['text', 'arrange'],
     sections: {
@@ -164,9 +164,13 @@ export const mindmapRootSchema: NodeSchema = {
   label: '思维导图 (中心主题)',
   quickToolbar: [
     'mindmap-layout',
+    'mindmap-branch',
+    'mindmap-shape',
+    'mindmap-marker',
     'fill',
     'stroke',
     'text',
+    'link',
     'open-panel',
   ],
   panel: {
@@ -184,10 +188,14 @@ export const mindmapNodeSchema: NodeSchema = {
   type: 'mindmap-node',
   label: '思维导图 (分支主题)',
   quickToolbar: [
-    'mindmap-layout',
+    'mindmap-branch',
+    'mindmap-shape',
+    'mindmap-marker',
+    'mindmap-summary',
     'fill',
     'stroke',
     'text',
+    'link',
     'open-panel',
   ],
   panel: {
@@ -205,9 +213,12 @@ export const mindmapSummarySchema: NodeSchema = {
   type: 'mindmap-summary',
   label: '思维导图 (概要主题)',
   quickToolbar: [
+    'mindmap-shape',
+    'mindmap-marker',
     'fill',
     'stroke',
     'text',
+    'link',
     'open-panel',
   ],
   panel: {
