@@ -11,7 +11,14 @@ import {
   ArrowLineShape,
   MindPointerType,
   MindTransforms,
+  MindElement,
+  BranchShape,
+  MindElementShape,
+  MindLayoutType,
+  AbstractNode,
   createEmptyMind,
+  editTopic,
+  canSetAbstract,
   createTextElement,
   createDefaultGeometry,
   createArrowLineElement,
@@ -35,6 +42,7 @@ import {
   VectorLinePointerType,
   isClosedPoints,
 } from './plait';
+import { PlaitMind } from '@plait/mind';
 import { createSpeedPlaitBoard, type CreatePlaitBoardOptions } from './plait/board-factory';
 import {
   getShapeById,
@@ -301,22 +309,128 @@ export class Board {
     if (topic && emptyMind.data?.topic?.children?.[0]) {
       emptyMind.data.topic.children[0].text = topic;
     }
+    // 1. 中心主题文本默认水平居中
+    if (emptyMind.data?.topic) {
+      emptyMind.data.topic.align = 'center';
+    }
+    // 2. 中心主题默认样式：圆角矩形、品牌蓝背景填充、白色文字
+    emptyMind.shape = MindElementShape.roundRectangle;
+    emptyMind.fill = '#2563eb';
+    emptyMind.strokeColor = '#2563eb';
+    if (emptyMind.data?.topic?.children?.[0]) {
+      emptyMind.data.topic.children[0].color = '#ffffff';
+    }
+
     MindTransforms.insertMind(this.raw, emptyMind);
     this.setPointer(PlaitPointerType.selection);
+    this.select([emptyMind]);
     this.emit('change', {});
+
+    // 默认创建后立即聚焦并进入文本编辑态
+    setTimeout(() => {
+      try {
+        editTopic(emptyMind);
+      } catch (e) {}
+    }, 50);
+
     return emptyMind;
   }
 
   setMindmapLayout(layout: string) {
+    const layoutMap: Record<string, string> = {
+      balanced: MindLayoutType.standard,
+      standard: MindLayoutType.standard,
+      right: MindLayoutType.right,
+      left: MindLayoutType.left,
+      'org-down': MindLayoutType.downward,
+      downward: MindLayoutType.downward,
+      'tree-right': MindLayoutType.rightBottomIndented,
+      'tree-left': MindLayoutType.leftBottomIndented,
+      'timeline-up': MindLayoutType.upward,
+      upward: MindLayoutType.upward,
+    };
+    const targetLayout = layoutMap[layout] || layout;
     this.syncNodeIndices();
-    MindTransforms.setLayout(this.raw, layout as any);
+    MindTransforms.setLayout(this.raw, targetLayout as any);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  setMindmapBranchShape(shape: string) {
+    const branchShape =
+      shape === 'curve' || shape === 'bight' ? BranchShape.bight : BranchShape.polyline;
+    this.syncNodeIndices();
+    MindTransforms.setBranchShape(this.raw, branchShape);
     this.syncNodeIndices();
     this.emit('change', {});
   }
 
   setMindmapShape(shape: string) {
+    const plaitShape =
+      shape === 'none' || shape === 'underline'
+        ? MindElementShape.underline
+        : MindElementShape.roundRectangle;
     this.syncNodeIndices();
-    MindTransforms.setShape(this.raw, shape as any);
+    MindTransforms.setShape(this.raw, plaitShape as any);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  addMindmapSummary() {
+    const selected = (this.selectedElements || []).filter((el) => MindElement.isMindElement(this.raw, el));
+    if (selected.length === 0) return;
+    this.syncNodeIndices();
+    MindTransforms.insertAbstract(this.raw, selected);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  setMindmapMarkers(markers: Record<string, any>) {
+    const selected = (this.selectedElements || []).filter((el) => MindElement.isMindElement(this.raw, el));
+    if (selected.length === 0) return;
+
+    const emojis: Array<{ symbolId: string; name: string; id: string }> = [];
+    if (typeof markers.priority === 'number' && markers.priority >= 1 && markers.priority <= 7) {
+      emojis.push({
+        symbolId: `marker-priority-${markers.priority}`,
+        name: `priority-${markers.priority}`,
+        id: `marker-priority-${markers.priority}`,
+      });
+    }
+    if (typeof markers.progress === 'number' && markers.progress >= 0 && markers.progress <= 6) {
+      emojis.push({
+        symbolId: `marker-progress-${markers.progress}`,
+        name: `progress-${markers.progress}`,
+        id: `marker-progress-${markers.progress}`,
+      });
+    }
+    if (markers.flag) {
+      const flagKey = markers.flag.startsWith('flag-') ? markers.flag : `flag-${markers.flag}`;
+      emojis.push({
+        symbolId: `marker-${flagKey}`,
+        name: flagKey,
+        id: `marker-${flagKey}`,
+      });
+    }
+
+    this.syncNodeIndices();
+    selected.forEach((element) => {
+      const path = this.getElementPath(element);
+      if (path) {
+        const currentData = (element as any).data || {};
+        Transforms.setNode(
+          this.raw,
+          {
+            data: {
+              ...currentData,
+              markers: { ...markers },
+              emojis: emojis.length > 0 ? emojis : undefined,
+            },
+          },
+          path
+        );
+      }
+    });
     this.syncNodeIndices();
     this.emit('change', {});
   }
@@ -756,15 +870,25 @@ export class Board {
     if (props.strokeColor && !props.stroke) {
       props.stroke = props.strokeColor;
     }
-    if (props.shape) {
-      props.shape = this.mapShapeToPointer(props.shape);
-    }
     this.syncNodeIndices();
     const selected = getSelectedElements(this.raw);
+    const hasMind = selected.some((el) => MindElement.isMindElement(this.raw, el));
+    if (props.shape && !hasMind) {
+      props.shape = this.mapShapeToPointer(props.shape);
+    }
     selected.forEach((element) => {
       const path = this.getElementPath(element);
       if (path) {
-        Transforms.setNode(this.raw, props, path);
+        if (MindElement.isMindElement(this.raw, element)) {
+          const mindProps = { ...props };
+          if (props.stroke || props.strokeColor) {
+            mindProps.strokeColor = props.stroke || props.strokeColor;
+            mindProps.branchColor = props.stroke || props.strokeColor;
+          }
+          Transforms.setNode(this.raw, mindProps, path);
+        } else {
+          Transforms.setNode(this.raw, props, path);
+        }
       }
     });
     this.syncNodeIndices();
@@ -822,8 +946,8 @@ export class Board {
     } else if (this.isLineNode(first) || first.shape === 'straight' || first.shape === 'elbow' || first.shape === 'curve') {
       selectedType = 'line';
     } else if (this.isMindmapNode(first) || first.type === 'mind' || first.isRoot || first.children) {
-      if (first.isSummary) selectedType = 'mindmap-summary';
-      else if (first.isRoot) selectedType = 'mindmap-root';
+      if (first.isSummary || AbstractNode.isAbstract(first)) selectedType = 'mindmap-summary';
+      else if (first.isRoot || PlaitMind.isMind(first)) selectedType = 'mindmap-root';
       else selectedType = 'mindmap-node';
     } else if (this.isImageNode(first) || type === 'image') {
       selectedType = 'image';
@@ -863,6 +987,16 @@ export class Board {
       return {
         fill: 'transparent',
         stroke: cell.stroke || '#374151',
+        strokeWidth: cell.strokeWidth ?? 2,
+        strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',
+        opacity: cell.opacity ?? 1,
+      };
+    }
+
+    if (this.isMindmapNode(cell)) {
+      return {
+        fill: cell.fill || (PlaitMind.isMind(cell) ? '#2563eb' : 'transparent'),
+        stroke: cell.strokeColor || cell.branchColor || cell.stroke || '#374151',
         strokeWidth: cell.strokeWidth ?? 2,
         strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',
         opacity: cell.opacity ?? 1,

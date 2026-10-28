@@ -89,13 +89,18 @@ export {
 export {
   MindTransforms,
   MindElement,
+  BranchShape,
+  MindElementShape,
   MindThemeColors,
   MindPointerType,
   createEmptyMind,
+  editTopic,
+  canSetAbstract,
 } from '@plait/mind';
 
 export {
   MindLayoutType,
+  AbstractNode,
 } from '@plait/layouts';
 
 export {

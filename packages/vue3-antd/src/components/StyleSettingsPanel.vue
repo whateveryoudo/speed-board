@@ -74,7 +74,7 @@
               style="flex: 1; margin-left: 16px;" @change="(v) => updateStyle({ opacity: Number(v) / 100 })" />
           </div>
 
-          <!-- 脑图专属：结构布局 -->
+          <!-- 脑图专属：结构布局与分支 -->
           <template v-if="selectedType.startsWith('mindmap')">
             <div class="panel-divider" />
             <div class="setter-section-title">脑图结构</div>
@@ -87,6 +87,15 @@
               </button>
               <button class="struct-btn" @click="props.board?.setMindmapLayout('left')">
                 向左分布
+              </button>
+            </div>
+            <div class="setter-section-title" style="margin-top: 10px;">分支连线</div>
+            <div class="setter-row">
+              <button class="struct-btn" @click="props.board?.setMindmapBranchShape('curve')">
+                曲线/圆角
+              </button>
+              <button class="struct-btn" @click="props.board?.setMindmapBranchShape('straight')">
+                直角/折线
               </button>
             </div>
           </template>

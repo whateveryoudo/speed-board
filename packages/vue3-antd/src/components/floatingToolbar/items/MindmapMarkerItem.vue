@@ -91,10 +91,8 @@ import {
   PROGRESS_MARKERS,
   FLAG_MARKERS,
   ensureMarkerSprite,
-  type MindmapNodeData,
   type MindmapMarkers,
 } from '@speed-board/shared'
-import { updateMindmapLayout } from '@speed-board/extension-mindmap'
 import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
@@ -133,7 +131,7 @@ const updateMarkers = (updater: (prev: MindmapMarkers) => MindmapMarkers) => {
   const cell = selectedCell.value
   if (!cell || !props.board) return
 
-  const currentData = ((cell.getData ? cell.getData() : cell.data) || cell || {}) as MindmapNodeData
+  const currentData = ((cell.getData ? cell.getData() : cell.data) || cell || {}) as any
   const prev = currentData.markers || {}
   const next = updater({ ...prev })
 
@@ -143,30 +141,16 @@ const updateMarkers = (updater: (prev: MindmapMarkers) => MindmapMarkers) => {
   if (typeof next.progress === 'number') cleaned.progress = next.progress
   if (next.flag) cleaned.flag = next.flag
 
-  const markersVal = Object.keys(cleaned).length > 0 ? cleaned : undefined
-
-  if (typeof cell.setData === 'function') {
-    cell.setData(
-      {
-        ...currentData,
-        markers: markersVal,
-      },
-      { overwrite: true }
-    )
+  if (typeof (props.board as any).setMindmapMarkers === 'function') {
+    (props.board as any).setMindmapMarkers(cleaned)
   } else if (props.board.setShapeProperty) {
     props.board.setShapeProperty({
       data: {
         ...currentData,
-        markers: markersVal,
+        markers: cleaned,
       },
-      markers: markersVal,
+      markers: cleaned,
     })
-  }
-
-  try {
-    updateMindmapLayout(props.board, currentData.mindmapId || cell.id)
-  } catch (err) {
-    // optional layout sync
   }
 }
 

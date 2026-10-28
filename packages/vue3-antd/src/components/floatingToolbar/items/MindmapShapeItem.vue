@@ -60,12 +60,9 @@ const selectedCell = computed(() => {
 
 const currentShapeStyle = computed<MindmapShapeStyle>(() => {
   if (!selectedCell.value) return 'rect'
-  const data = (selectedCell.value.getData ? selectedCell.value.getData() : selectedCell.value.data) || selectedCell.value || {}
-  const style = data?.shapeStyle || selectedCell.value?.shapeStyle
-  if (!style || style === 'underline') {
-    return 'rect'
-  }
-  return style
+  const cell = selectedCell.value
+  if (cell.shape === 'underline') return 'none'
+  return 'rect'
 })
 
 const currentShapeIcon = computed(() => {
@@ -74,32 +71,10 @@ const currentShapeIcon = computed(() => {
 })
 
 const selectShape = (style: MindmapShapeStyle) => {
-  if (!props.board || !selectedCell.value) return
-  const node = selectedCell.value
-  const data = ((node.getData ? node.getData() : node.data) || node || {}) as any
-
-  if (style === 'none') {
-    props.board.setShapeProperty({
-      shapeStyle: style,
-      fill: 'transparent',
-      stroke: 'transparent',
-      strokeWidth: 0,
-    })
-  } else if (style === 'capsule') {
-    props.board.setShapeProperty({
-      shapeStyle: style,
-      shape: 'capsule',
-    })
-  } else if (style === 'rect') {
-    props.board.setShapeProperty({
-      shapeStyle: style,
-      shape: 'rectangle',
-    })
+  if (!props.board) return
+  if (typeof (props.board as any).setMindmapShape === 'function') {
+    (props.board as any).setMindmapShape(style)
   }
-
-  try {
-    ;(props.board as any).commands?.updateMindmapLayout?.(data.mindmapId || node.id)
-  } catch (err) {}
   isOpen.value = false
 }
 </script>

@@ -67,9 +67,13 @@ const selectedCell = computed(() => {
 const currentStructure = computed<string>(() => {
   if (!selectedCell.value || !props.board) return 'balanced'
   const cell = selectedCell.value
-  const data = (cell.getData ? cell.getData() : cell.data) || cell || {}
-  if (data?.structure) return data.structure
-  return cell.structure || cell.layout || 'balanced'
+  const layout = cell.layout || cell.data?.structure || cell.structure || 'balanced'
+  if (layout === 'standard') return 'balanced'
+  if (layout === 'downward') return 'org-down'
+  if (layout === 'upward') return 'timeline-up'
+  if (layout === 'right-bottom-indented') return 'tree-right'
+  if (layout === 'left-bottom-indented') return 'tree-left'
+  return layout
 })
 
 const currentLayoutIcon = computed(() => {
@@ -78,13 +82,9 @@ const currentLayoutIcon = computed(() => {
 })
 
 const selectLayout = (layoutKey: string) => {
-  if (!props.board || !selectedCell.value) return
+  if (!props.board) return
   if (typeof (props.board as any).setMindmapLayout === 'function') {
     (props.board as any).setMindmapLayout(layoutKey)
-  } else if ((props.board as any).commands?.setMindmapStructure) {
-    (props.board as any).commands.setMindmapStructure(selectedCell.value.id, layoutKey)
-  } else {
-    props.board.setShapeProperty({ layout: layoutKey, structure: layoutKey })
   }
   isOpen.value = false
 }

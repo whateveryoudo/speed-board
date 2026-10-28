@@ -14,9 +14,8 @@
 import { computed } from 'vue'
 import { Tooltip as ATooltip } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
-import type { MindmapNodeData } from '@speed-board/shared'
-import { addMindmapSummary } from '@speed-board/extension-mindmap'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
+
 const props = defineProps<{
   board: Board | null
 }>()
@@ -28,19 +27,13 @@ const selectedCell = computed(() => {
 const isSummaryNode = computed(() => {
   if (!selectedCell.value) return false
   const cell = selectedCell.value
-  const data = (cell.getData ? cell.getData() : cell.data) as MindmapNodeData | undefined
-  return Boolean(data?.isSummary || cell.isSummary)
+  return Boolean(cell.isSummary || cell.type === 'mindmap-summary')
 })
 
 const handleAddSummary = () => {
   if (!props.board || !selectedCell.value) return
-  const cell = selectedCell.value
-  const data = ((cell.getData ? cell.getData() : cell.data) || cell) as MindmapNodeData | undefined
-  if (data?.isRoot || data?.isSummary || cell.isRoot || cell.isSummary) return
-  try {
-    addMindmapSummary(props.board, cell.id)
-  } catch (err) {
-    console.warn('addMindmapSummary error', err)
+  if (typeof (props.board as any).addMindmapSummary === 'function') {
+    (props.board as any).addMindmapSummary()
   }
 }
 </script>
