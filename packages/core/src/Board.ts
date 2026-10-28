@@ -30,6 +30,7 @@ import {
   NODE_TO_PARENT,
   getRectangleByElements,
   toHostPointFromViewBoxPoint,
+  toScreenPointFromHostPoint,
   RectangleClient,
   VectorLinePointerType,
   isClosedPoints,
@@ -804,18 +805,31 @@ export class Board {
 
       if (!rect) return null;
 
-      const hostTopLeft = toHostPointFromViewBoxPoint(this.raw, [rect.x, rect.y]);
-      const hostBottomRight = toHostPointFromViewBoxPoint(this.raw, [
-        rect.x + rect.width,
-        rect.y + rect.height,
-      ]);
-      const width = hostBottomRight[0] - hostTopLeft[0];
+      const [start, end] = RectangleClient.getPoints(rect);
+      const screenStart = toScreenPointFromHostPoint(
+        this.raw,
+        toHostPointFromViewBoxPoint(this.raw, start)
+      );
+      const screenEnd = toScreenPointFromHostPoint(
+        this.raw,
+        toHostPointFromViewBoxPoint(this.raw, end)
+      );
+      const width = screenEnd[0] - screenStart[0];
+      const height = screenEnd[1] - screenStart[1];
+
+      // 获取定位参考容器（SpeedBoard 或 BoardContainer）的绝对屏幕偏移
+      const boardContainer = PlaitBoard.getBoardContainer(this.raw);
+      const containerEl = (boardContainer?.closest('.speed-board') || boardContainer) as HTMLElement | null;
+      const containerRect = containerEl?.getBoundingClientRect();
+
+      const offsetLeft = containerRect ? containerRect.left : 0;
+      const offsetTop = containerRect ? containerRect.top : 0;
 
       return {
-        left: hostTopLeft[0] + width / 2,
-        top: hostTopLeft[1] - 12,
+        left: screenStart[0] - offsetLeft + width / 2,
+        top: screenStart[1] - offsetTop - 12,
         width,
-        height: hostBottomRight[1] - hostTopLeft[1],
+        height,
       };
     } catch {
       return null;

@@ -1,33 +1,219 @@
 import {
+  ACTIVE_STROKE_WIDTH,
   BoardTransforms,
+  OnContextChanged,
   PlaitBoard,
+  PlaitPluginElementContext,
   PlaitPointerType,
   Point,
+  RectangleClient,
   Transforms,
   addSelectedElement,
   clearSelectedElement,
   createG,
   distanceBetweenPointAndPoint,
   getSelectedElements,
+  isSelectionMoving,
   toHostPoint,
   toViewBoxPoint,
 } from '@plait/core';
-import { isDrawingMode } from '@plait/common';
+import {
+  ResizeHandle,
+  ResizeRef,
+  ResizeState,
+  WithResizeOptions,
+  createActiveGenerator,
+  isDrawingMode,
+  withResize,
+  getRectangleResizeHandleRefs,
+  RESIZE_HANDLE_DIAMETER,
+} from '@plait/common';
 import {
   DefaultLineStyle,
   LINE_HIT_GEOMETRY_BUFFER,
+  PlaitDrawElement,
   PlaitVectorLine,
+  VectorLineComponent,
   VectorLinePointerType,
   VectorLineShape,
   createVectorLineElement,
   getLineMemorizedLatest,
   getVectorLinePointers,
+  getVectorLinePoints,
   isClosedPoints,
   vectorLineCreating,
 } from '@plait/draw';
 
+/**
+ * 闭合多边形与矢量折线渲染组件
+ * - 闭合多边形：选中时展示矩形包围盒选区边框（4角手柄），边线上不显示任何顶点或中点标记
+ * - 开放折线：选中时展示折线各顶点控制点
+ */
+export class SpeedVectorLineComponent
+  extends VectorLineComponent
+  implements OnContextChanged<PlaitVectorLine, PlaitBoard>
+{
+  closedActiveGenerator: any = null;
+
+  initializeGenerator() {
+    super.initializeGenerator();
+
+    this.getRef().updateActiveSection = () => {
+      const isClosed = isClosedPoints(this.element.points);
+      if (isClosed) {
+        if (!this.closedActiveGenerator) {
+          this.closedActiveGenerator = createActiveGenerator(this.board, {
+            getStrokeWidth: () => ACTIVE_STROKE_WIDTH,
+            getStrokeOpacity: () => {
+              const selectedElements = getSelectedElements(this.board);
+              return selectedElements.length === 1 && !isSelectionMoving(this.board)
+                ? 1
+                : 0.5;
+            },
+            getRectangle: (element: PlaitVectorLine) => {
+              return RectangleClient.getRectangleByPoints(element.points);
+            },
+            hasResizeHandle: () => true,
+          });
+        }
+        // 销毁折线顶点控制点，替换为标准矩形包围盒
+        this.activeGenerator?.destroy();
+        this.closedActiveGenerator.processDrawing(
+          this.element,
+          PlaitBoard.getActiveHost(this.board),
+          {
+            selected: this.selected,
+          }
+        );
+      } else {
+        this.closedActiveGenerator?.destroy();
+        const linePoints = getVectorLinePoints(this.board, this.element) || this.element.points;
+        this.activeGenerator.processDrawing(
+          this.element,
+          PlaitBoard.getActiveHost(this.board),
+          {
+            selected: this.selected,
+            linePoints,
+          }
+        );
+      }
+    };
+  }
+
+  initialize(): void {
+    super.initialize();
+    this.getRef().updateActiveSection?.();
+  }
+
+  onContextChanged(
+    value: PlaitPluginElementContext<PlaitVectorLine, PlaitBoard>,
+    previous: PlaitPluginElementContext<PlaitVectorLine, PlaitBoard>
+  ) {
+    super.onContextChanged(value, previous);
+    this.getRef().updateActiveSection?.();
+  }
+
+  destroy(): void {
+    super.destroy();
+    this.closedActiveGenerator?.destroy();
+  }
+}
+
+/**
+ * 闭合多边形支持 4 角矩形框缩放变形
+ */
+export const withClosedPolygonResize = (board: PlaitBoard) => {
+  const options: WithResizeOptions<PlaitVectorLine, ResizeHandle> = {
+    key: 'closed-polygon-resize',
+    canResize: () => {
+      const selected = getSelectedElements(board);
+      return (
+        selected.length === 1 &&
+        PlaitDrawElement.isVectorLine(selected[0]) &&
+        isClosedPoints(selected[0].points)
+      );
+    },
+    hitTest: (point: Point) => {
+      const selected = getSelectedElements(board);
+      if (selected.length !== 1 || !PlaitDrawElement.isVectorLine(selected[0])) {
+        return null;
+      }
+      const el = selected[0] as PlaitVectorLine;
+      if (!isClosedPoints(el.points)) return null;
+
+      const rect = RectangleClient.getRectangleByPoints(el.points);
+      const handleRefs = getRectangleResizeHandleRefs(rect, RESIZE_HANDLE_DIAMETER);
+      const hit = handleRefs.find((r) =>
+        RectangleClient.isHit(
+          RectangleClient.getRectangleByPoints([point, point]),
+          r.rectangle
+        )
+      );
+      if (hit) {
+        return {
+          element: el,
+          rectangle: rect,
+          handle: hit.handle,
+          cursorClass: hit.cursorClass,
+        };
+      }
+      return null;
+    },
+    onResize: (
+      resizeRef: ResizeRef<PlaitVectorLine, ResizeHandle>,
+      resizeState: ResizeState
+    ) => {
+      const element = resizeRef.element;
+      const oldRect = resizeRef.rectangle!;
+      const handle = resizeRef.handle;
+      const endPoint = resizeState.endPoint;
+
+      const isLeft = handle.includes('left');
+      const isRight = handle.includes('right');
+      const isTop = handle.includes('top');
+      const isBottom = handle.includes('bottom');
+
+      let x1 = oldRect.x;
+      let y1 = oldRect.y;
+      let x2 = oldRect.x + oldRect.width;
+      let y2 = oldRect.y + oldRect.height;
+
+      if (isLeft) x1 = Math.min(endPoint[0], x2 - 10);
+      if (isRight) x2 = Math.max(endPoint[0], x1 + 10);
+      if (isTop) y1 = Math.min(endPoint[1], y2 - 10);
+      if (isBottom) y2 = Math.max(endPoint[1], y1 + 10);
+
+      const newWidth = Math.max(x2 - x1, 10);
+      const newHeight = Math.max(y2 - y1, 10);
+
+      const points: Point[] = element.points.map((p) => {
+        const normX = oldRect.width > 0 ? (p[0] - oldRect.x) / oldRect.width : 0;
+        const normY = oldRect.height > 0 ? (p[1] - oldRect.y) / oldRect.height : 0;
+        return [x1 + normX * newWidth, y1 + normY * newHeight];
+      });
+
+      const path =
+        (board as any).getElementPath?.(element) || [
+          board.children.indexOf(element),
+        ];
+      Transforms.setNode(board, { points }, path);
+    },
+  };
+
+  withResize<PlaitVectorLine, ResizeHandle>(board, options);
+  return board;
+};
+
 export const withVectorEnhance = (board: PlaitBoard) => {
-  const { pointerDown, pointerMove, dblClick, globalKeyDown } = board;
+  const { drawElement, pointerDown, pointerMove, dblClick, globalKeyDown } = board;
+
+  // 1. 替换 VectorLineComponent，为闭合多边形提供纯净矩形选中框
+  board.drawElement = (context: PlaitPluginElementContext) => {
+    if (PlaitDrawElement.isVectorLine(context.element)) {
+      return SpeedVectorLineComponent;
+    }
+    return drawElement(context);
+  };
 
   let lineShapeG: SVGGElement | null = null;
   let waypointsG: SVGGElement | null = null;
@@ -277,5 +463,5 @@ export const withVectorEnhance = (board: PlaitBoard) => {
     globalKeyDown(event);
   };
 
-  return board;
+  return withClosedPolygonResize(board);
 };
