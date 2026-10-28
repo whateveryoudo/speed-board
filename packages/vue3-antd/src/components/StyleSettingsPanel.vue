@@ -1,6 +1,14 @@
 <template>
   <transition name="drawer-slide">
-    <div v-show="props.visible" class="style-settings-panel">
+    <div
+      v-show="props.visible"
+      class="style-settings-panel plait-board-attached"
+      @pointerdown.stop
+      @pointerup.stop
+      @mousedown.stop
+      @mouseup.stop
+      @click.stop
+    >
       <!-- 1. 顶部标头 (标题 + 关闭按钮) -->
       <div class="panel-header">
         <span class="panel-title">设置</span>
@@ -26,7 +34,13 @@
           <div v-if="hasFill" class="setter-row">
             <span class="label">填充颜色</span>
             <div class="color-control-wrapper">
-              <a-popover v-model:open="fillOpen" trigger="click" placement="left" :arrow="false">
+              <a-popover
+                v-model:open="fillOpen"
+                trigger="click"
+                placement="left"
+                overlay-class-name="style-popover-overlay plait-board-attached"
+                :arrow="false"
+              >
                 <template #content>
                   <div class="color-picker-grid">
                     <div
@@ -54,7 +68,13 @@
           <div v-if="hasStroke" class="setter-row">
             <span class="label">边框描边</span>
             <div class="color-control-wrapper">
-              <a-popover v-model:open="strokeOpen" trigger="click" placement="left" :arrow="false">
+              <a-popover
+                v-model:open="strokeOpen"
+                trigger="click"
+                placement="left"
+                overlay-class-name="style-popover-overlay plait-board-attached"
+                :arrow="false"
+              >
                 <template #content>
                   <div class="color-picker-grid">
                     <div
@@ -141,7 +161,13 @@
           <div class="setter-row">
             <span class="label">颜色</span>
             <div class="color-control-wrapper">
-              <a-popover v-model:open="textColorOpen" trigger="click" placement="left" :arrow="false">
+              <a-popover
+                v-model:open="textColorOpen"
+                trigger="click"
+                placement="left"
+                overlay-class-name="style-popover-overlay plait-board-attached"
+                :arrow="false"
+              >
                 <template #content>
                   <div class="color-picker-grid">
                     <div
@@ -337,10 +363,10 @@ watch(
 <style scoped lang="less">
 .style-settings-panel {
   position: absolute;
-  top: 60px;
+  top: 104px; /* 紧随右上角胶囊下方垂直排列，避免遮挡顶部视口工具胶囊 */
   right: 16px;
-  bottom: 24px;
-  width: 260px;
+  width: 280px;
+  max-height: calc(100vh - 120px);
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);

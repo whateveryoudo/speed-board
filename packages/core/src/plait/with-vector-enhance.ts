@@ -46,57 +46,39 @@ import {
 
 /**
  * 闭合多边形与矢量折线渲染组件
- * - 闭合多边形：选中时展示矩形包围盒选区边框（4角手柄），边线上不显示任何顶点或中点标记
- * - 开放折线：选中时展示折线各顶点控制点
+ * 选中时统一展示干净的矩形包围盒选区边框（4角缩放手柄），边线上绝对不显示任何顶点或中点标记
  */
 export class SpeedVectorLineComponent
   extends VectorLineComponent
   implements OnContextChanged<PlaitVectorLine, PlaitBoard>
 {
-  closedActiveGenerator: any = null;
-
   initializeGenerator() {
     super.initializeGenerator();
 
+    // 彻底销毁底层 LineActiveGenerator，替换为矩形选区与4角手柄生成器
+    this.activeGenerator?.destroy();
+    this.activeGenerator = createActiveGenerator(this.board, {
+      getStrokeWidth: () => ACTIVE_STROKE_WIDTH,
+      getStrokeOpacity: () => {
+        const selectedElements = getSelectedElements(this.board);
+        return selectedElements.length === 1 && !isSelectionMoving(this.board)
+          ? 1
+          : 0.5;
+      },
+      getRectangle: (element: PlaitVectorLine) => {
+        return RectangleClient.getRectangleByPoints(element.points);
+      },
+      hasResizeHandle: () => true,
+    });
+
     this.getRef().updateActiveSection = () => {
-      const isClosed = isClosedPoints(this.element.points);
-      if (isClosed) {
-        if (!this.closedActiveGenerator) {
-          this.closedActiveGenerator = createActiveGenerator(this.board, {
-            getStrokeWidth: () => ACTIVE_STROKE_WIDTH,
-            getStrokeOpacity: () => {
-              const selectedElements = getSelectedElements(this.board);
-              return selectedElements.length === 1 && !isSelectionMoving(this.board)
-                ? 1
-                : 0.5;
-            },
-            getRectangle: (element: PlaitVectorLine) => {
-              return RectangleClient.getRectangleByPoints(element.points);
-            },
-            hasResizeHandle: () => true,
-          });
+      this.activeGenerator.processDrawing(
+        this.element,
+        PlaitBoard.getActiveHost(this.board),
+        {
+          selected: this.selected,
         }
-        // 销毁折线顶点控制点，替换为标准矩形包围盒
-        this.activeGenerator?.destroy();
-        this.closedActiveGenerator.processDrawing(
-          this.element,
-          PlaitBoard.getActiveHost(this.board),
-          {
-            selected: this.selected,
-          }
-        );
-      } else {
-        this.closedActiveGenerator?.destroy();
-        const linePoints = getVectorLinePoints(this.board, this.element) || this.element.points;
-        this.activeGenerator.processDrawing(
-          this.element,
-          PlaitBoard.getActiveHost(this.board),
-          {
-            selected: this.selected,
-            linePoints,
-          }
-        );
-      }
+      );
     };
   }
 
@@ -115,12 +97,11 @@ export class SpeedVectorLineComponent
 
   destroy(): void {
     super.destroy();
-    this.closedActiveGenerator?.destroy();
   }
 }
 
 /**
- * 闭合多边形支持 4 角矩形框缩放变形
+ * 闭合多边形与多点折线支持 4 角矩形框缩放变形
  */
 export const withClosedPolygonResize = (board: PlaitBoard) => {
   const options: WithResizeOptions<PlaitVectorLine, ResizeHandle> = {
@@ -129,8 +110,7 @@ export const withClosedPolygonResize = (board: PlaitBoard) => {
       const selected = getSelectedElements(board);
       return (
         selected.length === 1 &&
-        PlaitDrawElement.isVectorLine(selected[0]) &&
-        isClosedPoints(selected[0].points)
+        PlaitDrawElement.isVectorLine(selected[0])
       );
     },
     hitTest: (point: Point) => {
@@ -139,8 +119,6 @@ export const withClosedPolygonResize = (board: PlaitBoard) => {
         return null;
       }
       const el = selected[0] as PlaitVectorLine;
-      if (!isClosedPoints(el.points)) return null;
-
       const rect = RectangleClient.getRectangleByPoints(el.points);
       const handleRefs = getRectangleResizeHandleRefs(rect, RESIZE_HANDLE_DIAMETER);
       const hit = handleRefs.find((r) =>
@@ -309,10 +287,17 @@ export const withVectorEnhance = (board: PlaitBoard) => {
     }
 
     const finalPoints: Point[] = [...drawPoints];
-    if (isClosed) {
-      finalPoints.push([drawPoints[0][0], drawPoints[0][1]]);
+    // 若吸附首点闭合，或者至少3个点时按 Enter/双击完成，自动闭合为多边形
+    const shouldClose = isClosed || drawPoints.length >= 3;
+    if (shouldClose) {
+      const p0 = drawPoints[0];
+      const pLast = drawPoints[drawPoints.length - 1];
+      if (p0[0] !== pLast[0] || p0[1] !== pLast[1]) {
+        finalPoints.push([p0[0], p0[1]]);
+      }
     }
 
+    const isPolygonClosed = isClosedPoints(finalPoints);
     const memorizedLatest = getLineMemorizedLatest();
     const element = createVectorLineElement(
       VectorLineShape.straight,
@@ -320,7 +305,7 @@ export const withVectorEnhance = (board: PlaitBoard) => {
       {
         strokeWidth: memorizedLatest.strokeWidth || DefaultLineStyle.strokeWidth,
         strokeColor: memorizedLatest.strokeColor || '#374151',
-        fill: isClosed ? (memorizedLatest.fill || 'transparent') : 'transparent',
+        fill: isPolygonClosed ? (memorizedLatest.fill || 'transparent') : 'transparent',
         ...memorizedLatest,
       }
     );
@@ -423,7 +408,7 @@ export const withVectorEnhance = (board: PlaitBoard) => {
       if (drawPoints.length >= 2) {
         event.preventDefault();
         event.stopPropagation();
-        finishAndSelect(isHoveringStart);
+        finishAndSelect(isHoveringStart || drawPoints.length >= 3);
         return;
       }
     }
@@ -436,12 +421,12 @@ export const withVectorEnhance = (board: PlaitBoard) => {
     const isVectorLinePointer = PlaitBoard.isInPointer(board, penPointers);
 
     if (!PlaitBoard.isReadonly(board) && isVectorLinePointer) {
-      // 1. Enter 键：代表完成绘制
+      // 1. Enter 键：代表完成绘制（>=3点自动闭合并切换至选中状态）
       if (event.key === 'Enter') {
         if (drawPoints.length >= 2) {
           event.preventDefault();
           event.stopPropagation();
-          finishAndSelect(isHoveringStart);
+          finishAndSelect(isHoveringStart || drawPoints.length >= 3);
           return;
         }
       }

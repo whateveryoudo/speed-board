@@ -1,8 +1,8 @@
 <template>
   <transition name="slide-fade">
-    <div v-show="props.visible !== false" class="left-toolbar-wrapper">
+    <div v-show="props.visible !== false" class="left-toolbar-wrapper plait-board-attached">
       <!-- 1. 主工具条悬浮胶囊 -->
-      <div class="board-floating-capsule left-toolbar-capsule" @pointerdown.stop @click.stop>
+      <div class="board-floating-capsule left-toolbar-capsule plait-board-attached" @pointerdown.stop @click.stop>
         <!-- 图标 -->
         <a-popover :align="{ offset: [10, 0] }" :arrow="false" :open="iconPickerOpen" trigger="click"
           placement="rightTop" :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"

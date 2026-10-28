@@ -694,15 +694,11 @@ export class Board {
       const path = this.getElementPath(element);
       if (path) {
         Transforms.setNode(this.raw, props, path);
-        const newEl = this.raw.children[path[0]];
-        if (newEl) {
-          clearSelectedElement(this.raw);
-          addSelectedElement(this.raw, newEl);
-        }
       }
     });
     this.syncNodeIndices();
     this.emit('change', {});
+    this.emit('selection:change', { selected: getSelectedElements(this.raw) });
   }
 
   // --- 坐标换算 ---
@@ -880,7 +876,7 @@ export class Board {
       Boolean(cell.data?.topic);
     const isImage = selectionInfo.selectedType === 'image';
 
-    const hasFill = !isArrowLine && !isImage && (!isVectorLine || isClosedVector);
+    const hasFill = !isArrowLine && !isImage;
     const hasStroke = !isImage;
     const isLine = isArrowLine;
 
@@ -892,7 +888,7 @@ export class Board {
       hasStroke,
       isLine,
       isMind,
-      currentFill: cell.fill || (isClosedVector ? '#ffffff' : 'transparent'),
+      currentFill: cell.fill || 'transparent',
       currentStrokeColor: cell.strokeColor || cell.stroke || '#374151',
       currentStrokeWidth: cell.strokeWidth ?? 2,
       currentStrokeStyle: cell.strokeStyle || 'solid',

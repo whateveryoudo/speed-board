@@ -1,5 +1,5 @@
 <template>
-  <div class="top-bar-container">
+  <div class="top-bar-container plait-board-attached">
     <!-- 1. 顶部全局导航栏 (语雀风格全宽轻量条) -->
     <header class="top-nav-header">
       <div class="header-left">

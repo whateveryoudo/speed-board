@@ -2,10 +2,13 @@
   <div
     v-show="visible"
     ref="toolbarRef"
-    class="speed-floating-toolbar"
+    class="speed-floating-toolbar plait-board-attached"
     :style="toolbarStyle"
     @pointerdown.stop
+    @pointerup.stop
     @mousedown.stop
+    @mouseup.stop
+    @click.stop
   >
     <!-- 1. 填充颜色 (几何图形、脑图节点) -->
     <a-popover
@@ -13,7 +16,7 @@
       v-model:open="fillOpen"
       trigger="click"
       placement="bottom"
-      overlay-class-name="floating-popover-overlay"
+      overlay-class-name="floating-popover-overlay plait-board-attached"
       :arrow="false"
     >
       <template #content>
@@ -47,7 +50,7 @@
       v-model:open="strokeOpen"
       trigger="click"
       placement="bottom"
-      overlay-class-name="floating-popover-overlay"
+      overlay-class-name="floating-popover-overlay plait-board-attached"
       :arrow="false"
     >
       <template #content>
@@ -187,7 +190,7 @@
       v-model:open="moreOpen"
       trigger="click"
       placement="bottom"
-      overlay-class-name="floating-popover-overlay"
+      overlay-class-name="floating-popover-overlay plait-board-attached"
       :arrow="false"
     >
       <template #content>
@@ -238,11 +241,19 @@
       </a-tooltip>
     </a-popover>
 
-    <!-- 6. 删除所选图元 -->
-    <a-tooltip title="删除 (Delete)" placement="top">
-      <button class="floating-btn is-danger" @click="deleteSelected">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+    <!-- 6. 打开右侧设置面板 (取代原删除按钮，1:1 复原原生设计器) -->
+    <a-tooltip title="打开设置面板" placement="top">
+      <button class="floating-btn" @click="emit('toggle-settings')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="21" x2="4" y2="14" />
+          <line x1="4" y1="10" x2="4" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12" y2="3" />
+          <line x1="20" y1="21" x2="20" y2="16" />
+          <line x1="20" y1="12" x2="20" y2="3" />
+          <line x1="1" y1="14" x2="7" y2="14" />
+          <line x1="9" y1="8" x2="15" y2="8" />
+          <line x1="17" y1="16" x2="23" y2="16" />
         </svg>
       </button>
     </a-tooltip>
@@ -257,6 +268,10 @@ import { useFloatingToolbar } from '@speed-board/vue3'
 
 const props = defineProps<{
   board: Board | null
+}>()
+
+const emit = defineEmits<{
+  (e: 'toggle-settings'): void
 }>()
 
 const fillOpen = ref(false)

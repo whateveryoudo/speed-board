@@ -1,15 +1,15 @@
 import type { PlaitBoard, PlaitElement, Point } from '@plait/core';
+import { isPointInPolygon } from '@plait/core';
 import { PlaitDrawElement } from '@plait/draw';
 
 /**
- * 修复 Plait 底层点击选择两个严重 Bug:
+ * 修复 Plait 底层点击选择与命中判定:
  * 1. 底层 isEmptyTextElement 在文本编辑器尚未挂载到 WeakMap 时直接访问 editor.children[0]，
  *    抛出 "Cannot read properties of undefined (reading 'children')" 异常，导致 isHit 崩溃失败。
  * 2. 底层在 isStrict=true 时，对未填充颜色且未输入文本的闭合几何形状直接 return false，
- *    导致用户必须极度精准地点在 4~5px 的边框线上才能选中，点在图形内部空白区域无法选中。
- *
- * 本插件安全捕获底层崩溃，并在底层返回 false 时，通过 board.isInsidePoint 补全几何轮廓内部判定，
- * 彻底解决“图形必须点边框才能选中，点内部选不中”的底层缺陷。
+ *    导致用户必须极度精准地点在 4~5px 的边框线上才能选中。
+ * 3. 矢量折线/多边形内部点击命中支持：当绘制了多边形或折线（顶点数 >= 3）时，
+ *    用户点击图形内部任意区域均能准确选中，无需精准点击细边框。
  */
 export const withHitEnhance = (board: PlaitBoard) => {
   const { isHit } = board;
@@ -24,7 +24,18 @@ export const withHitEnhance = (board: PlaitBoard) => {
       // 捕获底层 isEmptyTextElement 在 editor 尚未挂载时的 NPE
     }
 
-    // 2. 若底层未命中，检查点是否落在闭合几何图形轮廓内部
+    // 2. 闭合矢量折线/多边形内部命中检测
+    if (PlaitDrawElement.isVectorLine(element) && (element as any).points && (element as any).points.length >= 3) {
+      try {
+        if (isPointInPolygon(point, (element as any).points)) {
+          return true;
+        }
+      } catch {
+        // 容错兜底
+      }
+    }
+
+    // 3. 闭合几何图形轮廓内部判定
     if (PlaitDrawElement.isGeometry(element)) {
       if (typeof (board as any).isInsidePoint === 'function') {
         try {
