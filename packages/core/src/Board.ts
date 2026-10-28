@@ -31,6 +31,7 @@ import {
   getRectangleByElements,
   toHostPointFromViewBoxPoint,
   RectangleClient,
+  VectorLinePointerType,
 } from './plait';
 import { createSpeedPlaitBoard, type CreatePlaitBoardOptions } from './plait/board-factory';
 import {
@@ -60,7 +61,8 @@ export type BoardPointer =
   | 'straight'
   | 'elbow'
   | 'curve'
-  | 'mind';
+  | 'mind'
+  | 'vectorLine';
 
 export function findClosestPort(node?: any, point?: any) {
   return null;
@@ -146,6 +148,9 @@ export class Board {
       BoardTransforms.updatePointerType(this.raw, PlaitPointerType.selection);
     } else if (pointer === 'hand' || pointer === PlaitPointerType.hand) {
       BoardTransforms.updatePointerType(this.raw, PlaitPointerType.hand);
+    } else if (pointer === 'vector' || pointer === 'vectorLine' || pointer === VectorLinePointerType.vectorLine) {
+      BoardTransforms.updatePointerType(this.raw, VectorLinePointerType.vectorLine);
+      setCreationMode(this.raw, BoardCreationMode.drawing);
     } else {
       BoardTransforms.updatePointerType(this.raw, pointer as any);
       setCreationMode(this.raw, BoardCreationMode.drawing);
@@ -731,7 +736,7 @@ export class Board {
     let selectedShapeId = '';
 
     const type = first.type || first.shape || '';
-    if (this.isLineNode(first) || first.shape === 'straight' || first.shape === 'elbow' || first.shape === 'curve') {
+    if (this.isLineNode(first) || first.shape === 'straight' || first.shape === 'elbow' || first.shape === 'curve' || first.type === 'vector-line') {
       selectedType = 'line';
     } else if (this.isMindmapNode(first) || first.type === 'mind' || first.isRoot || first.children) {
       if (first.isSummary) selectedType = 'mindmap-summary';

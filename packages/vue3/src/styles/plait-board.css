@@ -71,6 +71,9 @@
 .plait-board-container.nwse-resize { cursor: nwse-resize; }
 .plait-board-container.nesw-resize { cursor: nesw-resize; }
 .plait-board-container.crosshair { cursor: crosshair; }
+.plait-board-container.vector-line-closed {
+  cursor: crosshair;
+}
 
 .plait-board-container foreignObject[class^='foreign-object-'] {
   user-select: none;

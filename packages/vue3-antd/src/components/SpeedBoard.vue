@@ -48,6 +48,7 @@ import {
   ArrowLineShape,
   MindPointerType,
   FreehandShape,
+  VectorLinePointerType,
 } from '@speed-board/core';
 import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
@@ -149,6 +150,10 @@ const onToolbarModeChange = (payload: {
       break;
     case 'eraser':
       boardInstance.value.setPointer(FreehandShape.eraser);
+      break;
+    case 'vector':
+    case 'vectorLine':
+      boardInstance.value.setPointer(VectorLinePointerType.vectorLine);
       break;
     default:
       boardInstance.value.setPointer(boardInstance.value.mapShapeToPointer(payload.mode));

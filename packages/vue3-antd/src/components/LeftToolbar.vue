@@ -224,6 +224,7 @@ import {
   ArrowLineShape,
   MindPointerType,
   FreehandShape,
+  VectorLinePointerType,
 } from '@speed-board/core'
 import { useCellAttributes, useBoardEvent } from '@speed-board/vue3'
 import IconfontPopover from './IconfontPopover.vue'
@@ -468,8 +469,8 @@ const setTool = (tool: 'select' | 'brush' | 'vector' | 'line' | 'text' | 'shape'
   if (tool === 'brush') {
     applyDrawingMode()
   } else if (tool === 'vector') {
-    props.board?.setPointer(ArrowLineShape.curve)
-    emit('mode-change', { mode: 'line', lineType: 'curve' })
+    props.board?.setPointer(VectorLinePointerType.vectorLine)
+    emit('mode-change', { mode: 'vectorLine' })
   } else if (tool === 'select') {
     props.board?.setPointer(PlaitPointerType.selection)
     emit('mode-change', { mode: 'select' })
@@ -549,6 +550,8 @@ useBoardEvent(() => props.board, ['pointer:change', 'change'], () => {
         : ptr === FreehandShape.feltTipPen
         ? 'marker'
         : 'pencil'
+  } else if (ptr === VectorLinePointerType.vectorLine) {
+    currentTool.value = 'vector'
   } else if (ptr === PlaitPointerType.hand) {
     // hand
   } else {

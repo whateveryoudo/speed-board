@@ -76,6 +76,10 @@ export {
   getGeometryPointers,
   getBasicPointers,
   getArrowLinePointers,
+  VectorLinePointerType,
+  VectorLineShape,
+  type PlaitVectorLine,
+  getVectorLinePointers,
 } from '@plait/draw';
 
 export {
