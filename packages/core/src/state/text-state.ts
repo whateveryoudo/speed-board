@@ -19,6 +19,95 @@ export {
   LinkEditor,
 };
 
+export interface SlateSpanRenderOptions {
+  defaultFontSize?: number;
+  defaultColor?: string;
+  defaultFontWeight?: string;
+  zoom?: number;
+  className?: string;
+}
+
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * 统一渲染 Slate 富文本 Spans 为 HTML 字符串 (支持字号、加粗、颜色、斜体、删除线等多 Span 混排)
+ */
+export function renderSlateSpansHtml(
+  children: any[],
+  options: SlateSpanRenderOptions = {}
+): string {
+  if (!children || children.length === 0) return '&ZeroWidthSpace;';
+  const zoom = options.zoom || 1;
+  const defaultSize = options.defaultFontSize || 14;
+  const defaultColor = options.defaultColor || 'inherit';
+  const defaultWeight = options.defaultFontWeight || 'normal';
+  const className = options.className || 'slate-span';
+
+  const rendered = children
+    .map((c: any) => {
+      const spanText = c.text ?? '';
+      if (!spanText) return '';
+      const rawFs = c['font-size'] ? parseFloat(c['font-size']) : (c.fontSize || defaultSize);
+      const fs = Math.round(rawFs * zoom);
+      const fw = c.bold ? '600' : (c.fontWeight || defaultWeight);
+      const fst = c.italic ? 'italic' : 'normal';
+      let td = 'none';
+      if (c.underlined && c.strike) td = 'underline line-through';
+      else if (c.underlined) td = 'underline';
+      else if (c.strike) td = 'line-through';
+      const clr = c.color || defaultColor;
+
+      const spanStyles: string[] = [
+        `font-size: ${fs}px`,
+        `font-weight: ${fw}`,
+        `vertical-align: baseline`,
+        `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans', sans-serif`,
+      ];
+      if (fst !== 'normal') spanStyles.push(`font-style: ${fst}`);
+      if (td !== 'none') spanStyles.push(`text-decoration: ${td}`);
+      if (clr !== 'inherit') spanStyles.push(`color: ${clr}`);
+
+      return `<span class="${className}" style="${spanStyles.join('; ')}">${escapeHtml(spanText)}</span>`;
+    })
+    .join('');
+
+  return rendered || '&ZeroWidthSpace;';
+}
+
+/**
+ * 统一测量 Slate 富文本 Spans 的预估宽度与最大字号
+ */
+export function measureSlateSpansSize(
+  children: any[],
+  defaultFontSize = 14
+): { width: number; maxFontSize: number } {
+  if (!Array.isArray(children) || children.length === 0) {
+    return { width: 0, maxFontSize: defaultFontSize };
+  }
+  let estimatedWidth = 0;
+  let maxFontSize = defaultFontSize;
+
+  for (const span of children) {
+    const text = span.text || '';
+    const fs = span['font-size'] ? parseFloat(span['font-size']) : (span.fontSize || defaultFontSize);
+    maxFontSize = Math.max(maxFontSize, fs);
+    let charUnits = 0;
+    for (let i = 0; i < text.length; i++) {
+      charUnits += text.charCodeAt(i) > 255 ? 1.8 : 1.0;
+    }
+    estimatedWidth += Math.ceil(charUnits * (fs * 0.55));
+  }
+
+  return { width: estimatedWidth, maxFontSize };
+}
+
 export function getElementTextObject(element: any): any {
   if (!element) return { children: [{ text: '' }] };
   if (element.data?.topic) return element.data.topic;

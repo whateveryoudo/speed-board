@@ -1,5 +1,6 @@
 import type { NodeLayoutBox, SpeedMindElement } from '../types';
 import { getNodeTopicText } from '../model/treeOps';
+import { renderSlateSpansHtml } from '@speed-board/core';
 
 export function renderMarkerHtml(symbolId: string, size = 16): string {
   const cleanId = symbolId.startsWith('#') ? symbolId.slice(1) : symbolId;
@@ -92,43 +93,16 @@ export function renderNodeSvg(
 
   const align = elem.data?.topic?.align || (isRoot ? 'center' : 'left');
 
-  function escapeHtml(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
+  const topicChildren = elem.data?.topic?.children || [
+    { text: getNodeTopicText(elem) || (isRoot ? '思维导图' : '分支主题') },
+  ];
 
-  function renderTopicSpans(): string {
-    const children = elem.data?.topic?.children;
-    if (Array.isArray(children) && children.length > 0) {
-      return children
-        .map((c: any) => {
-          const text = c.text ?? '';
-          if (!text) return '';
-          const fs = c['font-size']
-            ? parseFloat(c['font-size'])
-            : (c.fontSize || (isRoot ? 16 : 14));
-          const fw = c.bold ? '600' : (c.fontWeight || (isRoot ? '600' : 'normal'));
-          const fst = c.italic ? 'italic' : 'normal';
-          let td = 'none';
-          if (c.underlined && c.strike) td = 'underline line-through';
-          else if (c.underlined) td = 'underline';
-          else if (c.strike) td = 'line-through';
-          const col = c.color || (isRoot ? '#ffffff' : '#1f2937');
-
-          return `<span class="speed-mind-span" style="font-size: ${fs}px; font-weight: ${fw}; font-style: ${fst}; text-decoration: ${td}; color: ${col}; vertical-align: baseline; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">${escapeHtml(text)}</span>`;
-        })
-        .join('');
-    }
-    const defaultText = getNodeTopicText(elem) || (isRoot ? '思维导图' : '分支主题');
-    const defaultColor = isRoot ? '#ffffff' : '#1f2937';
-    const defaultSize = isRoot ? 16 : 14;
-    const defaultWeight = isRoot ? '600' : 'normal';
-    return `<span class="speed-mind-span" style="font-size: ${defaultSize}px; font-weight: ${defaultWeight}; color: ${defaultColor}; vertical-align: baseline; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">${escapeHtml(defaultText)}</span>`;
-  }
+  const spansHtml = renderSlateSpansHtml(topicChildren, {
+    defaultFontSize: isRoot ? 16 : 14,
+    defaultColor: isRoot ? '#ffffff' : '#1f2937',
+    defaultFontWeight: isRoot ? '600' : 'normal',
+    className: 'speed-mind-span',
+  });
 
   // 构建 markers HTML
   let markersHtml = '';
@@ -181,7 +155,7 @@ export function renderNodeSvg(
       overflow: hidden;
       text-overflow: ellipsis;
     ">
-      ${renderTopicSpans()}
+      ${spansHtml}
     </div>
   `;
 

@@ -1,4 +1,5 @@
 import { PlaitBoard, toHostPoint } from '@plait/core';
+import { renderSlateSpansHtml } from '@speed-board/core';
 import type { NodeLayoutBox, SpeedMindElement } from '../types';
 import { getNodeTopicText, setNodeTopicText } from '../model/treeOps';
 
@@ -68,16 +69,11 @@ export function openMindmapInlineEditor(
 
   const children = elem.data?.topic?.children;
   if (Array.isArray(children) && children.length > 1) {
-    editor.innerHTML = children
-      .map((c: any) => {
-        const text = c.text ?? '';
-        const fs =
-          (c['font-size'] ? parseFloat(c['font-size']) : (c.fontSize || (isRoot ? 16 : 14))) * zoom;
-        const fw = c.bold ? '600' : (c.fontWeight || (isRoot ? '600' : 'normal'));
-        const col = c.color || color;
-        return `<span style="font-size: ${fs}px; font-weight: ${fw}; color: ${col}; vertical-align: baseline;">${text}</span>`;
-      })
-      .join('');
+    editor.innerHTML = renderSlateSpansHtml(children, {
+      zoom,
+      defaultFontSize: isRoot ? 16 : 14,
+      defaultColor: color,
+    });
   } else {
     editor.innerText = currentText;
   }

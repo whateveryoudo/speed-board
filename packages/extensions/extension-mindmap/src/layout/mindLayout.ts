@@ -1,6 +1,7 @@
 import { GlobalLayout, MindLayoutType } from '@plait/layouts';
 import type { SpeedMindElement, NodeLayoutBox } from '../types';
 import { getNodeTopicText } from '../model/treeOps';
+import { measureSlateSpansSize } from '@speed-board/core';
 
 export function calculateNodeSize(
   node: SpeedMindElement,
@@ -10,33 +11,12 @@ export function calculateNodeSize(
     return { width: node.width, height: node.height };
   }
 
-  const children = node.data?.topic?.children;
-  let estimatedTextWidth = 0;
-  let maxFontSize = isRoot ? 16 : 14;
+  const defaultFontSize = isRoot ? 16 : 14;
+  const children = node.data?.topic?.children || [
+    { text: getNodeTopicText(node) || (isRoot ? '思维导图' : '分支主题'), fontSize: defaultFontSize },
+  ];
 
-  if (Array.isArray(children) && children.length > 0) {
-    for (const span of children) {
-      const spanText = span.text || '';
-      const spanFontSize = span['font-size']
-        ? parseFloat(span['font-size'])
-        : (span.fontSize || (isRoot ? 16 : 14));
-      maxFontSize = Math.max(maxFontSize, spanFontSize);
-      let charUnits = 0;
-      for (let i = 0; i < spanText.length; i++) {
-        const code = spanText.charCodeAt(i);
-        charUnits += code > 255 ? 1.8 : 1.0;
-      }
-      estimatedTextWidth += Math.ceil(charUnits * (spanFontSize * 0.55));
-    }
-  } else {
-    const text = getNodeTopicText(node) || (isRoot ? '思维导图' : '分支主题');
-    let charUnits = 0;
-    for (let i = 0; i < text.length; i++) {
-      const code = text.charCodeAt(i);
-      charUnits += code > 255 ? 1.8 : 1.0;
-    }
-    estimatedTextWidth = Math.ceil(charUnits * (maxFontSize * 0.55));
-  }
+  const { width: estimatedTextWidth, maxFontSize } = measureSlateSpansSize(children, defaultFontSize);
 
   // 标记 (priority, progress, flag)
   const markers = node.data?.markers;
