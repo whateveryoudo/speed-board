@@ -537,33 +537,62 @@ export class Board {
     const selected = this.selectedElements[0] as any;
     if (!selected) return null;
     const textNode = selected.text || selected;
+    const child = textNode.children?.[0] || textNode;
     return {
-      text: typeof textNode.text === 'string' ? textNode.text : '',
-      fontSize: textNode.fontSize || 14,
-      fill: textNode.color || textNode.fill || '#262626',
-      bold: Boolean(textNode.bold),
-      italic: Boolean(textNode.italic),
-      strike: Boolean(textNode.strike),
-      underline: Boolean(textNode.underline),
-      align: textNode.align || 'left',
-      verticalAlign: textNode.verticalAlign || 'middle',
+      text: typeof child.text === 'string' ? child.text : (typeof textNode.text === 'string' ? textNode.text : ''),
+      fontSize: child['font-size'] || child.fontSize || 14,
+      fill: child.color || child.fill || textNode.color || textNode.fill || '#262626',
+      bold: Boolean(child.bold || textNode.bold),
+      italic: Boolean(child.italic || textNode.italic),
+      strike: Boolean(child.strikethrough || child.strike || textNode.strike),
+      underline: Boolean(child.underlined || child.underline || textNode.underline),
+      align: textNode.align || child.align || 'left',
+      verticalAlign: textNode.verticalAlign || child.verticalAlign || 'middle',
     };
   }
 
-  updateSelectedTextStyle(patch: any) {
+  setSelectedTextData(patch: Partial<NodeTextState>) {
     const selected = this.selectedElements;
     selected.forEach((element: any) => {
       const path = this.getElementPath(element);
-      if (path) {
-        if (element.text) {
-          Transforms.setNode(this.raw, { text: { ...element.text, ...patch } } as any, path);
-        } else {
-          Transforms.setNode(this.raw, patch, path);
-        }
+      if (!path) return;
+
+      const currentText = element.text || { children: [{ text: '' }] };
+      const currentChildren = currentText.children || [{ text: '' }];
+      const firstChild = currentChildren[0] || { text: '' };
+
+      const updatedChild = { ...firstChild };
+      if (patch.fontSize !== undefined) {
+        updatedChild['font-size'] = patch.fontSize;
+        updatedChild.fontSize = patch.fontSize;
       }
+      if (patch.fill !== undefined) {
+        updatedChild.color = patch.fill;
+        updatedChild.fill = patch.fill;
+      }
+      if (patch.bold !== undefined) updatedChild.bold = patch.bold;
+      if (patch.italic !== undefined) updatedChild.italic = patch.italic;
+      if (patch.underline !== undefined) updatedChild.underlined = patch.underline;
+      if (patch.strike !== undefined) updatedChild.strikethrough = patch.strike;
+
+      const newText = {
+        ...currentText,
+        children: [updatedChild, ...currentChildren.slice(1)],
+      };
+      if (patch.align !== undefined) {
+        newText.align = patch.align;
+      }
+
+      Transforms.setNode(this.raw, { text: newText } as any, path);
     });
+
     this.syncNodeIndices();
     this.emit('change', {});
+    this.emit('selection:change', { selected: this.selectedElements });
+  }
+
+  updateSelectedTextStyle(patch: any) {
+    this.setSelectedTextData(patch);
   }
 
   // --- 排列与对齐 ---
@@ -747,7 +776,7 @@ export class Board {
     const type = first.type || first.shape || '';
     if (first.type === 'vector-line') {
       const isClosed = isClosedPoints(first.points || []);
-      selectedType = isClosed ? 'shape' : 'line';
+      selectedType = isClosed ? 'vector' : 'line';
     } else if (this.isLineNode(first) || first.shape === 'straight' || first.shape === 'elbow' || first.shape === 'curve') {
       selectedType = 'line';
     } else if (this.isMindmapNode(first) || first.type === 'mind' || first.isRoot || first.children) {

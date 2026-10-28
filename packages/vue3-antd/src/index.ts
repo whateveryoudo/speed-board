@@ -10,6 +10,7 @@ export { default as ColorTonePicker } from './components/ColorTonePicker.vue';
 export * from './data/shapeLibrary';
 export * from './data/defaultIcons';
 export * from './data/mindmapMarkers';
+export * from './schema/nodeSchema';
 
 export * from './install';
 export { default as SpeedBoardPlugin } from './install';
