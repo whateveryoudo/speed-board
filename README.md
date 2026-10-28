@@ -15,7 +15,7 @@
 > 2. **100% 纯原生 SVG 渲染**：彻底告别 X6 沉重的 DOM / `<foreignObject>` 容器外挂，缩放平移无任何亚像素抖动与层级错位。
 > 3. **原子级 Slate 富文本集成**：文字直接依托 Slate.js 不可变数据流，支持双击内联排版与连线文字自适应居中。
 > 4. **底层中空点击穿透攻坚**：封装 `withHitEnhance` 增强插件，修复了 Plait 默认无填充无文字图形必须瞄准 4px 边框点击的缺陷，实现点击图形内部任意区域秒级响应。
-> 5. **工业级无头分层体系**：`@speed-board/core` (纯TS) + `@speed-board/view` (零DOM控制器) + `@speed-board/vue3` (无UI耦合Hook) + `@speed-board/vue3-antd` (视觉UI)，解耦彻底，未来可直接无缝扩展至 React / Solid。
+> 5. **工业级极简 3+1 分层体系**：`@speed-board/shared` (几何/资产) + `@speed-board/core` (纯TS引擎统一中枢) + `@speed-board/vue3` (无UI耦合Hook) + `@speed-board/vue3-antd` (视觉UI)，去除了无意义的透传包装层，直连高效，未来可直接无缝扩展至 React / Solid。
 >
 > 📖 欢迎查阅重构分支首页完整文档：[https://github.com/whateveryoudo/speed-board/tree/feat/plait-migration](https://github.com/whateveryoudo/speed-board/tree/feat/plait-migration)
 
