@@ -10,29 +10,54 @@ import {
   setCreationMode,
   deleteFragment,
   Transforms,
-  AlignTransform,
   addSelectedElement,
   clearSelectedElement,
   NODE_TO_INDEX,
   NODE_TO_PARENT,
-  getRectangleByElements,
-  toHostPointFromViewBoxPoint,
-  toScreenPointFromHostPoint,
-  RectangleClient,
 } from './plait';
 import { createSpeedPlaitBoard, type CreatePlaitBoardOptions } from './plait/board-factory';
-import {
-  getShapeById,
-  renderShapeCanvasSvg,
-  getShapeTightViewBox,
-  type ShapeDefinition,
-} from '@speed-board/shared';
+import type { ShapeDefinition } from '@speed-board/shared';
 import type {
   SelectedElementType,
   SelectionInfo,
   NodeStyleState,
   NodeTextState,
 } from './types';
+import {
+  getSelectionInfo,
+  isMindmapNode,
+  isLineNode,
+  isTextNode,
+  isImageNode,
+} from './state/selection-info';
+import { getNodeStyleState, patchShapeProperty } from './state/style-state';
+import { getNodeTextState, patchNodeText, getElementTextObject } from './state/text-state';
+import {
+  alignSelectedNodes,
+  distributeSelectedNodes,
+  type AlignType,
+  type DistributeType,
+} from './operations/align';
+import {
+  bringSelectedToFront,
+  sendSelectedToBack,
+  bringSelectedForward,
+  sendSelectedBackward,
+  groupSelected,
+  ungroupSelected,
+  toggleLockSelected,
+  duplicateSelected,
+} from './operations/layer';
+import {
+  getSelectedEdge,
+  setLineType,
+  getLineType,
+  reverseLineDirection,
+  setArrowMarker,
+  toggleMarker,
+  getLineText,
+  setLineText,
+} from './operations/line';
 
 export type BoardPointer =
   | 'selection'
@@ -136,9 +161,6 @@ export class Board {
       setCreationMode(this.raw, BoardCreationMode.dnd);
     } else if (pointer === 'hand' || pointer === PlaitPointerType.hand) {
       BoardTransforms.updatePointerType(this.raw, PlaitPointerType.hand);
-    } else if (pointer === 'vector' || pointer === 'vectorLine' || pointer === VectorLinePointerType.vectorLine) {
-      BoardTransforms.updatePointerType(this.raw, VectorLinePointerType.vectorLine);
-      setCreationMode(this.raw, BoardCreationMode.drawing);
     } else {
       BoardTransforms.updatePointerType(this.raw, pointer as any);
       setCreationMode(this.raw, BoardCreationMode.drawing);
@@ -155,67 +177,43 @@ export class Board {
   }
 
   mapShapeToPointer(shape: string): string {
-    switch (shape) {
-      case 'rect':
-      case 'rectangle':
-        return BasicShapes.rectangle;
-      case 'circle':
-      case 'ellipse':
-        return BasicShapes.ellipse;
-      case 'diamond':
-        return BasicShapes.diamond;
-      case 'round-rect':
-      case 'roundRectangle':
-        return BasicShapes.roundRectangle;
-      case 'triangle':
-        return BasicShapes.triangle;
-      case 'parallelogram':
-        return BasicShapes.parallelogram;
-      case 'trapezoid':
-        return BasicShapes.trapezoid;
-      case 'star':
-        return BasicShapes.star;
-      case 'cloud':
-        return BasicShapes.cloud;
-      case 'cross':
-        return BasicShapes.cross;
-      case 'comment':
-        return BasicShapes.comment;
-      case 'comment-2':
-      case 'roundComment':
-        return BasicShapes.roundComment;
-      case 'hexagon':
-        return BasicShapes.hexagon;
-      case 'pentagon':
-      case 'polygon':
-        return BasicShapes.pentagon;
-      case 'octagon':
-        return BasicShapes.octagon;
-      case 'arrow-1':
-      case 'leftArrow':
-        return BasicShapes.leftArrow;
-      case 'arrow-2':
-      case 'rightArrow':
-        return BasicShapes.rightArrow;
-      case 'arrow-3':
-      case 'twoWayArrow':
-        return BasicShapes.twoWayArrow;
-      case 'pentagon-arrow':
-      case 'pentagonArrow':
-        return BasicShapes.pentagonArrow;
-      case 'process-arrow':
-      case 'processArrow':
-        return BasicShapes.processArrow;
-      case 'process':
-        return FlowchartSymbols.process;
-      case 'decision':
-        return FlowchartSymbols.decision;
-      default:
-        return (BasicShapes as any)[shape] || shape;
-    }
+    const shapeMap: Record<string, string> = {
+      rect: 'basic-shape:rectangle',
+      rectangle: 'basic-shape:rectangle',
+      circle: 'basic-shape:ellipse',
+      ellipse: 'basic-shape:ellipse',
+      diamond: 'basic-shape:diamond',
+      'round-rect': 'basic-shape:round-rectangle',
+      roundRectangle: 'basic-shape:round-rectangle',
+      triangle: 'basic-shape:triangle',
+      parallelogram: 'basic-shape:parallelogram',
+      trapezoid: 'basic-shape:trapezoid',
+      star: 'basic-shape:star',
+      cloud: 'basic-shape:cloud',
+      cross: 'basic-shape:cross',
+      comment: 'basic-shape:comment',
+      'comment-2': 'basic-shape:round-comment',
+      roundComment: 'basic-shape:round-comment',
+      hexagon: 'basic-shape:hexagon',
+      pentagon: 'basic-shape:pentagon',
+      polygon: 'basic-shape:pentagon',
+      octagon: 'basic-shape:octagon',
+      'arrow-1': 'basic-shape:left-arrow',
+      leftArrow: 'basic-shape:left-arrow',
+      'arrow-2': 'basic-shape:right-arrow',
+      rightArrow: 'basic-shape:right-arrow',
+      'arrow-3': 'basic-shape:two-way-arrow',
+      twoWayArrow: 'basic-shape:two-way-arrow',
+      'pentagon-arrow': 'basic-shape:pentagon-arrow',
+      pentagonArrow: 'basic-shape:pentagon-arrow',
+      'process-arrow': 'basic-shape:process-arrow',
+      processArrow: 'basic-shape:process-arrow',
+      process: 'flowchart:process',
+      decision: 'flowchart:decision',
+    };
+    return shapeMap[shape] || shape;
   }
 
-  // 快捷切换模式
   setTool(tool: string, options?: any) {
     switch (tool) {
       case 'select':
@@ -262,7 +260,6 @@ export class Board {
   static insertTextHandler?: (board: Board, text?: string, point?: [number, number]) => any;
   static insertImageHandler?: (board: Board, image: any, point?: [number, number]) => any;
 
-  // 获取当前视口中心坐标 (用于默认就地插入)
   getViewportCenterPoint(): [number, number] {
     const container = PlaitBoard.getBoardContainer(this.raw);
     const width = container?.clientWidth || 800;
@@ -270,7 +267,6 @@ export class Board {
     return toViewBoxPoint(this.raw, [width / 2, height / 2]);
   }
 
-  // --- 直接插入图元 API ---
   insertText(text = '文本', point?: [number, number]) {
     if (Board.insertTextHandler) {
       return Board.insertTextHandler(this, text, point);
@@ -364,32 +360,8 @@ export class Board {
   }
 
   setMindmapMarkers(markers: Record<string, any>) {
-    const selected = (this.selectedElements || []).filter((el) => MindElement.isMindElement(this.raw, el));
+    const selected = (this.selectedElements || []).filter((el) => this.isMindmapNode(el));
     if (selected.length === 0) return;
-
-    const emojis: Array<{ symbolId: string; name: string; id: string }> = [];
-    if (typeof markers.priority === 'number' && markers.priority >= 1 && markers.priority <= 7) {
-      emojis.push({
-        symbolId: `marker-priority-${markers.priority}`,
-        name: `priority-${markers.priority}`,
-        id: `marker-priority-${markers.priority}`,
-      });
-    }
-    if (typeof markers.progress === 'number' && markers.progress >= 0 && markers.progress <= 6) {
-      emojis.push({
-        symbolId: `marker-progress-${markers.progress}`,
-        name: `progress-${markers.progress}`,
-        id: `marker-progress-${markers.progress}`,
-      });
-    }
-    if (markers.flag) {
-      const flagKey = markers.flag.startsWith('flag-') ? markers.flag : `flag-${markers.flag}`;
-      emojis.push({
-        symbolId: `marker-${flagKey}`,
-        name: flagKey,
-        id: `marker-${flagKey}`,
-      });
-    }
 
     this.syncNodeIndices();
     selected.forEach((element) => {
@@ -402,7 +374,6 @@ export class Board {
             data: {
               ...currentData,
               markers: { ...markers },
-              emojis: emojis.length > 0 ? emojis : undefined,
             },
           },
           path
@@ -431,7 +402,6 @@ export class Board {
     }
   }
 
-  // 兼容别名
   addImage(options: any) {
     const point: [number, number] | undefined =
       typeof options.x === 'number' && typeof options.y === 'number'
@@ -443,11 +413,6 @@ export class Board {
   addShape(options: any) {
     const shape = options.shape || options.shapeId || 'rectangle';
     return this.insertShape(shape, options);
-  }
-
-  updateImageStatus(node: any, status: string, options?: any) {
-    // 状态更新
-    this.emit('change', {});
   }
 
   // --- 视口与缩放 ---
@@ -550,48 +515,22 @@ export class Board {
 
   isShapeNode = (element: any): boolean => {
     if (!element) return false;
-    return element.type === 'geometry' || (Boolean(element.shape) && element.shape !== 'text' && element.type !== 'arrow-line');
+    return (
+      element.type === 'geometry' ||
+      (Boolean(element.shape) && element.shape !== 'text' && element.type !== 'arrow-line')
+    );
   };
 
-  isTextNode = (element: any): boolean => {
-    if (!element) return false;
-    return element.type === 'text' || element.shape === 'text';
-  };
-
-  isLineNode = (element: any): boolean => {
-    if (!element) return false;
-    if (element.type === 'vector-line' || element.type === 'freehand') return false;
-    return element.type === 'arrow-line' || element.shape === 'straight' || element.shape === 'curve' || element.shape === 'elbow';
-  };
-
-  isMindmapNode = (element: any): boolean => {
-    if (!element) return false;
-    return element.type === 'mind' || Boolean(element.isRoot) || Boolean(element.data?.topic);
-  };
-
-  isImageNode = (element: any): boolean => {
-    if (!element) return false;
-    return element.type === 'image' || element.shape === 'image';
-  };
+  isTextNode = isTextNode;
+  isLineNode = isLineNode;
+  isMindmapNode = isMindmapNode;
+  isImageNode = isImageNode;
 
   isTextEditing = (): boolean => {
     return PlaitBoard.hasBeenTextEditing(this.raw);
   };
 
-  getShapeNodeData(): any {
-    const selected = this.selectedElements[0] as any;
-    if (!selected) return null;
-    return {
-      fill: selected.fill || '#ffffff',
-      stroke: selected.stroke || '#374151',
-      strokeWidth: selected.strokeWidth ?? 2,
-      strokeDasharray: selected.strokeStyle || selected.strokeDasharray || 'none',
-      opacity: selected.opacity ?? 1,
-      shapeId: selected.shape || 'rectangle',
-    };
-  }
-
-  private getElementPath(element: any): number[] | null {
+  public getElementPath(element: any): number[] | null {
     this.syncNodeIndices();
     try {
       return PlaitBoard.findPath(this.raw, element);
@@ -615,405 +554,33 @@ export class Board {
     }
   }
 
-  getSelectedTextData(): any {
-    const selected = this.selectedElements[0] as any;
-    if (!selected) return null;
-    const isMind = this.isMindmapNode(selected);
-    const textNode = isMind
-      ? (selected.data?.topic || selected.topic || selected)
-      : (selected.text || selected);
-    const child = textNode.children?.[0] || textNode;
-    return {
-      text: typeof child.text === 'string' ? child.text : (typeof textNode.text === 'string' ? textNode.text : ''),
-      link: selected.data?.link || selected.link || child.url || child.link || '',
-      fontSize: child['font-size'] || child.fontSize || (isMind ? (selected.isRoot ? 16 : 14) : 14),
-      fill: child.color || child.fill || textNode.color || textNode.fill || (isMind && selected.isRoot ? '#ffffff' : '#262626'),
-      bold: Boolean(child.bold || textNode.bold || (isMind && selected.isRoot)),
-      italic: Boolean(child.italic || textNode.italic),
-      strike: Boolean(child.strikethrough || child.strike || textNode.strike),
-      underline: Boolean(child.underlined || child.underline || textNode.underline),
-      align: textNode.align || child.align || (isMind ? 'center' : 'left'),
-      verticalAlign: textNode.verticalAlign || child.verticalAlign || 'middle',
-    };
-  }
-
-  setSelectedTextData(patch: Partial<NodeTextState>) {
-    const selected = this.selectedElements;
-    selected.forEach((element: any) => {
-      const path = this.getElementPath(element);
-      if (!path) return;
-
-      if (this.isMindmapNode(element)) {
-        const topic = element.data?.topic || { children: [{ text: '' }] };
-        const children = topic.children || [{ text: '' }];
-        const first = children[0] || { text: '' };
-        const updated = { ...first };
-        if (patch.text !== undefined) updated.text = patch.text;
-        if (patch.fontSize !== undefined) {
-          updated['font-size'] = patch.fontSize;
-          updated.fontSize = patch.fontSize;
-        }
-        if (patch.fill !== undefined) {
-          updated.color = patch.fill;
-          updated.fill = patch.fill;
-        }
-        if (patch.bold !== undefined) updated.bold = patch.bold;
-        if (patch.italic !== undefined) updated.italic = patch.italic;
-        if (patch.underline !== undefined) updated.underlined = patch.underline;
-        if (patch.strike !== undefined) updated.strikethrough = patch.strike;
-
-        const newTopic = {
-          ...topic,
-          children: [updated, ...children.slice(1)],
-        };
-        if (patch.align !== undefined) newTopic.align = patch.align;
-        const newData = {
-          ...(element.data || {}),
-          topic: newTopic,
-        };
-        Transforms.setNode(this.raw, { data: newData } as any, path);
-        return;
-      }
-
-      const currentText = element.text || { children: [{ text: '' }] };
-      const currentChildren = currentText.children || [{ text: '' }];
-      const firstChild = currentChildren[0] || { text: '' };
-
-      const updatedChild = { ...firstChild };
-      if (patch.text !== undefined) {
-        updatedChild.text = patch.text;
-      }
-      if (patch.fontSize !== undefined) {
-        updatedChild['font-size'] = patch.fontSize;
-        updatedChild.fontSize = patch.fontSize;
-      }
-      if (patch.fill !== undefined) {
-        updatedChild.color = patch.fill;
-        updatedChild.fill = patch.fill;
-      }
-      if (patch.bold !== undefined) updatedChild.bold = patch.bold;
-      if (patch.italic !== undefined) updatedChild.italic = patch.italic;
-      if (patch.underline !== undefined) updatedChild.underlined = patch.underline;
-      if (patch.strike !== undefined) updatedChild.strikethrough = patch.strike;
-
-      const newText = {
-        ...currentText,
-        children: [updatedChild, ...currentChildren.slice(1)],
-      };
-      if (patch.align !== undefined) {
-        newText.align = patch.align;
-      }
-      if (patch.verticalAlign !== undefined) {
-        newText.verticalAlign = patch.verticalAlign;
-      }
-
-      const newProps: any = { text: newText };
-      if (patch.verticalAlign !== undefined) {
-        newProps.verticalAlign = patch.verticalAlign;
-      }
-      if (patch.link !== undefined) {
-        newProps.link = patch.link;
-        if (element.data) {
-          newProps.data = { ...element.data, link: patch.link };
-        }
-      }
-
-      Transforms.setNode(this.raw, newProps as any, path);
-    });
-
-    this.syncNodeIndices();
-    this.emit('change', {});
-    this.emit('selection:change', { selected: this.selectedElements });
-  }
-
-  updateSelectedTextStyle(patch: any) {
-    this.setSelectedTextData(patch);
-  }
-
-  // --- 排列与对齐 ---
-  alignSelectedNodes(type: 'left' | 'center' | 'middle' | 'right' | 'top' | 'bottom') {
-    this.syncNodeIndices();
-    switch (type) {
-      case 'left':
-        AlignTransform.alignLeft(this.raw);
-        break;
-      case 'center':
-        AlignTransform.alignHorizontalCenter(this.raw);
-        break;
-      case 'middle':
-        AlignTransform.alignVerticalCenter(this.raw);
-        break;
-      case 'right':
-        AlignTransform.alignRight(this.raw);
-        break;
-      case 'top':
-        AlignTransform.alignTop(this.raw);
-        break;
-      case 'bottom':
-        AlignTransform.alignBottom(this.raw);
-        break;
-    }
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  distributeSelectedNodes(type: 'horizontal' | 'vertical') {
-    this.syncNodeIndices();
-    if (type === 'horizontal') {
-      AlignTransform.distributeHorizontal(this.raw);
-    } else {
-      AlignTransform.distributeVertical(this.raw);
-    }
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  // --- 图层控制 ---
-  bringSelectedToFront() {
-    this.syncNodeIndices();
-    Transforms.moveToTop(this.raw);
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  sendSelectedToBack() {
-    this.syncNodeIndices();
-    Transforms.moveToBottom(this.raw);
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  bringSelectedForward() {
-    this.syncNodeIndices();
-    Transforms.moveUp(this.raw);
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  sendSelectedBackward() {
-    this.syncNodeIndices();
-    Transforms.moveDown(this.raw);
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  // --- 成组与锁定 ---
-  groupSelected() {
-    this.syncNodeIndices();
-    Transforms.addGroup(this.raw);
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  ungroupSelected() {
-    this.syncNodeIndices();
-    Transforms.removeGroup(this.raw);
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  toggleLockSelected() {
-    const selected = this.selectedElements;
-    selected.forEach((element) => {
-      const path = this.getElementPath(element);
-      if (path) {
-        const isLocked = Boolean((element as any).locked);
-        Transforms.setNode(this.raw, { locked: !isLocked } as any, path);
-      }
-    });
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  duplicateSelected() {
-    const selected = this.selectedElements;
-    if (selected.length === 0) return;
-    const clones = selected.map((el) => {
-      const clone = JSON.parse(JSON.stringify(el));
-      if (clone.points && Array.isArray(clone.points)) {
-        clone.points = clone.points.map((p: [number, number]) => [p[0] + 20, p[1] + 20]);
-      }
-      delete clone.id;
-      return clone;
-    });
-    clones.forEach((clone) => {
-      insertElement(this.raw, clone);
-    });
-    this.syncNodeIndices();
-    this.emit('change', {});
-  }
-
-  // --- 属性修改 ---
-  setShapeProperty(properties: Record<string, any>) {
-    const props = { ...properties };
-    if (props.stroke && !props.strokeColor) {
-      props.strokeColor = props.stroke;
-    }
-    if (props.strokeColor && !props.stroke) {
-      props.stroke = props.strokeColor;
-    }
-    this.syncNodeIndices();
-    const selected = getSelectedElements(this.raw);
-    const hasMind = selected.some((el) => MindElement.isMindElement(this.raw, el));
-    if (props.shape && !hasMind) {
-      props.shape = this.mapShapeToPointer(props.shape);
-    }
-    selected.forEach((element) => {
-      const path = this.getElementPath(element);
-      if (path) {
-        if (MindElement.isMindElement(this.raw, element)) {
-          const mindProps = { ...props };
-          if (props.stroke || props.strokeColor) {
-            mindProps.strokeColor = props.stroke || props.strokeColor;
-            mindProps.branchColor = props.stroke || props.strokeColor;
-          }
-          Transforms.setNode(this.raw, mindProps, path);
-        } else {
-          Transforms.setNode(this.raw, props, path);
-        }
-      }
-    });
-    this.syncNodeIndices();
-    this.emit('change', {});
-    this.emit('selection:change', { selected: getSelectedElements(this.raw) });
-  }
-
-  // --- 坐标换算 ---
-  clientToBoard(x: number, y: number): [number, number] {
-    return toViewBoxPoint(this.raw, [x, y]);
-  }
-
-  boardToClient(x: number, y: number): [number, number] {
-    return toHostPoint(this.raw, x, y);
-  }
-
-  // --- 选区分析与信息查询 ---
+  // --- 状态提取委托 (委托到 state/ 模块) ---
   get selectionInfo(): SelectionInfo {
     return this.getSelectionInfo();
   }
 
   getSelectionInfo(): SelectionInfo {
-    const cells = (this.selectedElements || []) as any[];
-    const count = cells.length;
-
-    if (count === 0) {
-      return {
-        selectedCells: [],
-        selectedCount: 0,
-        selectedCell: null,
-        selectedType: 'none',
-        selectedShapeId: '',
-      };
-    }
-
-    const first = cells[0];
-
-    if (count > 1) {
-      return {
-        selectedCells: cells,
-        selectedCount: count,
-        selectedCell: first,
-        selectedType: 'multiple',
-        selectedShapeId: '',
-      };
-    }
-
-    let selectedType: SelectedElementType = 'shape';
-    let selectedShapeId = '';
-
-    const type = first.type || first.shape || '';
-    if (first.type === 'vector-line') {
-      const pts = first.points || [];
-      const isClosed = pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1];
-      selectedType = isClosed ? 'vector' : 'line';
-    } else if (this.isLineNode(first) || first.shape === 'straight' || first.shape === 'elbow' || first.shape === 'curve') {
-      selectedType = 'line';
-    } else if (this.isMindmapNode(first) || first.type === 'mind' || first.isRoot || first.children) {
-      if (first.isSummary) selectedType = 'mindmap-summary';
-      else if (first.isRoot) selectedType = 'mindmap-root';
-      else selectedType = 'mindmap-node';
-    } else if (this.isImageNode(first) || type === 'image') {
-      selectedType = 'image';
-    } else if (this.isTextNode(first) || type === 'text') {
-      selectedType = 'text';
-    } else if (type === 'freehand' || type === 'vector') {
-      selectedType = 'vector';
-    } else {
-      selectedType = 'shape';
-      selectedShapeId = first.shape || 'rectangle';
-    }
-
-    return {
-      selectedCells: cells,
-      selectedCount: count,
-      selectedCell: first,
-      selectedType,
-      selectedShapeId,
-    };
+    return getSelectionInfo(this.selectedElements);
   }
 
-  // --- 样式状态与更新 ---
   getNodeStyleState(): NodeStyleState {
-    const defaultState: NodeStyleState = {
-      fill: '#ffffff',
-      stroke: '#374151',
-      strokeWidth: 2,
-      strokeDasharray: 'none',
-      opacity: 1,
-    };
-
-    const cells = (this.selectedElements || []) as any[];
-    if (cells.length === 0) return defaultState;
-
-    const cell = cells[0];
-    if (this.isLineNode(cell)) {
-      return {
-        fill: 'transparent',
-        stroke: cell.stroke || '#374151',
-        strokeWidth: cell.strokeWidth ?? 2,
-        strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',
-        opacity: cell.opacity ?? 1,
-      };
-    }
-
-    if (this.isMindmapNode(cell)) {
-      return {
-        fill: cell.fill || (cell.isRoot ? '#2563eb' : '#ffffff'),
-        stroke: cell.strokeColor || cell.branchColor || cell.stroke || '#374151',
-        strokeWidth: cell.strokeWidth ?? 2,
-        strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',
-        opacity: cell.opacity ?? 1,
-      };
-    }
-
-    return {
-      fill: cell.fill || '#ffffff',
-      stroke: cell.stroke || '#374151',
-      strokeWidth: cell.strokeWidth ?? 2,
-      strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',
-      opacity: cell.opacity ?? 1,
-    };
+    return getNodeStyleState(this.selectedElements);
   }
 
   getNodeTextState(): NodeTextState {
-    const defaultState: NodeTextState = {
-      text: '',
-      link: '',
-      fontSize: 14,
-      fill: '#262626',
-      bold: false,
-      italic: false,
-      strike: false,
-      underline: false,
-      align: 'left',
-      verticalAlign: 'middle',
-    };
+    return getNodeTextState(this.selectedElements);
+  }
 
-    const textData = this.getSelectedTextData();
-    if (textData) {
-      return { ...defaultState, ...textData };
-    }
-    return defaultState;
+  getSelectedTextData(): any {
+    return getNodeTextState(this.selectedElements);
+  }
+
+  setShapeProperty(properties: Record<string, any>) {
+    this.syncNodeIndices();
+    patchShapeProperty(this.raw, this.selectedElements, properties, (el) => this.getElementPath(el));
+    this.syncNodeIndices();
+    this.emit('change', {});
+    this.emit('selection:change', { selected: this.selectedElements });
   }
 
   patchNodeStyle(patch: Partial<NodeStyleState>) {
@@ -1021,89 +588,133 @@ export class Board {
   }
 
   patchNodeText(patch: Partial<NodeTextState>) {
-    this.setSelectedTextData(patch);
+    this.syncNodeIndices();
+    patchNodeText(this.raw, this.selectedElements, patch, (el) => this.getElementPath(el));
+    this.syncNodeIndices();
+    this.emit('change', {});
   }
 
-  // --- 连线控制 ---
+  // --- 排列与对齐 (委托到 operations/align) ---
+  alignSelectedNodes(type: AlignType) {
+    this.syncNodeIndices();
+    alignSelectedNodes(this.raw, type);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  distributeSelectedNodes(type: DistributeType) {
+    this.syncNodeIndices();
+    distributeSelectedNodes(this.raw, type);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  // --- 图层与组织 (委托到 operations/layer) ---
+  bringSelectedToFront() {
+    this.syncNodeIndices();
+    bringSelectedToFront(this.raw);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  sendSelectedToBack() {
+    this.syncNodeIndices();
+    sendSelectedToBack(this.raw);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  bringSelectedForward() {
+    this.syncNodeIndices();
+    bringSelectedForward(this.raw);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  sendSelectedBackward() {
+    this.syncNodeIndices();
+    sendSelectedBackward(this.raw);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  groupSelected() {
+    this.syncNodeIndices();
+    groupSelected(this.raw);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  ungroupSelected() {
+    this.syncNodeIndices();
+    ungroupSelected(this.raw);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  toggleLockSelected() {
+    toggleLockSelected(this.raw, this.selectedElements, (el) => this.getElementPath(el));
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  duplicateSelected() {
+    duplicateSelected(this.raw, this.selectedElements);
+    this.syncNodeIndices();
+    this.emit('change', {});
+  }
+
+  // --- 连线与箭头 (委托到 operations/line) ---
   getSelectedEdge(): any | null {
-    const cell = this.selectedElements?.find(
-      (c: any) =>
-        c.shape === 'elbow' ||
-        c.shape === 'straight' ||
-        c.shape === 'curve' ||
-        c.type === 'arrow-line' ||
-        this.isLineNode(c)
-    );
-    return cell || null;
+    return getSelectedEdge(this.selectedElements);
   }
 
   setLineType(type: 'elbow' | 'straight' | 'curve') {
-    this.setShapeProperty({ shape: type });
+    setLineType((props) => this.setShapeProperty(props), type);
   }
 
   getLineType(): 'elbow' | 'straight' | 'curve' {
-    const edge = this.getSelectedEdge();
-    if (!edge) return 'straight';
-    return edge.shape || 'straight';
+    return getLineType(this.selectedElements);
   }
 
   reverseLineDirection() {
-    const edge = this.getSelectedEdge();
-    if (!edge || !edge.points) return;
-
-    const points = [...edge.points].reverse();
-    const sourceMarker = edge.targetMarker || 'none';
-    const targetMarker = edge.sourceMarker || 'none';
-
-    this.setShapeProperty({ points, sourceMarker, targetMarker });
+    reverseLineDirection(this.selectedElements, (props) => this.setShapeProperty(props));
   }
 
   setArrowMarker(position: 'source' | 'target', markerId: string) {
-    let mark = 'none';
-    if (markerId === 'classic-arrow') mark = 'arrow';
-    else if (markerId === 'block') mark = 'solid-triangle';
-    else if (markerId === 'hollow-triangle') mark = 'hollow-triangle';
-    else if (markerId !== 'none') mark = 'arrow';
-
-    const key = position === 'source' ? 'sourceMarker' : 'targetMarker';
-    this.setShapeProperty({ [key]: mark });
+    setArrowMarker(position, markerId, (props) => this.setShapeProperty(props));
   }
 
   toggleTargetMarker() {
-    const selected = this.selectedElements?.[0] as any;
-    const current = selected?.targetMarker || 'none';
-    const next = current === 'arrow' ? 'none' : 'arrow';
-    this.setShapeProperty({ targetMarker: next });
+    toggleMarker('target', this.selectedElements, (props) => this.setShapeProperty(props));
   }
 
   toggleSourceMarker() {
-    const selected = this.selectedElements?.[0] as any;
-    const current = selected?.sourceMarker || 'none';
-    const next = current === 'arrow' ? 'none' : 'arrow';
-    this.setShapeProperty({ sourceMarker: next });
+    toggleMarker('source', this.selectedElements, (props) => this.setShapeProperty(props));
   }
 
   getLineText(): string {
-    const edge = this.getSelectedEdge();
-    if (!edge) return '';
-    return edge.texts?.[0]?.text || '';
+    return getLineText(this.selectedElements);
   }
 
   setLineText(text: string) {
-    this.setShapeProperty({ texts: text ? [{ text }] : [] });
+    setLineText(text, (props) => this.setShapeProperty(props));
   }
 
-  // --- 形状切换 ---
   switchShape(targetShape: ShapeDefinition | string) {
     const shapeId = typeof targetShape === 'string' ? targetShape : targetShape?.id;
     if (!shapeId) return;
-
     const plaitShape = this.mapShapeToPointer(shapeId);
     if (!plaitShape) return;
+    this.setShapeProperty({ shape: plaitShape });
+  }
 
-    this.setShapeProperty({
-      shape: plaitShape,
-    });
+  clientToBoard(x: number, y: number): [number, number] {
+    return toViewBoxPoint(this.raw, [x, y]);
+  }
+
+  boardToClient(x: number, y: number): [number, number] {
+    return toHostPoint(this.raw, x, y);
   }
 
   destroy() {
