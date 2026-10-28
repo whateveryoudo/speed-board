@@ -40,10 +40,11 @@ export function escapeHtml(str: string): string {
  * 统一渲染 Slate 富文本 Spans 为 HTML 字符串 (支持字号、加粗、颜色、斜体、删除线等多 Span 混排)
  */
 export function renderSlateSpansHtml(
-  children: any[],
+  childrenOrNode: any[] | any,
   options: SlateSpanRenderOptions = {}
 ): string {
-  if (!children || children.length === 0) return '&ZeroWidthSpace;';
+  const children = Array.isArray(childrenOrNode) ? childrenOrNode : childrenOrNode?.children;
+  if (!children || !Array.isArray(children) || children.length === 0) return '&ZeroWidthSpace;';
   const zoom = options.zoom || 1;
   const defaultSize = options.defaultFontSize || 14;
   const defaultColor = options.defaultColor || 'inherit';
@@ -85,9 +86,10 @@ export function renderSlateSpansHtml(
  * 统一测量 Slate 富文本 Spans 的预估宽度与最大字号
  */
 export function measureSlateSpansSize(
-  children: any[],
+  childrenOrNode: any[] | any,
   defaultFontSize = 14
 ): { width: number; maxFontSize: number } {
+  const children = Array.isArray(childrenOrNode) ? childrenOrNode : childrenOrNode?.children;
   if (!Array.isArray(children) || children.length === 0) {
     return { width: 0, maxFontSize: defaultFontSize };
   }

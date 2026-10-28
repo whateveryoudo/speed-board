@@ -1,3 +1,6 @@
+// Plugins (Vue 3 DOM adapters)
+export * from './plugins/withVue';
+
 // Components
 export { default as PlaitBoard } from './components/PlaitBoard.vue';
 export { default as BoardCanvas } from './components/BoardCanvas.vue';

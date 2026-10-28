@@ -1,4 +1,3 @@
-export * from './with-vue';
 export * from './with-pinch-zoom';
 export * from './board-factory';
 export * from './with-global-esc';

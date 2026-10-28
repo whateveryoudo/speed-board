@@ -19,7 +19,6 @@ import {
 } from '@plait/core';
 import { withGroup, withImage, withText } from '@plait/common';
 import { withGlobalEsc } from './with-global-esc';
-import { withVue } from './with-vue';
 import { withPinchZoom } from './with-pinch-zoom';
 
 export interface CreatePlaitBoardOptions {
@@ -49,7 +48,6 @@ export function createSpeedPlaitBoard(config: CreatePlaitBoardOptions = {}): Pla
   // 挂载纯 TS 中立核心流水线 (文本/图片/选区/历史/视口缩放)
   board = withText(board);
   board = withImage(board);
-  board = withVue(board);
   board = withOptions(board);
   board = withI18n(board);
   board = withBoard(board);

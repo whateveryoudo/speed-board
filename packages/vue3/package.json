@@ -16,6 +16,7 @@
     "@speed-board/core": "workspace:*",
     "@speed-board/shared": "workspace:*",
     "roughjs": "^4.6.6",
+    "slate": "^0.103.0",
     "vue": "^3.5.0"
   },
   "devDependencies": {

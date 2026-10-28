@@ -80,6 +80,7 @@ import {
   BoardTransforms,
   PlaitCommonElementRef,
 } from '@speed-board/core';
+import { withVue } from '../plugins/withVue';
 import '../styles/plait-board.css';
 
 export interface PlaitBoardProps {
@@ -138,7 +139,7 @@ onMounted(() => {
   const board = createSpeedPlaitBoard({
     value: props.value,
     options: props.options,
-    plugins: props.plugins,
+    plugins: [withVue, ...(props.plugins || [])],
     viewport: props.viewport,
     theme: props.theme,
   });

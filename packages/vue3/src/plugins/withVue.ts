@@ -1,7 +1,7 @@
 import type { PlaitBoard } from '@plait/core';
 import type { PlaitTextBoard, TextProps, RenderComponentRef, PlaitImageBoard, ImageProps } from '@plait/common';
 import { createEditor } from 'slate';
-import { renderSlateSpansHtml, escapeHtml } from '../state/text-state';
+import { renderSlateSpansHtml, escapeHtml } from '@speed-board/core';
 
 /**
  * Vue 3 适配插件：接管 Plait 的富文本和图片渲染
@@ -135,12 +135,27 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
             });
           };
 
-          editableEl.oninput = handleInput;
+          editableEl.addEventListener('input', handleInput);
 
-          editableEl.addEventListener('compositionstart', (e) => props.onComposition?.(e as CompositionEvent));
-          editableEl.addEventListener('compositionend', (e) => {
-            props.onComposition?.(e as CompositionEvent);
+          editableEl.addEventListener('compositionstart', () => {
+            props.onComposition?.({ type: 'compositionstart' } as any);
+            notifyTyping();
+          });
+          editableEl.addEventListener('compositionend', () => {
+            props.onComposition?.({ type: 'compositionend' } as any);
             handleInput();
+          });
+
+          editableEl.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+              editableEl.blur();
+              e.stopPropagation();
+            }
+            if (e.key === 'Enter' && !e.shiftKey) {
+              // 单行模式下 Enter 确认
+              // e.preventDefault();
+              // editableEl.blur();
+            }
           });
         }
       }
@@ -151,71 +166,57 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
     const ref: RenderComponentRef<TextProps> = {
       destroy: () => {
         el.innerHTML = '';
-        if (!isReadonly) {
-          const wrapper = (newBoard as any).boardWrapper;
-          wrapper?.emit?.('text:editing', false);
-          wrapper?.emit?.('selection:change');
-        }
       },
-      update: (updatedProps: Partial<TextProps>) => {
-        const readonlyChanged = updatedProps.readonly !== undefined && (updatedProps.readonly !== false) !== isReadonly;
-        if (updatedProps.text) {
-          currentText = updatedProps.text;
-          editor.children = [currentText as any];
-        }
-        if (updatedProps.readonly !== undefined) {
-          isReadonly = updatedProps.readonly !== false;
-        }
-
-        if (readonlyChanged) {
-          const wrapper = (newBoard as any).boardWrapper;
-          wrapper?.emit?.('text:editing', !isReadonly);
-          wrapper?.emit?.('selection:change');
-        }
-
-        // 仅在只读状态发生变化，或者在只读模式下文本更新时才重绘 DOM。
-        // 如果正在编辑输入中，DOM 由用户输入实时更新，千万不能重构 innerHTML 破坏光标位置！
-        if (readonlyChanged || isReadonly) {
-          renderDOM();
-        }
+      update: (newProps: TextProps) => {
+        currentText = newProps.text;
+        isReadonly = newProps.readonly !== false;
+        renderDOM();
       },
     };
 
     return ref;
   };
 
-  // 2. 图片渲染适配 (纯原生 DOM，零开销)
+  // 2. 图片渲染适配
   newBoard.renderImage = (container: Element | DocumentFragment, props: ImageProps) => {
     const el = container as HTMLElement;
-    const img = document.createElement('img');
-    img.src = props.imageItem?.url || '';
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'contain';
-    img.draggable = false;
-    el.appendChild(img);
+    let currentProps = props;
+
+    const renderDOM = () => {
+      const src = currentProps.imageItem?.url || '';
+      el.innerHTML = `
+        <div class="plait-image-container" style="width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+          <img src="${escapeHtml(src)}" style="width: 100%; height: 100%; object-fit: contain; user-select: none; pointer-events: none;" draggable="false" />
+        </div>
+      `;
+
+      // 自动测量天然宽高并回传
+      if (currentProps.afterInit) {
+        const img = document.createElement('img');
+        img.src = src;
+        img.onload = () => {
+          currentProps.afterInit?.({
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+          } as any);
+        };
+      }
+    };
+
+    renderDOM();
 
     const ref: RenderComponentRef<ImageProps> = {
       destroy: () => {
         el.innerHTML = '';
       },
-      update: (updatedProps: Partial<ImageProps>) => {
-        if (updatedProps.imageItem?.url && img.src !== updatedProps.imageItem.url) {
-          img.src = updatedProps.imageItem.url;
-        }
+      update: (newProps: ImageProps) => {
+        currentProps = newProps;
+        renderDOM();
       },
     };
+
     return ref;
   };
 
   return newBoard;
 };
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
