@@ -28,8 +28,25 @@ import {
   clearSelectedElement,
   NODE_TO_INDEX,
   NODE_TO_PARENT,
+  getRectangleByElements,
+  toHostPointFromViewBoxPoint,
+  RectangleClient,
 } from './plait';
 import { createSpeedPlaitBoard, type CreatePlaitBoardOptions } from './plait/board-factory';
+import {
+  getShapeById,
+  renderShapeCanvasSvg,
+  getShapeTightViewBox,
+  type ShapeDefinition,
+} from '@speed-board/shared';
+import type {
+  SelectedElementType,
+  SelectionInfo,
+  FloatingToolbarPosition,
+  FloatingToolbarProperties,
+  NodeStyleState,
+  NodeTextState,
+} from './types';
 
 export type BoardPointer =
   | 'selection'
@@ -652,6 +669,335 @@ export class Board {
 
   boardToClient(x: number, y: number): [number, number] {
     return toHostPoint(this.raw, x, y);
+  }
+
+  // --- 选区分析与信息查询 ---
+  get selectionInfo(): SelectionInfo {
+    return this.getSelectionInfo();
+  }
+
+  getSelectionInfo(): SelectionInfo {
+    const cells = (this.selectedElements || []) as any[];
+    const count = cells.length;
+
+    if (count === 0) {
+      return {
+        selectedCells: [],
+        selectedCount: 0,
+        selectedCell: null,
+        selectedType: 'none',
+        selectedShapeId: '',
+      };
+    }
+
+    const first = cells[0];
+
+    if (count > 1) {
+      return {
+        selectedCells: cells,
+        selectedCount: count,
+        selectedCell: first,
+        selectedType: 'multiple',
+        selectedShapeId: '',
+      };
+    }
+
+    let selectedType: SelectedElementType = 'shape';
+    let selectedShapeId = '';
+
+    const type = first.type || first.shape || '';
+    if (this.isLineNode(first) || first.shape === 'straight' || first.shape === 'elbow' || first.shape === 'curve') {
+      selectedType = 'line';
+    } else if (this.isMindmapNode(first) || first.type === 'mind' || first.isRoot || first.children) {
+      if (first.isSummary) selectedType = 'mindmap-summary';
+      else if (first.isRoot) selectedType = 'mindmap-root';
+      else selectedType = 'mindmap-node';
+    } else if (this.isImageNode(first) || type === 'image') {
+      selectedType = 'image';
+    } else if (this.isTextNode(first) || type === 'text') {
+      selectedType = 'text';
+    } else if (type === 'freehand' || type === 'vector') {
+      selectedType = 'vector';
+    } else {
+      selectedType = 'shape';
+      selectedShapeId = first.shape || 'rectangle';
+    }
+
+    return {
+      selectedCells: cells,
+      selectedCount: count,
+      selectedCell: first,
+      selectedType,
+      selectedShapeId,
+    };
+  }
+
+  // --- 悬浮工具栏计算 ---
+  getFloatingToolbarPosition(): FloatingToolbarPosition | null {
+    if (!this.raw) return null;
+    const selected = this.selectedElements;
+    if (!selected || selected.length === 0) return null;
+
+    try {
+      let rect: any = null;
+      try {
+        rect = getRectangleByElements(this.raw, selected, false);
+      } catch {
+        rect = null;
+      }
+
+      if (!rect) {
+        const first = selected[0] as any;
+        if (first && first.points && first.points.length > 0) {
+          rect = RectangleClient.getRectangleByPoints(
+            first.points.length === 1
+              ? [first.points[0], [first.points[0][0] + 100, first.points[0][1] + 40]]
+              : first.points
+          );
+        }
+      }
+
+      if (!rect) return null;
+
+      const hostTopLeft = toHostPointFromViewBoxPoint(this.raw, [rect.x, rect.y]);
+      const hostBottomRight = toHostPointFromViewBoxPoint(this.raw, [
+        rect.x + rect.width,
+        rect.y + rect.height,
+      ]);
+      const width = hostBottomRight[0] - hostTopLeft[0];
+
+      return {
+        left: hostTopLeft[0] + width / 2,
+        top: hostTopLeft[1] - 12,
+        width,
+        height: hostBottomRight[1] - hostTopLeft[1],
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  getFloatingToolbarProperties(): FloatingToolbarProperties {
+    const defaultState: FloatingToolbarProperties = {
+      visible: false,
+      position: { left: 0, top: 0 },
+      selectedType: 'none',
+      hasFill: false,
+      hasStroke: false,
+      isLine: false,
+      isMind: false,
+      currentFill: '#ffffff',
+      currentStrokeColor: '#374151',
+      currentStrokeWidth: 2,
+      currentStrokeStyle: 'solid',
+      currentLineShape: 'elbow',
+      sourceMarker: 'none',
+      targetMarker: 'none',
+    };
+
+    const selectionInfo = this.getSelectionInfo();
+    if (selectionInfo.selectedCount === 0 || !selectionInfo.selectedCell) {
+      return defaultState;
+    }
+
+    const pos = this.getFloatingToolbarPosition();
+    if (!pos) return defaultState;
+
+    const cell = selectionInfo.selectedCell;
+    const isLine =
+      selectionInfo.selectedType === 'line' ||
+      this.isLineNode(cell) ||
+      cell.shape === 'straight' ||
+      cell.shape === 'elbow' ||
+      cell.shape === 'curve';
+    const isMind =
+      selectionInfo.selectedType.startsWith('mindmap') ||
+      this.isMindmapNode(cell) ||
+      Boolean(cell.data?.topic);
+    const isImage = selectionInfo.selectedType === 'image';
+
+    const hasFill = !isLine && !isImage;
+    const hasStroke = !isImage;
+
+    return {
+      visible: true,
+      position: pos,
+      selectedType: selectionInfo.selectedType,
+      hasFill,
+      hasStroke,
+      isLine,
+      isMind,
+      currentFill: cell.fill || '#ffffff',
+      currentStrokeColor: cell.stroke || '#374151',
+      currentStrokeWidth: cell.strokeWidth ?? 2,
+      currentStrokeStyle: cell.strokeStyle || 'solid',
+      currentLineShape: cell.shape || 'elbow',
+      sourceMarker: cell.sourceMarker || 'none',
+      targetMarker: cell.targetMarker || 'none',
+    };
+  }
+
+  // --- 样式状态与更新 ---
+  getNodeStyleState(): NodeStyleState {
+    const defaultState: NodeStyleState = {
+      fill: '#ffffff',
+      stroke: '#374151',
+      strokeWidth: 2,
+      strokeDasharray: 'none',
+      opacity: 1,
+    };
+
+    const cells = (this.selectedElements || []) as any[];
+    if (cells.length === 0) return defaultState;
+
+    const cell = cells[0];
+    if (this.isLineNode(cell)) {
+      return {
+        fill: 'transparent',
+        stroke: cell.stroke || '#374151',
+        strokeWidth: cell.strokeWidth ?? 2,
+        strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',
+        opacity: cell.opacity ?? 1,
+      };
+    }
+
+    return {
+      fill: cell.fill || '#ffffff',
+      stroke: cell.stroke || '#374151',
+      strokeWidth: cell.strokeWidth ?? 2,
+      strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',
+      opacity: cell.opacity ?? 1,
+    };
+  }
+
+  getNodeTextState(): NodeTextState {
+    const defaultState: NodeTextState = {
+      text: '',
+      link: '',
+      fontSize: 14,
+      fill: '#262626',
+      bold: false,
+      italic: false,
+      strike: false,
+      underline: false,
+      align: 'left',
+      verticalAlign: 'middle',
+    };
+
+    const textData = this.getSelectedTextData();
+    if (textData) {
+      return { ...defaultState, ...textData };
+    }
+    return defaultState;
+  }
+
+  patchNodeStyle(patch: Partial<NodeStyleState>) {
+    this.setShapeProperty(patch);
+  }
+
+  patchNodeText(patch: Partial<NodeTextState>) {
+    this.setSelectedTextData(patch);
+  }
+
+  // --- 连线控制 ---
+  getSelectedEdge(): any | null {
+    const cell = this.selectedElements?.find(
+      (c: any) =>
+        c.shape === 'elbow' ||
+        c.shape === 'straight' ||
+        c.shape === 'curve' ||
+        c.type === 'arrow-line' ||
+        this.isLineNode(c)
+    );
+    return cell || null;
+  }
+
+  setLineType(type: 'elbow' | 'straight' | 'curve') {
+    this.setShapeProperty({ shape: type });
+  }
+
+  getLineType(): 'elbow' | 'straight' | 'curve' {
+    const edge = this.getSelectedEdge();
+    if (!edge) return 'straight';
+    return edge.shape || 'straight';
+  }
+
+  reverseLineDirection() {
+    const edge = this.getSelectedEdge();
+    if (!edge || !edge.points) return;
+
+    const points = [...edge.points].reverse();
+    const sourceMarker = edge.targetMarker || 'none';
+    const targetMarker = edge.sourceMarker || 'none';
+
+    this.setShapeProperty({ points, sourceMarker, targetMarker });
+  }
+
+  setArrowMarker(position: 'source' | 'target', markerId: string) {
+    let mark = 'none';
+    if (markerId === 'classic-arrow') mark = 'arrow';
+    else if (markerId === 'block') mark = 'solid-triangle';
+    else if (markerId === 'hollow-triangle') mark = 'hollow-triangle';
+    else if (markerId !== 'none') mark = 'arrow';
+
+    const key = position === 'source' ? 'sourceMarker' : 'targetMarker';
+    this.setShapeProperty({ [key]: mark });
+  }
+
+  toggleTargetMarker() {
+    const selected = this.selectedElements?.[0] as any;
+    const current = selected?.targetMarker || 'none';
+    const next = current === 'arrow' ? 'none' : 'arrow';
+    this.setShapeProperty({ targetMarker: next });
+  }
+
+  toggleSourceMarker() {
+    const selected = this.selectedElements?.[0] as any;
+    const current = selected?.sourceMarker || 'none';
+    const next = current === 'arrow' ? 'none' : 'arrow';
+    this.setShapeProperty({ sourceMarker: next });
+  }
+
+  getLineText(): string {
+    const edge = this.getSelectedEdge();
+    if (!edge) return '';
+    return edge.texts?.[0]?.text || '';
+  }
+
+  setLineText(text: string) {
+    this.setShapeProperty({ texts: text ? [{ text }] : [] });
+  }
+
+  // --- 形状切换 ---
+  switchShape(targetShape: ShapeDefinition | string) {
+    const shapeDef =
+      typeof targetShape === 'string' ? getShapeById(targetShape) : targetShape;
+    if (!shapeDef) return;
+
+    const selectedCells = this.selectedElements || [];
+    for (const cell of selectedCells) {
+      if (this.isShapeNode && !this.isShapeNode(cell)) continue;
+
+      const oldData = (cell as any).getData ? (cell as any).getData() : (cell as any).data || cell;
+      const fill = oldData.fill || '#ffffff';
+      const stroke = oldData.stroke || '#374151';
+      const strokeWidth = oldData.strokeWidth ?? 2;
+      const strokeDasharray = oldData.strokeDasharray || 'none';
+      const opacity = oldData.opacity ?? 1;
+
+      this.setShapeProperty({
+        shape: shapeDef.id,
+        fill,
+        stroke,
+        strokeWidth,
+        strokeDasharray,
+        opacity,
+      });
+
+      this.emit('selection:change', {
+        selected: this.selectedElements,
+      });
+    }
   }
 
   destroy() {

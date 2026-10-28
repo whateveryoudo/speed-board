@@ -1,19 +1,30 @@
-import { ref, computed, watch, type Ref } from 'vue';
-import type { Board } from '@speed-board/core';
-import {
-  FloatingToolbarController,
-  type FloatingToolbarProperties,
-} from '@speed-board/view';
+import { ref, computed, watch } from 'vue';
+import type { Board, FloatingToolbarProperties } from '@speed-board/core';
 import { resolveBoard, type BoardSource } from './useBoardEvent';
 
 export function useFloatingToolbar(source: BoardSource) {
-  const state = ref<FloatingToolbarProperties>(
-    FloatingToolbarController.extractProperties(null)
-  );
+  const defaultState: FloatingToolbarProperties = {
+    visible: false,
+    position: { left: 0, top: 0 },
+    selectedType: 'none',
+    hasFill: false,
+    hasStroke: false,
+    isLine: false,
+    isMind: false,
+    currentFill: '#ffffff',
+    currentStrokeColor: '#374151',
+    currentStrokeWidth: 2,
+    currentStrokeStyle: 'solid',
+    currentLineShape: 'elbow',
+    sourceMarker: 'none',
+    targetMarker: 'none',
+  };
+
+  const state = ref<FloatingToolbarProperties>(defaultState);
 
   const sync = () => {
     const board = resolveBoard(source);
-    state.value = FloatingToolbarController.extractProperties(board);
+    state.value = board ? board.getFloatingToolbarProperties() : defaultState;
   };
 
   watch(
@@ -49,70 +60,70 @@ export function useFloatingToolbar(source: BoardSource) {
   const updateFill = (fill: string) => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.updateFill(board, fill);
+    board.setShapeProperty({ fill });
     sync();
   };
 
   const updateStrokeColor = (stroke: string) => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.updateStrokeColor(board, stroke);
+    board.setShapeProperty({ stroke });
     sync();
   };
 
   const updateStrokeWidth = (width: number) => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.updateStrokeWidth(board, width);
+    board.setShapeProperty({ strokeWidth: width });
     sync();
   };
 
   const updateStrokeStyle = (style: 'solid' | 'dashed') => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.updateStrokeStyle(board, style);
+    board.setShapeProperty({ strokeStyle: style });
     sync();
   };
 
   const updateLineShape = (shape: 'elbow' | 'straight' | 'curve') => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.updateLineShape(board, shape);
+    board.setLineType(shape);
     sync();
   };
 
   const toggleTargetMarker = () => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.toggleTargetMarker(board);
+    board.toggleTargetMarker();
     sync();
   };
 
   const toggleSourceMarker = () => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.toggleSourceMarker(board);
+    board.toggleSourceMarker();
     sync();
   };
 
   const reverseLine = () => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.reverseLine(board);
+    board.reverseLineDirection();
     sync();
   };
 
   const setMindmapLayout = (layout: string) => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.setMindmapLayout(board, layout);
+    board.setMindmapLayout(layout);
     sync();
   };
 
   const deleteSelected = () => {
     const board = resolveBoard(source);
     if (!board) return;
-    FloatingToolbarController.deleteSelected(board);
+    board.deleteSelected();
     sync();
   };
 

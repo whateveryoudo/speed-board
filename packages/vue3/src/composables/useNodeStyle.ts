@@ -1,12 +1,10 @@
 import { ref, watch } from 'vue';
-import type { Board } from '@speed-board/core';
-import {
-  NodeStyleController,
-  SelectionController,
-  type NodeStyleState,
-  type NodeTextState,
-  type SelectedElementType,
-} from '@speed-board/view';
+import type {
+  Board,
+  NodeStyleState,
+  NodeTextState,
+  SelectedElementType,
+} from '@speed-board/core';
 import { resolveBoard, type BoardSource } from './useBoardEvent';
 
 export function useNodeStyle(source: BoardSource) {
@@ -42,12 +40,12 @@ export function useNodeStyle(source: BoardSource) {
       return;
     }
 
-    const info = SelectionController.analyzeSelection(board);
+    const info = board.getSelectionInfo();
     selectedType.value = info.selectedType;
     selectedCells.value = info.selectedCells;
 
-    styleState.value = NodeStyleController.getNodeStyleState(board);
-    textState.value = NodeStyleController.getNodeTextState(board);
+    styleState.value = board.getNodeStyleState();
+    textState.value = board.getNodeTextState();
   };
 
   const updateStyle = (patch: Partial<NodeStyleState>) => {
@@ -79,7 +77,7 @@ export function useNodeStyle(source: BoardSource) {
     const board = resolveBoard(source);
     if (!board) return;
     textState.value = { ...textState.value, ...patch };
-    NodeStyleController.patchNodeText(board, patch);
+    board.patchNodeText(patch);
   };
 
   // 监听画板选区变更事件

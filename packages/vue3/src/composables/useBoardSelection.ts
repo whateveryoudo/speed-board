@@ -1,6 +1,5 @@
 import { ref, watchEffect, type Ref } from 'vue';
-import type { Board } from '@speed-board/core';
-import { SelectionController, type SelectedElementType } from '@speed-board/view';
+import type { Board, SelectedElementType } from '@speed-board/core';
 import { resolveBoard, type BoardSource } from './useBoardEvent';
 
 export interface BoardSelectionState {
@@ -12,7 +11,7 @@ export interface BoardSelectionState {
 }
 
 /**
- * 响应式画板选区管理 Hook (基于 @speed-board/view SelectionController)
+ * 响应式画板选区管理 Hook (直连 Board 实例)
  */
 export function useBoardSelection(source: BoardSource): BoardSelectionState {
   const selectedCells = ref<any[]>([]);
@@ -22,7 +21,15 @@ export function useBoardSelection(source: BoardSource): BoardSelectionState {
   const selectedCount = ref(0);
 
   const sync = (board: Board | null) => {
-    const info = SelectionController.analyzeSelection(board);
+    if (!board) {
+      selectedCells.value = [];
+      selectedCell.value = null;
+      selectedType.value = 'none';
+      selectedShapeId.value = '';
+      selectedCount.value = 0;
+      return;
+    }
+    const info = board.getSelectionInfo();
     selectedCells.value = info.selectedCells;
     selectedCell.value = info.selectedCell;
     selectedType.value = info.selectedType;

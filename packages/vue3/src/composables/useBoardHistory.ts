@@ -1,6 +1,5 @@
 import { ref } from 'vue';
 import type { Board } from '@speed-board/core';
-import { HistoryController } from '@speed-board/view';
 import { resolveBoard, type BoardSource } from './useBoardEvent';
 
 export function useBoardHistory(source: BoardSource) {
@@ -9,21 +8,26 @@ export function useBoardHistory(source: BoardSource) {
 
   const updateHistoryState = () => {
     const board = resolveBoard(source);
-    canUndo.value = HistoryController.canUndo(board);
-    canRedo.value = HistoryController.canRedo(board);
+    if (!board) {
+      canUndo.value = false;
+      canRedo.value = false;
+      return;
+    }
+    canUndo.value = typeof board.canUndo === 'function' ? board.canUndo() : true;
+    canRedo.value = typeof board.canRedo === 'function' ? board.canRedo() : false;
   };
 
   const undo = () => {
     const board = resolveBoard(source);
     if (!board) return;
-    HistoryController.undo(board);
+    board.undo();
     updateHistoryState();
   };
 
   const redo = () => {
     const board = resolveBoard(source);
     if (!board) return;
-    HistoryController.redo(board);
+    board.redo();
     updateHistoryState();
   };
 

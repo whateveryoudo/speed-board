@@ -14,7 +14,6 @@ export * from './composables/useCellAttributes';
 export * from './composables/useShapeSwitch';
 export * from './composables/useMindmap';
 
-// Re-export underlying engine & headless layers
-export * from '@speed-board/view';
+// Re-export underlying engine
 export * from '@speed-board/core';
 export * from '@speed-board/shared';

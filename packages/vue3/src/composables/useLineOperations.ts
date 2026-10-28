@@ -1,28 +1,28 @@
 import type { Board } from '@speed-board/core';
-import { LineController, ARROWHEAD_PRESETS } from '@speed-board/view';
+import { ARROWHEAD_PRESETS } from '@speed-board/shared';
 import { resolveBoard, type BoardSource } from './useBoardEvent';
 
 export function useLineOperations(source: BoardSource) {
   const getSelectedEdge = (): any | null => {
     const board = resolveBoard(source);
-    return LineController.getSelectedEdge(board);
+    return board ? board.getSelectedEdge() : null;
   };
 
   const setLineType = (type: 'elbow' | 'straight' | 'curve') => {
     const board = resolveBoard(source);
     if (!board) return;
-    LineController.setLineType(board, type);
+    board.setLineType(type);
   };
 
   const getLineType = (): 'elbow' | 'straight' | 'curve' => {
     const board = resolveBoard(source);
-    return LineController.getLineType(board);
+    return board ? board.getLineType() : 'straight';
   };
 
   const reverseLineDirection = () => {
     const board = resolveBoard(source);
     if (!board) return;
-    LineController.reverseLineDirection(board);
+    board.reverseLineDirection();
   };
 
   const setArrowMarker = (
@@ -31,18 +31,18 @@ export function useLineOperations(source: BoardSource) {
   ) => {
     const board = resolveBoard(source);
     if (!board) return;
-    LineController.setArrowMarker(board, position, markerId);
+    board.setArrowMarker(position, markerId);
   };
 
   const getLineText = (): string => {
     const board = resolveBoard(source);
-    return LineController.getLineText(board);
+    return board ? board.getLineText() : '';
   };
 
   const setLineText = (text: string) => {
     const board = resolveBoard(source);
     if (!board) return;
-    LineController.setLineText(board, text);
+    board.setLineText(text);
   };
 
   return {

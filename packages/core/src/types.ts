@@ -63,10 +63,3 @@ export interface SelectionInfo {
   selectedType: SelectedElementType;
   selectedShapeId: string;
 }
-
-export interface ArrowheadPreset {
-  id: string;
-  name: string;
-  iconSvg: string;
-  getMarkerConfig?: (color?: string, strokeWidth?: number) => any;
-}

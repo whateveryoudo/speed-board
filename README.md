@@ -79,49 +79,49 @@ export const isHitDrawElement = (board, element, point, isStrict = true) => {
 
 ---
 
-## 🏗️ 全新项目架构图（Headless Multi-Framework）
+## 🏗️ 全新项目架构（Headless 3+1 极简工业级分层）
 
-SpeedBoard 彻底告别了过去“组件代码、DOM 操作、业务逻辑杂糅在一起”的单体模式，严格落地**工业级分层架构**，支持未来轻松扩展至不同 UI 库与前端框架：
+SpeedBoard 严格遵循**高内聚、零无用包装**的工程哲学。由于底层白板引擎 Plait 本身已原生集成了“不可变数据模型（Core）+ SVG 视口渲染与事件矩阵（View）”，SpeedBoard 避免了教条式的过度分层，形成了极简清爽的 3+1 架构：
 
 ```mermaid
 graph TD
-    subgraph CoreLayer ["1. 底座与数据契约层 (Pure TypeScript)"]
-        Shared["@speed-board/shared<br/>• 20+ 矢量图形库与 SVG Path 生成<br/>• 几何类型与文字测量工具<br/>• 调色板与全局常量 (Zero Dependency)"]
-        Core["@speed-board/core<br/>• Plait 引擎封装与 Board 门面<br/>• withHitEnhance 内部点击命中增强<br/>• withMind, withFreehand 扩展流水线"]
+    subgraph CoreFoundation ["1. 底座与统一引擎层 (Pure TypeScript)"]
+        Shared["@speed-board/shared<br/>• 20+ 矢量图形库与 SVG Path 生成<br/>• 9 大标准端点预设 (ARROWHEAD_PRESETS)<br/>• 几何类型与文字测量工具<br/>• 调色板与全局常量 (Zero Dependency)"]
+        Core["@speed-board/core<br/>• Plait 引擎封装与统一 Board 门面实例<br/>• 选区分析 (getSelectionInfo) 与浮动条计算 (getFloatingToolbarPosition)<br/>• 连线、导图、节点样式原子操作指令<br/>• withHitEnhance 内部点击命中增强<br/>• withMind, withFreehand, withPinchZoom 扩展流水线"]
     end
 
-    subgraph ControllerLayer ["2. 无头业务交互控制层 (Framework-Agnostic, Zero DOM)"]
-        View["@speed-board/view<br/>• FloatingToolbarController (选区外接盒与双坐标系换算)<br/>• LineController (端点箭头/连线形态/反向)<br/>• NodeStyleController (图形填充/描边/富文本排版)<br/>• SelectionController (图元类型推断)<br/>• MindmapController (导图布局与节点操作)<br/>• HistoryController (撤销重做状态机)<br/>• ShapeController (原地无缝形状切换)"]
+    subgraph FrameworkLayer ["2. 框架响应式绑定层 (Headless Hooks, Zero UI Dependency)"]
+        Vue3["@speed-board/vue3<br/>• useBoard, useBoardEvent<br/>• useBoardSelection, useFloatingToolbar<br/>• useLineOperations, useNodeStyle<br/>• useBoardHistory, useMindmap, useShapeSwitch<br/>• 纯 SVG 宿主组件 BoardCanvas.vue"]
+        React["@speed-board/react (未来扩展)<br/>• 直连 Board 实例封装 React Hooks"]
+        Solid["@speed-board/solid (未来扩展)<br/>• 直连 Board 实例封装 Solid Primitives"]
     end
 
-    subgraph FrameworkLayer ["3. 框架响应式绑定层 (Headless Hooks, Zero UI Dependency)"]
-        Vue3["@speed-board/vue3<br/>• useBoard, useBoardEvent<br/>• useBoardSelection, useFloatingToolbar<br/>• useLineOperations, useNodeStyle<br/>• useBoardHistory, useMindmap<br/>• 纯 SVG 宿主组件 BoardCanvas.vue"]
-        React["@speed-board/react (规划中)<br/>• useBoard, useFloatingToolbar<br/>• 适配 React Hooks"]
-        Solid["@speed-board/solid (规划中)<br/>• 适配 Solid Primitives"]
-    end
-
-    subgraph PresentationLayer ["4. 视觉组件呈现层 (UI Components)"]
-        Vue3Antd["@speed-board/vue3-antd<br/>• SpeedBoard (白板一体化总容器)<br/>• TopToolbar, LeftToolbar (悬浮胶囊工具栏)<br/>• FloatingToolbar (选区贴合悬浮工具栏)<br/>• StyleSettingsPanel (右侧样式抽屉)<br/>• 基于 Ant Design Vue + 阿里矢量图标库"]
+    subgraph PresentationLayer ["3. 视觉组件呈现层 (UI Components)"]
+        Vue3Antd["@speed-board/vue3-antd<br/>• SpeedBoard (白板一体化总容器)<br/>• TopToolbar, LeftToolbar (悬浮胶囊工具栏)<br/>• FloatingToolbar (选区贴合悬浮工具栏)<br/>• StyleSettingsPanel (右侧高级样式抽屉)<br/>• 基于 Ant Design Vue + 阿里矢量图标库"]
         ElementPlus["@speed-board/vue3-element-plus (极易快速扩展)"]
     end
 
-    Shared --> View
-    Core --> View
-    View --> Vue3
-    View -.-> React
-    View -.-> Solid
+    Shared --> Core
+    Core --> Vue3
+    Core -.-> React
+    Core -.-> Solid
     Vue3 --> Vue3Antd
     Vue3 -.-> ElementPlus
 ```
+
+### 为什么我们果断去掉了 `@speed-board/view` 中间层？（与 speed-sheet 的架构对比）
+在项目初期，我们曾仿照 `speed-sheet` 的四层结构创建了一个 `@speed-board/view` 包。但在深度复盘后果断将其合并淘汰：
+- **在 `speed-sheet` 中**：`core` 纯粹到连画布都不认识，必须有一个框架无关的 `view` 包从零编写 20KB+ 的纯 Canvas 视口交互引擎（滚轮监听、虚拟滚动分屏、行列头吸顶、选区框选）。
+- **但在 `speed-board` 中**：**底层引擎 Plait 本身就已经是一个高度内聚的 `Core + View` 完全体**，所有 SVG 视口平移缩放、指针分发、连线正交折线避障全都在底层搞定。外层的 `view` 既不操作 DOM 也不渲染 UI，纯粹沦为了单行调用的“透传空壳（Middle Man）”。
+- **架构重归纯粹**：将选区分析、悬浮栏位置换算和操作指令直接收编至 `@speed-board/core`，将端点预设归入 `@speed-board/shared`，彻底干掉中间层。调用链少一层包装，响应更直接，代码更清爽！
 
 ### 各层职责分工表
 
 | 包名 | 定位 | 技术特征 | 职责边界 |
 | :--- | :--- | :--- | :--- |
-| **`@speed-board/shared`** | 基础几何模型与资源库 | 纯 TS、零依赖 | 提供 20+ 矢量图形库（SVG Path）、文字测量工具、几何数学计算、预设调色板与常量。 |
-| **`@speed-board/core`** | 原生白板引擎调度 | 纯 TS、零 DOM | 封装 Plait 底层实例为统一易用的 `Board` 门面；装载 `withHitEnhance`、`withMind` 等核心流水线插件；统一分发图元增删改指令。 |
-| **`@speed-board/view`** | **跨框架无头控制器** | **纯 TS、零 DOM、零 UI 框架依赖** | **核心大脑**。纯数学和交互业务计算，包含双坐标系换算、样式状态提取、连线端点切换、导图排版、撤销重做判断。**未来无需重写任何逻辑，即可直接服务于 React 和 Solid**。 |
-| **`@speed-board/vue3`** | **无 DOM 的响应式 Hook 绑定层** | 仅依赖 Vue 3 Composition API，**零 Ant Design 依赖** | 提供 `useBoard`、`useFloatingToolbar`、`useLineOperations`、`useNodeStyle` 等极薄响应式 Hooks 及纯 SVG 画布容器 `BoardCanvas.vue`。 |
+| **`@speed-board/shared`** | 基础几何模型与资源库 | 纯 TS、零依赖 | 提供 20+ 矢量图形库（SVG Path）、9 大连线箭头预设（`ARROWHEAD_PRESETS`）、文字测量工具、几何数学计算、调色板与常量。 |
+| **`@speed-board/core`** | 原生白板统一调度中枢 | 纯 TS、零 DOM 耦合 | 统一封装 Plait 实例为声明式 `Board` 门面；装载 `withHitEnhance`、`withMind` 等核心流水线插件；提供选区推断、悬浮条视口宿主双坐标系换算、连线/导图/图形/样式全量操作能力。 |
+| **`@speed-board/vue3`** | **无 DOM 的响应式 Hook 绑定层** | 仅依赖 Vue 3 Composition API，**零 Ant Design 依赖** | 提供 `useBoard`、`useFloatingToolbar`、`useLineOperations`、`useNodeStyle`、`useBoardSelection` 等极薄响应式 Hooks 及纯 SVG 画布容器 `BoardCanvas.vue`。 |
 | **`@speed-board/vue3-antd`** | 完整 Ant Design Vue 界面组件库 | 基于 Ant Design Vue 的视觉呈现层 | 提供开箱即用的白板工作台 `SpeedBoard`，顶部栏、左侧工具栏、贴合浮动工具栏及右侧样式抽屉。 |
 
 ---

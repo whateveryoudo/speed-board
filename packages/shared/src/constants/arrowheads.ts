@@ -1,4 +1,9 @@
-import type { ArrowheadPreset } from '../types';
+export interface ArrowheadPreset {
+  id: string;
+  name: string;
+  iconSvg: string;
+  getMarkerConfig?: (color?: string, strokeWidth?: number) => any;
+}
 
 export const ARROWHEAD_PRESETS: ArrowheadPreset[] = [
   {
