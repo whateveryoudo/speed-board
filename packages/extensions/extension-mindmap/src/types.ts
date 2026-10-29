@@ -63,3 +63,8 @@ export interface NodeLayoutBox {
   parent?: NodeLayoutBox;
   children: NodeLayoutBox[];
 }
+
+export const MindPointerType = {
+  mind: 'mind',
+} as const;
+export type MindPointerType = (typeof MindPointerType)[keyof typeof MindPointerType];

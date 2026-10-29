@@ -54,8 +54,9 @@ import {
   BasicShapes,
   ArrowLineShape,
   VectorLinePointerType,
+  FreehandShape,
 } from '@speed-board/extension-draw';
-import { withSpeedMind } from '@speed-board/extension-mindmap';
+import { withSpeedMind, MindPointerType } from '@speed-board/extension-mindmap';
 import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
 import LeftToolbar from './LeftToolbar.vue';

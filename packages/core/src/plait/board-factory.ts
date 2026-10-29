@@ -29,6 +29,10 @@ export interface CreatePlaitBoardOptions {
   theme?: PlaitTheme;
 }
 
+export type BoardOptions = CreatePlaitBoardOptions & {
+  container?: HTMLElement;
+};
+
 /**
  * 创建纯净的 SpeedBoard 底座实例 (只包含画布视口、历史记录、选区、文本/图片公共基础)
  * 所有业务功能 (流程图、手绘、思维导图) 100% 走 plugins 插件注入！

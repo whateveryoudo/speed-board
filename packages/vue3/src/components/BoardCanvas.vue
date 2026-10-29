@@ -2,7 +2,10 @@
   <PlaitBoard
     ref="plaitBoardRef"
     :value="props.options?.value"
-    :options="props.options"
+    :options="boardOptions"
+    :plugins="props.options?.plugins"
+    :viewport="props.options?.viewport"
+    :theme="props.options?.theme"
     @created="onPlaitCreated"
     @change="onPlaitChange"
   >
@@ -11,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeUnmount } from 'vue';
+import { ref, computed, onBeforeUnmount } from 'vue';
 import PlaitBoard from './PlaitBoard.vue';
 import { Board, type BoardOptions, type PlaitBoard as PlaitBoardType } from '@speed-board/core';
 
@@ -25,6 +28,8 @@ const emit = defineEmits<{
 
 const plaitBoardRef = ref();
 let boardInstance: Board | null = null;
+
+const boardOptions = computed(() => (props.options as any)?.options || props.options);
 
 const onPlaitCreated = (plaitBoard: PlaitBoardType) => {
   boardInstance = new Board({
