@@ -134,7 +134,11 @@
           overlay-class-name="shape-picker-popover-overlay" :arrow="false" :align="{ offset: [10, 0] }"
           :overlay-inner-style="{ padding: '0', borderRadius: '8px' }" @update:open="onShapeOpenChange">
           <template #content>
-            <ShapePickerPopover :active-shape-id="currentSelectedShapeId" @select="onShapeLibrarySelect" />
+            <ShapePickerPopover
+              :active-shape-id="currentSelectedShapeId"
+              @select="onShapeLibrarySelect"
+              @insert="onShapeLibraryInsert"
+            />
           </template>
           <a-tooltip :title="shapePickerOpen ? '' : '图形库'" :open="shapePickerOpen ? false : undefined"
             placement="right">
@@ -612,6 +616,15 @@ const onShapeLibrarySelect = (shape: ShapeDefinition) => {
     props.board.setPointer(pointer)
   }
   emit('mode-change', { mode: pointer as any })
+}
+
+// 图形库双击图元：直接插入至视口中心
+const onShapeLibraryInsert = (shape: ShapeDefinition) => {
+  shapePickerOpen.value = false
+  currentTool.value = 'select'
+  if (props.board) {
+    props.board.insertShape(shape.id)
+  }
 }
 
 // 激活连线模式

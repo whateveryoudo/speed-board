@@ -13,6 +13,9 @@ import {
   DrawTransforms,
   ArrowLineShape,
   ArrowLineMarkerType,
+  SwimlaneDrawSymbols,
+  getDefaultSwimlanePoints,
+  createDefaultSwimlane,
 } from '@plait/draw';
 
 export function registerBoardDraw(): void {
@@ -25,6 +28,23 @@ export function registerBoardDraw(): void {
   ) => {
     const center = point || board.getViewportCenterPoint();
     const pointer = board.mapShapeToPointer(shape);
+
+    // 泳道图元特殊处理
+    if (
+      pointer === SwimlaneDrawSymbols.swimlaneVertical ||
+      pointer === SwimlaneDrawSymbols.swimlaneHorizontal
+    ) {
+      const points = getDefaultSwimlanePoints(pointer as any, center);
+      const swimlane = createDefaultSwimlane(pointer as any, points);
+      if (options.fill) (swimlane as any).fill = options.fill;
+      if (options.stroke) (swimlane as any).stroke = options.stroke;
+      Transforms.insertNode(board.raw, swimlane, [board.raw.children.length]);
+      board.setPointer(PlaitPointerType.selection);
+      board.select([swimlane]);
+      board.emit('change', {});
+      return swimlane;
+    }
+
     const points = getDefaultGeometryPoints(pointer as any, center);
     const geometry = createDefaultGeometry(board.raw, points, pointer as any);
     if (options.fill) geometry.fill = options.fill;

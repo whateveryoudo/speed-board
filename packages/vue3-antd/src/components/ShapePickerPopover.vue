@@ -69,6 +69,7 @@
               :class="{ 'is-active': props.activeShapeId === shape.id }"
               @pointerdown="(e: PointerEvent) => onShapePointerDown(e, shape)"
               @click="onSelectShape(shape)"
+              @dblclick="onDblClickShape(shape)"
             >
               <div
                 class="shape-svg-wrapper"
@@ -103,6 +104,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', shape: ShapeDefinition): void
+  (e: 'insert', shape: ShapeDefinition): void
 }>()
 
 // 顶部常驻 Tab: 基础图形 | 流程图 | Smart (1:1 语雀白板)
@@ -229,6 +231,11 @@ const onSelectShape = (shape: ShapeDefinition) => {
   if (justDraggedShape) return
   recordRecentShape(shape.id)
   emit('select', shape)
+}
+
+const onDblClickShape = (shape: ShapeDefinition) => {
+  recordRecentShape(shape.id)
+  emit('insert', shape)
 }
 </script>
 
