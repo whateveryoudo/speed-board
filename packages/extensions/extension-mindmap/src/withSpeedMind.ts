@@ -35,6 +35,7 @@ import {
 } from './component/SpeedMindComponent';
 import {
   editMindNodeTopic,
+  closeInlineEditing,
 } from './renderer/inlineEditor';
 import { MindNodeDnDController } from './interaction/MindNodeDnDController';
 import './registerBoardMindmap';
@@ -191,9 +192,19 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       return;
     }
 
+    // 4.1 如果处于文本编辑状态：
     if (PlaitBoard.hasBeenTextEditing(board)) {
-      pointerDown(event);
-      return;
+      const isInsideActiveEditor = Boolean(
+        (event.target as HTMLElement | null)?.closest?.('[contenteditable="true"]')
+      );
+      if (isInsideActiveEditor) {
+        // 在当前编辑的文本框内点击：放行以调整光标位置
+        pointerDown(event);
+        return;
+      }
+      // 在当前编辑文本框外部点击（如直接点击另一个脑图节点、操作手柄或画板空白）：
+      // 立即结束前一个节点的编辑态，让后续逻辑顺利处理目标节点的选中！
+      closeInlineEditing(board);
     }
 
     const target = event.target as HTMLElement | SVGElement | null;
@@ -245,22 +256,55 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     }
 
     // 4.3 点击节点卡片：选中该特定节点，通知选区变更
+    let clickedNodeId: string | null = null;
+    let clickedRoot: SpeedMindElement | null = null;
+
     const nodeEl = target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null;
     if (nodeEl) {
-      const nodeId = nodeEl.getAttribute('data-node-id');
-      if (nodeId) {
-        const info = findMindRootAndPath(nodeId);
+      clickedNodeId = nodeEl.getAttribute('data-node-id');
+      if (clickedNodeId) {
+        const info = findMindRootAndPath(clickedNodeId);
         if (info) {
-          const { root } = info;
-          clearSelectedElement(board);
-          addSelectedElement(board, root);
-          setSelectedMindNodeId(board, nodeId);
-
-          const wrapper = (board as any).boardWrapper;
-          wrapper?.emit?.('selection:change', { selected: [root] });
-          (board as any).apply({ type: 'set_selection' } as any);
+          clickedRoot = info.root;
         }
       }
+    }
+
+    // 几何兜底：防止 SVG foreignObject / 边界未匹配到 DOM class
+    if (!clickedNodeId) {
+      const point = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
+      const mindElements = board.children.filter((el) => (el as any).type === 'mind') as SpeedMindElement[];
+      for (const mindEl of mindElements) {
+        const layout = MIND_LAYOUT_CACHE.get(mindEl) || computeMindLayout(mindEl);
+        for (const box of layout.nodeMap.values()) {
+          if (
+            point[0] >= box.x &&
+            point[0] <= box.x + box.width &&
+            point[1] >= box.y &&
+            point[1] <= box.y + box.height
+          ) {
+            clickedNodeId = box.id;
+            clickedRoot = mindEl;
+            break;
+          }
+        }
+        if (clickedNodeId) break;
+      }
+    }
+
+    if (clickedNodeId && clickedRoot) {
+      clearSelectedElement(board);
+      addSelectedElement(board, clickedRoot);
+      setSelectedMindNodeId(board, clickedNodeId);
+
+      const wrapper = (board as any).boardWrapper;
+      wrapper?.emit?.('selection:change', { selected: [clickedRoot] });
+      (board as any).apply({ type: 'set_selection' } as any);
+    } else if (
+      !target?.closest?.('.speed-mind-add-handle, .speed-mind-collapse-badge, .speed-mind-collapse-btn')
+    ) {
+      // 点击在思维导图卡片和手柄以外的空白处，清理当前子节点高亮
+      setSelectedMindNodeId(board, null);
     }
 
     // 尝试启动子节点拖拽检测

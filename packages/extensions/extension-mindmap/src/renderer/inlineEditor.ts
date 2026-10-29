@@ -64,6 +64,9 @@ export function closeInlineEditing(board?: PlaitBoard): void {
       }
     }
   }
+  if (document.activeElement && (document.activeElement as HTMLElement).isContentEditable) {
+    (document.activeElement as HTMLElement).blur();
+  }
 }
 
 export function isInlineEditingActive(board?: PlaitBoard): boolean {
