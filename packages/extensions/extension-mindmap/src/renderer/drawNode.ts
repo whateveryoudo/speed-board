@@ -90,13 +90,17 @@ export function renderNodeMarkersSvg(
   const markers = node.data?.markers;
   if (!markers || typeof markers !== 'object') return 0;
 
-  const symbols: string[] = [];
-  if (markers.priority) symbols.push(`marker-priority-${markers.priority}`);
-  if (markers.progress !== undefined && markers.progress !== null) {
-    symbols.push(`marker-progress-${markers.progress}`);
+  const markerList: { category: string; value: any; sym: string }[] = [];
+  if (markers.priority) {
+    markerList.push({ category: 'priority', value: markers.priority, sym: `marker-priority-${markers.priority}` });
   }
-  if (markers.flag) symbols.push(`marker-flag-${markers.flag}`);
-  if (symbols.length === 0) return 0;
+  if (markers.progress !== undefined && markers.progress !== null) {
+    markerList.push({ category: 'progress', value: markers.progress, sym: `marker-progress-${markers.progress}` });
+  }
+  if (markers.flag) {
+    markerList.push({ category: 'flag', value: markers.flag, sym: `marker-flag-${markers.flag}` });
+  }
+  if (markerList.length === 0) return 0;
 
   const isRoot = Boolean(node.isRoot || box.depth === 0);
   const startX = box.x + (isRoot ? 12 : 8);
@@ -104,23 +108,29 @@ export function renderNodeMarkersSvg(
 
   const markersG = document.createElementNS(SVG_NS, 'g');
   markersG.setAttribute('class', 'speed-mind-node-markers');
-  markersG.setAttribute('pointer-events', 'none');
+  markersG.style.pointerEvents = 'auto';
 
-  symbols.forEach((sym, i) => {
+  markerList.forEach((item, i) => {
     const iconG = document.createElementNS(SVG_NS, 'svg');
     iconG.setAttribute('x', String(startX + i * 21));
     iconG.setAttribute('y', String(startY));
     iconG.setAttribute('width', '18');
     iconG.setAttribute('height', '18');
     iconG.setAttribute('viewBox', '0 0 22 22');
+    iconG.setAttribute('class', 'speed-mind-marker-item');
+    iconG.setAttribute('data-category', item.category);
+    iconG.setAttribute('data-value', String(item.value));
+    iconG.setAttribute('data-node-id', box.id);
+    iconG.style.cursor = 'pointer';
+
     const use = document.createElementNS(SVG_NS, 'use');
-    use.setAttribute('href', `#${sym}`);
+    use.setAttribute('href', `#${item.sym}`);
     iconG.appendChild(use);
     markersG.appendChild(iconG);
   });
 
   container.appendChild(markersG);
-  return symbols.length * 21;
+  return markerList.length * 21;
 }
 
 /**
@@ -136,12 +146,29 @@ export function renderNodeCardShape(
   const element = box.element;
   const isRoot = Boolean(element.isRoot || box.depth === 0);
   const shape = element.shape || 'roundRectangle';
-  const isUnderline = shape === 'underline' || (shape as string) === 'none';
+  const isNone = shape === 'none';
+  const isUnderline = shape === 'underline';
   const isCapsule = shape === 'capsule';
   const branchColor = element.branchColor || '#8b5cf6';
 
-  // 1. 节点主体形状 (Body Rect / Underline)
-  if (isUnderline) {
+  // 1. 节点主体形状 (Body Rect / Underline / None 纯文本)
+  if (isNone) {
+    const bodyRect = document.createElementNS(SVG_NS, 'rect');
+    bodyRect.setAttribute('x', String(box.x));
+    bodyRect.setAttribute('y', String(box.y));
+    bodyRect.setAttribute('width', String(box.width));
+    bodyRect.setAttribute('height', String(box.height));
+    bodyRect.setAttribute('rx', '4');
+    bodyRect.setAttribute('ry', '4');
+    bodyRect.setAttribute('fill', 'transparent');
+    bodyRect.setAttribute('stroke', isSelected ? '#3b82f6' : 'none');
+    bodyRect.setAttribute('stroke-width', isSelected ? '1.5' : '0');
+    if (isSelected) {
+      bodyRect.setAttribute('stroke-dasharray', '3 3');
+    }
+    bodyRect.setAttribute('class', 'speed-mind-node-none speed-mind-node-shape');
+    nodeG.appendChild(bodyRect);
+  } else if (isUnderline) {
     const underlineRect = document.createElementNS(SVG_NS, 'rect');
     underlineRect.setAttribute('x', String(box.x));
     underlineRect.setAttribute('y', String(box.y + box.height - 3));
@@ -150,6 +177,7 @@ export function renderNodeCardShape(
     underlineRect.setAttribute('rx', '1.5');
     underlineRect.setAttribute('ry', '1.5');
     underlineRect.setAttribute('fill', isSelected ? '#3b82f6' : branchColor);
+    underlineRect.setAttribute('stroke', 'none');
     underlineRect.setAttribute('class', 'speed-mind-node-underline speed-mind-node-shape');
     nodeG.appendChild(underlineRect);
   } else {
@@ -204,7 +232,8 @@ export function updateNodeCardShape(
   const element = box.element;
   const isRoot = Boolean(element.isRoot || box.depth === 0);
   const shape = element.shape || 'roundRectangle';
-  const isUnderline = shape === 'underline' || (shape as string) === 'none';
+  const isNone = shape === 'none';
+  const isUnderline = shape === 'underline';
   const isCapsule = shape === 'capsule';
   const branchColor = element.branchColor || '#8b5cf6';
 
@@ -216,16 +245,40 @@ export function updateNodeCardShape(
     return;
   }
 
-  if (isUnderline) {
+  if (isNone) {
+    shapeEl.setAttribute('x', String(box.x));
+    shapeEl.setAttribute('y', String(box.y));
+    shapeEl.setAttribute('width', String(box.width));
+    shapeEl.setAttribute('height', String(box.height));
+    shapeEl.setAttribute('rx', '4');
+    shapeEl.setAttribute('ry', '4');
+    shapeEl.setAttribute('fill', 'transparent');
+    shapeEl.setAttribute('stroke', isSelected ? '#3b82f6' : 'none');
+    shapeEl.setAttribute('stroke-width', isSelected ? '1.5' : '0');
+    if (isSelected) {
+      shapeEl.setAttribute('stroke-dasharray', '3 3');
+    } else {
+      shapeEl.removeAttribute('stroke-dasharray');
+    }
+    shapeEl.style.filter = '';
+  } else if (isUnderline) {
     shapeEl.setAttribute('x', String(box.x));
     shapeEl.setAttribute('y', String(box.y + box.height - 3));
     shapeEl.setAttribute('width', String(box.width));
+    shapeEl.setAttribute('height', '3');
+    shapeEl.setAttribute('rx', '1.5');
+    shapeEl.setAttribute('ry', '1.5');
     shapeEl.setAttribute('fill', isSelected ? '#3b82f6' : branchColor);
+    shapeEl.setAttribute('stroke', 'none');
+    shapeEl.setAttribute('stroke-width', '0');
+    shapeEl.removeAttribute('stroke-dasharray');
+    shapeEl.style.filter = '';
   } else {
     shapeEl.setAttribute('x', String(box.x));
     shapeEl.setAttribute('y', String(box.y));
     shapeEl.setAttribute('width', String(box.width));
     shapeEl.setAttribute('height', String(box.height));
+    shapeEl.removeAttribute('stroke-dasharray');
 
     const rx = isCapsule ? box.height / 2 : (isRoot ? 8 : 6);
     shapeEl.setAttribute('rx', String(rx));

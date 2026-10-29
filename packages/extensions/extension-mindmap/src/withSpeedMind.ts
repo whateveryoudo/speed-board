@@ -209,6 +209,34 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
     const target = event.target as HTMLElement | SVGElement | null;
 
+    // 4.1.5 点击节点上的标记 (Marker) -> 广播 marker 点击事件以弹出快捷选择器
+    const markerEl = target?.closest?.('.speed-mind-marker-item') as HTMLElement | SVGElement | null;
+    if (markerEl) {
+      const category = markerEl.getAttribute('data-category');
+      const value = markerEl.getAttribute('data-value');
+      const nodeId = markerEl.getAttribute('data-node-id');
+      if (category && nodeId) {
+        const info = findMindRootAndPath(nodeId);
+        if (info) {
+          clearSelectedElement(board);
+          addSelectedElement(board, info.root);
+          setSelectedMindNodeId(board, nodeId);
+          const wrapper = (board as any).boardWrapper;
+          wrapper?.emit?.('selection:change', { selected: [info.root] });
+          (board as any).apply({ type: 'set_selection' } as any);
+        }
+        const wrapper = (board as any).boardWrapper;
+        wrapper?.emit?.('mindmap:marker:click', {
+          nodeId,
+          category,
+          value,
+          targetEl: markerEl,
+        });
+        event.stopPropagation();
+        return;
+      }
+    }
+
     // 4.2 点击外延操作手柄 (+ 按钮 / 折叠展开)
     const handleEl = target?.closest?.('[data-action]') as HTMLElement | SVGElement | null;
     if (handleEl) {

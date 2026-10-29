@@ -61,7 +61,8 @@ const selectedCell = computed(() => {
 const currentBranchType = computed<'curve' | 'straight'>(() => {
   if (!selectedCell.value || !props.board) return 'curve'
   const cell = selectedCell.value
-  if (cell.branchShape === 'polyline' || cell.data?.branch?.type === 'straight' || cell.branchType === 'straight') {
+  const shape = cell.branchShape || cell.data?.branch?.type || cell.branchType
+  if (shape === 'polyline' || shape === 'straight') {
     return 'straight'
   }
   return 'curve'
@@ -73,10 +74,11 @@ const currentBranchIcon = computed(() => {
 
 const selectBranchType = (type: 'curve' | 'straight') => {
   if (!props.board) return
+  const branchShape = type === 'straight' ? 'polyline' : 'curve'
   if (typeof (props.board as any).setMindmapBranchShape === 'function') {
-    (props.board as any).setMindmapBranchShape(type)
+    (props.board as any).setMindmapBranchShape(branchShape)
   } else {
-    props.board.setShapeProperty({ branchShape: type === 'straight' ? 'polyline' : 'bight' })
+    props.board.setShapeProperty({ branchShape })
   }
   isOpen.value = false
 }

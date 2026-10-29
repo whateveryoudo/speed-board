@@ -58,7 +58,7 @@ export function registerBoardMindmap(): void {
     ) as SpeedMindElement[];
     if (selected.length === 0) return;
 
-    const branchShape = shape === 'polyline' ? 'polyline' : 'curve';
+    const branchShape = shape === 'polyline' || shape === 'straight' ? 'polyline' : 'curve';
     board.syncNodeIndices();
     selected.forEach((el) => {
       const path = board.getElementPath(el);
@@ -79,7 +79,9 @@ export function registerBoardMindmap(): void {
     const nodeShape =
       shape === 'capsule'
         ? 'capsule'
-        : shape === 'none' || shape === 'underline'
+        : shape === 'none'
+        ? 'none'
+        : shape === 'underline'
         ? 'underline'
         : 'roundRectangle';
 
@@ -171,7 +173,15 @@ export function registerBoardMindmap(): void {
     const selectedNodeId = getSelectedMindNodeId(board.raw);
     if (!selectedNodeId) return;
 
-    const res = addSummaryNode(root, [selectedNodeId], '概要');
+    const parentNode = findNodeById(root, selectedNodeId);
+    if (!parentNode || !parentNode.children || parentNode.children.length === 0) return;
+
+    const childIds = parentNode.children
+      .filter((c: any) => !c.data?.isSummary && !c.isSummary)
+      .map((c: any) => c.id);
+    if (childIds.length === 0) return;
+
+    const res = addSummaryNode(root, childIds, '概要');
     if (res) {
       board.syncNodeIndices();
       const path = board.getElementPath(root);
@@ -198,10 +208,15 @@ export function registerBoardMindmap(): void {
     if (!node) return;
 
     if (!node.data) node.data = { topic: { children: [{ text: '' }] } };
-    node.data.markers = {
-      ...(node.data.markers || {}),
-      ...markers,
-    };
+    const updatedMarkers: any = { ...(node.data.markers || {}) };
+    Object.keys(markers).forEach((k) => {
+      if (markers[k] === null || markers[k] === undefined) {
+        delete updatedMarkers[k];
+      } else {
+        updatedMarkers[k] = markers[k];
+      }
+    });
+    node.data.markers = Object.keys(updatedMarkers).length > 0 ? updatedMarkers : undefined;
 
     board.syncNodeIndices();
     const path = board.getElementPath(root);

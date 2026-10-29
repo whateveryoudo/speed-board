@@ -60,9 +60,62 @@ export function renderNodeHandlesSvg(
     return;
   }
 
-  // 2.1 外侧 `+` 按钮 (对标 X6，优雅挂载于节点外缘 8px 处，绝不压在连线上)
   const isLeft = !isRoot && box.left;
-  const plusCx = isLeft ? box.x - 10 : box.x + box.width + 10;
+  const hasCollapseBtn = !isRoot && hasChildren && !isCollapsed;
+
+  // 2.1 折叠按钮：位于 + 按钮的左边 (更贴近节点卡片边缘)，尺寸较小 (r = 5.2)，使用 < 箭头指示向父级折叠
+  if (hasCollapseBtn) {
+    const collapseG = document.createElementNS(SVG_NS, 'g');
+    collapseG.setAttribute('class', 'speed-mind-collapse-handle');
+    collapseG.setAttribute('data-action', 'collapse');
+    collapseG.setAttribute('data-node-id', box.id);
+    collapseG.style.cursor = 'pointer';
+
+    const colCx = isLeft ? box.x - 7 : box.x + box.width + 7;
+    const colCy = box.y + box.height / 2;
+
+    const colCircle = document.createElementNS(SVG_NS, 'circle');
+    colCircle.setAttribute('cx', String(colCx));
+    colCircle.setAttribute('cy', String(colCy));
+    colCircle.setAttribute('r', '5.2');
+    colCircle.setAttribute('fill', '#ffffff');
+    colCircle.setAttribute('stroke', '#cbd5e1');
+    colCircle.setAttribute('stroke-width', '1');
+
+    // < 折叠箭头 (右向布局指向左 <，左向布局指向右 >)
+    const arrowPath = document.createElementNS(SVG_NS, 'path');
+    const d = isLeft
+      ? `M ${colCx - 1.2} ${colCy - 2.6} L ${colCx + 1.4} ${colCy} L ${colCx - 1.2} ${colCy + 2.6}`
+      : `M ${colCx + 1.2} ${colCy - 2.6} L ${colCx - 1.4} ${colCy} L ${colCx + 1.2} ${colCy + 2.6}`;
+
+    arrowPath.setAttribute('d', d);
+    arrowPath.setAttribute('fill', 'none');
+    arrowPath.setAttribute('stroke', '#64748b');
+    arrowPath.setAttribute('stroke-width', '1.2');
+    arrowPath.setAttribute('stroke-linecap', 'round');
+    arrowPath.setAttribute('stroke-linejoin', 'round');
+    arrowPath.setAttribute('pointer-events', 'none');
+
+    collapseG.appendChild(colCircle);
+    collapseG.appendChild(arrowPath);
+
+    collapseG.addEventListener('mouseenter', () => {
+      colCircle.setAttribute('stroke', '#3b82f6');
+      colCircle.setAttribute('fill', '#eff6ff');
+      arrowPath.setAttribute('stroke', '#3b82f6');
+    });
+    collapseG.addEventListener('mouseleave', () => {
+      colCircle.setAttribute('stroke', '#cbd5e1');
+      colCircle.setAttribute('fill', '#ffffff');
+      arrowPath.setAttribute('stroke', '#64748b');
+    });
+
+    handleContainer.appendChild(collapseG);
+  }
+
+  // 2.2 外侧 `+` 按钮 (尺寸更大 r = 7.5，若有折叠按钮则放其右侧，若无则贴紧节点)
+  const plusOffset = hasCollapseBtn ? 22 : 9;
+  const plusCx = isLeft ? box.x - plusOffset : box.x + box.width + plusOffset;
   const plusCy = box.y + box.height / 2;
 
   const plusG = document.createElementNS(SVG_NS, 'g');
@@ -93,7 +146,6 @@ export function renderNodeHandlesSvg(
   plusG.appendChild(circle);
   plusG.appendChild(crossPath);
 
-  // Hover 高亮交互
   plusG.addEventListener('mouseenter', () => {
     circle.setAttribute('stroke', '#2563eb');
     circle.setAttribute('fill', '#eff6ff');
@@ -106,48 +158,4 @@ export function renderNodeHandlesSvg(
   });
 
   handleContainer.appendChild(plusG);
-
-  // 2.2 若非根节点且拥有子节点，在展开状态提供收起按钮
-  if (!isRoot && hasChildren && !isCollapsed) {
-    const collapseG = document.createElementNS(SVG_NS, 'g');
-    collapseG.setAttribute('class', 'speed-mind-collapse-handle');
-    collapseG.setAttribute('data-action', 'collapse');
-    collapseG.setAttribute('data-node-id', box.id);
-    collapseG.style.cursor = 'pointer';
-
-    const colCx = isLeft ? box.x - 26 : box.x + box.width + 26;
-    const colCy = box.y + box.height / 2;
-
-    const colCircle = document.createElementNS(SVG_NS, 'circle');
-    colCircle.setAttribute('cx', String(colCx));
-    colCircle.setAttribute('cy', String(colCy));
-    colCircle.setAttribute('r', '6');
-    colCircle.setAttribute('fill', '#ffffff');
-    colCircle.setAttribute('stroke', '#cbd5e1');
-    colCircle.setAttribute('stroke-width', '1');
-
-    // 减号线
-    const minusPath = document.createElementNS(SVG_NS, 'path');
-    minusPath.setAttribute('d', `M ${colCx - 3} ${colCy} L ${colCx + 3} ${colCy}`);
-    minusPath.setAttribute('stroke', '#94a3b8');
-    minusPath.setAttribute('stroke-width', '1.2');
-    minusPath.setAttribute('stroke-linecap', 'round');
-    minusPath.setAttribute('pointer-events', 'none');
-
-    collapseG.appendChild(colCircle);
-    collapseG.appendChild(minusPath);
-
-    collapseG.addEventListener('mouseenter', () => {
-      colCircle.setAttribute('stroke', '#ef4444');
-      colCircle.setAttribute('fill', '#fef2f2');
-      minusPath.setAttribute('stroke', '#ef4444');
-    });
-    collapseG.addEventListener('mouseleave', () => {
-      colCircle.setAttribute('stroke', '#cbd5e1');
-      colCircle.setAttribute('fill', '#ffffff');
-      minusPath.setAttribute('stroke', '#94a3b8');
-    });
-
-    handleContainer.appendChild(collapseG);
-  }
 }

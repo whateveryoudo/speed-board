@@ -61,6 +61,8 @@ const selectedCell = computed(() => {
 const currentShapeStyle = computed<MindmapShapeStyle>(() => {
   if (!selectedCell.value) return 'rect'
   const cell = selectedCell.value
+  if (cell.shape === 'none') return 'none'
+  if (cell.shape === 'capsule') return 'capsule'
   if (cell.shape === 'underline') return 'none'
   return 'rect'
 })

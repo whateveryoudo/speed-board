@@ -28,6 +28,17 @@
       @toggle-settings="showSettingsPanel = !showSettingsPanel"
     />
 
+    <!-- 脑图标记快捷选择弹层 (点击节点上的优先级/进度/旗帜时就地弹出切换) -->
+    <MindmapMarkerQuickPicker
+      :board="boardInstance"
+      :visible="showMarkerPicker"
+      :target-el="markerPickerTargetEl"
+      :node-id="markerPickerNodeId"
+      :category="markerPickerCategory"
+      :value="markerPickerValue"
+      @close="showMarkerPicker = false"
+    />
+
     <!-- 右侧属性深度设置抽屉 -->
     <StyleSettingsPanel
       v-model:visible="showSettingsPanel"
@@ -61,6 +72,7 @@ import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
 import LeftToolbar from './LeftToolbar.vue';
 import FloatingToolbar from './FloatingToolbar.vue';
+import MindmapMarkerQuickPicker from './MindmapMarkerQuickPicker.vue';
 import StyleSettingsPanel from './StyleSettingsPanel.vue';
 import { useAntdCssVars } from 'speed-components-ui/hooks';
 import type { IconProvider } from '../data/defaultIcons';
@@ -96,6 +108,12 @@ const showLeftToolbar = ref(true);
 const showSettingsPanel = ref(false);
 const activeMode = ref<string>('select');
 
+const showMarkerPicker = ref(false);
+const markerPickerTargetEl = ref<HTMLElement | SVGElement | null>(null);
+const markerPickerNodeId = ref<string | null>(null);
+const markerPickerCategory = ref<string>('priority');
+const markerPickerValue = ref<any>(null);
+
 const mergedOptions = computed(() => ({
   ...props.options,
   plugins: [withDrawKit, withSpeedMind, ...(props.options?.plugins || [])],
@@ -103,6 +121,16 @@ const mergedOptions = computed(() => ({
 
 const onBoardCreated = (board: Board) => {
   boardInstance.value = board;
+
+  const wrapper = (board as any).boardWrapper;
+  wrapper?.on?.('mindmap:marker:click', (payload: any) => {
+    markerPickerTargetEl.value = payload.targetEl;
+    markerPickerNodeId.value = payload.nodeId;
+    markerPickerCategory.value = payload.category;
+    markerPickerValue.value = payload.value;
+    showMarkerPicker.value = true;
+  });
+
   emit('created', board);
 };
 

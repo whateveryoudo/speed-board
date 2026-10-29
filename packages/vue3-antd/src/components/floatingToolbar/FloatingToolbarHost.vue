@@ -252,12 +252,50 @@ const mindmapShapeStyle = useCellAttributes<string>(
   'rect'
 )
 
+const selectedMindNodeHasChildren = computed(() => {
+  if (!props.board) return false
+  const selectedElements = (props.board.selectedElements || []) as any[]
+  const mindElement = selectedElements.find((el) => el.type === 'mind')
+  if (!mindElement) return false
+
+  const rawBoard = (props.board as any).raw || props.board
+  const selectedNodeId =
+    (props.board as any).getSelectedMindNodeId?.() ||
+    (rawBoard as any).selectedMindNodeId ||
+    mindElement.data?.selectedMindNodeId ||
+    mindElement.id
+
+  const findNode = (node: any, id: string): any => {
+    if (node.id === id) return node
+    if (node.children) {
+      for (const c of node.children) {
+        const res = findNode(c, id)
+        if (res) return res
+      }
+    }
+    return null
+  }
+
+  const targetNode = findNode(mindElement, selectedNodeId)
+  if (!targetNode) return false
+  return Boolean(
+    targetNode.children &&
+    targetNode.children.length > 0 &&
+    !targetNode.isSummary &&
+    !targetNode.data?.isSummary
+  )
+})
+
 const activeToolbarItems = computed(() => {
   const schema = activeSchema.value
   if (!schema?.quickToolbar) return []
 
   return schema.quickToolbar.filter((item) => {
     if (currentType.value.startsWith('mindmap')) {
+      // 概括 (mindmap-summary)：仅当选中的节点拥有子节点时才显示！
+      if (item === 'mindmap-summary') {
+        return Boolean(selectedMindNodeHasChildren.value)
+      }
       // 思维导图节点：当为纯文本 (none) 时，隐藏填充 (fill) 和描边 (stroke)
       if (item === 'fill' || item === 'stroke') {
         const style = mindmapShapeStyle.value || 'rect'

@@ -293,9 +293,12 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
         ? [childBox.x + childBox.width, childBox.y + childBox.height / 2]
         : [childBox.x, childBox.y + childBox.height / 2];
 
-      const branchShape = (childBox.element.branchShape ||
+      const rawShape =
+        childBox.element.branchShape ||
         box.element.branchShape ||
-        'curve') as 'curve' | 'polyline';
+        (rootElement as any).branchShape ||
+        'curve';
+      const branchShape = (rawShape === 'polyline' || rawShape === 'straight' ? 'polyline' : 'curve') as 'curve' | 'polyline';
 
       links.push({
         from,
