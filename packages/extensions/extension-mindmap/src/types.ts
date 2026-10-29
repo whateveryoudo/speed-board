@@ -7,6 +7,8 @@ export interface MindTopicChild {
   fontWeight?: string;
   bold?: boolean;
   italic?: boolean;
+  underlined?: boolean;
+  strikethrough?: boolean;
   [key: string]: any;
 }
 
@@ -24,21 +26,21 @@ export interface MindMarkerItem {
 export interface SpeedMindNodeData {
   topic: MindTopicData;
   markers?: MindmapMarkers;
-  emojis?: MindMarkerItem[];
+  isSummary?: boolean;
+  summaryFor?: string[];
   [key: string]: any;
 }
 
 export interface SpeedMindElement {
   id: string;
-  type: 'mind' | 'speed-mind';
+  type: 'mind';
   points?: [[number, number]];
   data: SpeedMindNodeData;
   children: SpeedMindElement[];
   isRoot?: boolean;
   isCollapsed?: boolean;
-  isSummary?: boolean;
   rightNodeCount?: number;
-  shape?: 'roundRectangle' | 'underline' | 'rect';
+  shape?: 'roundRectangle' | 'underline';
   fill?: string;
   strokeColor?: string;
   strokeWidth?: number;
@@ -49,7 +51,6 @@ export interface SpeedMindElement {
   layout?: string;
   width?: number;
   height?: number;
-  selectedNodeId?: string;
   [key: string]: any;
 }
 
@@ -67,7 +68,34 @@ export interface NodeLayoutBox {
   children: NodeLayoutBox[];
 }
 
+export interface BranchLinkInfo {
+  from: [number, number];
+  to: [number, number];
+  color: string;
+  width: number;
+  shape: 'curve' | 'polyline';
+  sourceBox: NodeLayoutBox;
+  targetBox: NodeLayoutBox;
+}
+
+export interface SummaryLayoutInfo {
+  id: string;
+  bracketPath: string;
+  summaryBox: NodeLayoutBox;
+  coveredBoxes: NodeLayoutBox[];
+  element: SpeedMindElement;
+}
+
+export interface ComputedMindLayout {
+  rootBox: NodeLayoutBox;
+  nodeMap: Map<string, NodeLayoutBox>;
+  links: BranchLinkInfo[];
+  summaries: SummaryLayoutInfo[];
+  boundingRect: { x: number; y: number; width: number; height: number };
+}
+
 export const MindPointerType = {
   mind: 'mind',
 } as const;
+
 export type MindPointerType = (typeof MindPointerType)[keyof typeof MindPointerType];
