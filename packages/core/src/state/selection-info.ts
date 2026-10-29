@@ -18,7 +18,13 @@ export function isLineNode(element: any): boolean {
 
 export function isMindmapNode(element: any): boolean {
   if (!element) return false;
-  return element.type === 'mind' || Boolean(element.isRoot) || Boolean(element.data?.topic);
+  return (
+    element.type === 'mind' ||
+    element.type === 'mind_child' ||
+    element.type === 'mindmap' ||
+    Boolean(element.isRoot) ||
+    Boolean(element.data?.topic)
+  );
 }
 
 export function isImageNode(element: any): boolean {

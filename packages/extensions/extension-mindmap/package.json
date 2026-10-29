@@ -11,6 +11,7 @@
     "@plait/common": "^0.94.1",
     "@plait/core": "^0.94.1",
     "@plait/layouts": "^0.94.1",
+    "@plait/mind": "^0.94.1",
     "@speed-board/core": "workspace:*",
     "@speed-board/shared": "workspace:*",
     "is-hotkey": "^0.2.0"

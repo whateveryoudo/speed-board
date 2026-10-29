@@ -365,6 +365,12 @@ export class Board {
   static insertLineHandler?: (board: Board, shape?: string, options?: any, point?: [number, number]) => any;
   static insertTextHandler?: (board: Board, text?: string, point?: [number, number]) => any;
   static insertImageHandler?: (board: Board, image: any, point?: [number, number]) => any;
+  static insertMindmapHandler?: (board: Board, topic?: string, point?: [number, number]) => any;
+  static setMindmapLayoutHandler?: (board: Board, layout: string) => void;
+  static setMindmapBranchShapeHandler?: (board: Board, shape: string) => void;
+  static setMindmapShapeHandler?: (board: Board, shape: string) => void;
+  static addMindmapSummaryHandler?: (board: Board) => void;
+  static setMindmapMarkersHandler?: (board: Board, markers: Record<string, any>) => void;
 
   getViewportCenterPoint(): [number, number] {
     const container = PlaitBoard.getBoardContainer(this.raw);
@@ -380,114 +386,39 @@ export class Board {
   }
 
   insertMindmap(topic = '思维导图', point?: [number, number]) {
-    const center = point || this.getViewportCenterPoint();
-    const emptyMind: PlaitElement = {
-      id: `mind-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-      type: 'mind',
-      points: [[center[0] - 55, center[1] - 21]],
-      isRoot: true,
-      shape: 'roundRectangle',
-      fill: '#2563eb',
-      strokeColor: '#2563eb',
-      strokeWidth: 2,
-      data: {
-        topic: {
-          children: [{ text: topic, color: '#ffffff', fontSize: 16, fontWeight: '500' }],
-          align: 'center',
-        },
-      },
-      children: [],
-    } as any;
-
-    Transforms.insertNode(this.raw, emptyMind, [this.raw.children.length]);
-    this.setPointer(PlaitPointerType.selection);
-    this.select([emptyMind]);
-    this.emit('change', {});
-
-    return emptyMind;
+    if (Board.insertMindmapHandler) {
+      return Board.insertMindmapHandler(this, topic, point);
+    }
   }
 
   setMindmapLayout(layout: string) {
-    const layoutMap: Record<string, string> = {
-      balanced: 'standard',
-      standard: 'standard',
-      right: 'right',
-      left: 'left',
-      'org-down': 'downward',
-      downward: 'downward',
-      'tree-right': 'right-bottom-indented',
-      'tree-left': 'left-bottom-indented',
-      'timeline-up': 'upward',
-      upward: 'upward',
-    };
-    const targetLayout = layoutMap[layout] || layout;
-    const selected = (this.selectedElements || []).find((el) => this.isMindmapNode(el));
-    if (selected) {
-      selected.layout = targetLayout;
-      const path = this.getElementPath(selected);
-      if (path) {
-        Transforms.setNode(this.raw, { layout: targetLayout }, path);
-      }
-      this.emit('change', {});
+    if (Board.setMindmapLayoutHandler) {
+      Board.setMindmapLayoutHandler(this, layout);
     }
   }
 
   setMindmapBranchShape(shape: string) {
-    const branchShape = shape === 'curve' || shape === 'bight' ? 'curve' : 'polyline';
-    const selected = (this.selectedElements || []).find((el) => this.isMindmapNode(el));
-    if (selected) {
-      selected.branchShape = branchShape as any;
-      const path = this.getElementPath(selected);
-      if (path) {
-        Transforms.setNode(this.raw, { branchShape }, path);
-      }
-      this.emit('change', {});
+    if (Board.setMindmapBranchShapeHandler) {
+      Board.setMindmapBranchShapeHandler(this, shape);
     }
   }
 
   setMindmapShape(shape: string) {
-    const plaitShape = shape === 'none' || shape === 'underline' ? 'underline' : 'roundRectangle';
-    const selected = (this.selectedElements || []).find((el) => this.isMindmapNode(el));
-    if (selected) {
-      selected.shape = plaitShape as any;
-      const path = this.getElementPath(selected);
-      if (path) {
-        Transforms.setNode(this.raw, { shape: plaitShape }, path);
-      }
-      this.emit('change', {});
+    if (Board.setMindmapShapeHandler) {
+      Board.setMindmapShapeHandler(this, shape);
     }
   }
 
   addMindmapSummary() {
-    const selected = (this.selectedElements || []).filter((el) => this.isMindmapNode(el));
-    if (selected.length === 0) return;
-    this.syncNodeIndices();
-    this.emit('change', {});
+    if (Board.addMindmapSummaryHandler) {
+      Board.addMindmapSummaryHandler(this);
+    }
   }
 
   setMindmapMarkers(markers: Record<string, any>) {
-    const selected = (this.selectedElements || []).filter((el) => this.isMindmapNode(el));
-    if (selected.length === 0) return;
-
-    this.syncNodeIndices();
-    selected.forEach((element) => {
-      const path = this.getElementPath(element);
-      if (path) {
-        const currentData = (element as any).data || {};
-        Transforms.setNode(
-          this.raw,
-          {
-            data: {
-              ...currentData,
-              markers: { ...markers },
-            },
-          },
-          path
-        );
-      }
-    });
-    this.syncNodeIndices();
-    this.emit('change', {});
+    if (Board.setMindmapMarkersHandler) {
+      Board.setMindmapMarkersHandler(this, markers);
+    }
   }
 
   insertShape(shape: string, options: any = {}, point?: [number, number]) {
