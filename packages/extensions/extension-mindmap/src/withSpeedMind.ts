@@ -60,7 +60,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
   // 1. 允许思维导图整树在画布上直接拖拽平移 (子节点拖拽由 dndController 接管)
   board.isMovable = (element: any): boolean => {
     if (element.type === 'mind') {
-      if (dndController.isActiveDragging) {
+      if (dndController.hasDragCandidate || dndController.isActiveDragging) {
         return false;
       }
       return true;
@@ -174,7 +174,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       const viewBoxPoint = toViewBoxPoint(board, hostPoint);
 
       const emptyMind = createEmptyMindmap('中心主题', {
-        points: [[viewBoxPoint[0], viewBoxPoint[1]]],
+        points: [[viewBoxPoint[0] - 40, viewBoxPoint[1] - 18]],
       });
 
       const insertIndex = board.children.length;
@@ -198,8 +198,12 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
             box: rootBox,
             initialText: '中心主题',
             onCommit: (newText) => {
-              const updated = setNodeTopicText(emptyMind, emptyMind.id, newText);
-              Transforms.setNode(board, { data: updated.data }, [insertIndex]);
+              const cur = findMindRootAndPath(emptyMind.id);
+              if (cur) {
+                const updated = setNodeTopicText(cur.root, emptyMind.id, newText);
+                Transforms.setNode(board, { data: updated.data, children: updated.children }, cur.path);
+                ((board as any).boardWrapper || board)?.emit?.('change', {});
+              }
             },
           });
         }
@@ -383,9 +387,44 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       const info = findMindRootAndPath(selectedMindNodeId);
       if (info) {
         const { root, path } = info;
-        const isRootNode = Boolean(
-          root.id === selectedMindNodeId || root.isRoot
-        );
+        const isRootNode = Boolean(root.id === selectedMindNodeId);
+
+        // 7.0 用户直接键入字符：立即就地启动编辑 (1:1 对标 Text/Shape 图形节点输入体验)
+        const isPrintableKey =
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey &&
+          event.key.length === 1 &&
+          event.key !== ' ' &&
+          event.code !== 'Space';
+
+        if (isPrintableKey) {
+          event.preventDefault();
+          event.stopPropagation();
+          const layout = computeMindLayout(root);
+          const box = layout.nodeMap.get(selectedMindNodeId);
+          if (box) {
+            startInlineEditing({
+              board,
+              box,
+              initialText: getNodeTopicText(box.element),
+              firstChar: event.key,
+              onCommit: (txt) => {
+                const cur = findMindRootAndPath(selectedMindNodeId);
+                if (cur) {
+                  const updated = setNodeTopicText(cur.root, selectedMindNodeId, txt);
+                  Transforms.setNode(
+                    board,
+                    { data: updated.data, children: updated.children },
+                    cur.path
+                  );
+                  ((board as any).boardWrapper || board)?.emit?.('change', {});
+                }
+              },
+            });
+          }
+          return;
+        }
 
         // 7.1 Enter: 根节点添加子级，子级添加同级
         if (event.key === 'Enter') {
@@ -494,12 +533,16 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
               box,
               initialText: getNodeTopicText(box.element),
               onCommit: (txt) => {
-                const updated = setNodeTopicText(root, selectedMindNodeId, txt);
-                Transforms.setNode(
-                  board,
-                  { data: updated.data, children: updated.children },
-                  path
-                );
+                const cur = findMindRootAndPath(selectedMindNodeId);
+                if (cur) {
+                  const updated = setNodeTopicText(cur.root, selectedMindNodeId, txt);
+                  Transforms.setNode(
+                    board,
+                    { data: updated.data, children: updated.children },
+                    cur.path
+                  );
+                  ((board as any).boardWrapper || board)?.emit?.('change', {});
+                }
               },
             });
           }

@@ -206,15 +206,17 @@ export function moveNode(
   if (!targetParent) return null;
 
   if (!targetParent.children) targetParent.children = [];
+  let insertIdx = typeof targetIndex === 'number' ? targetIndex : targetParent.children.length;
   if (
+    sourceInfo.parent.id === targetParent.id &&
     typeof targetIndex === 'number' &&
-    targetIndex >= 0 &&
-    targetIndex <= targetParent.children.length
+    targetIndex > sourceInfo.index
   ) {
-    targetParent.children.splice(targetIndex, 0, removed);
-  } else {
-    targetParent.children.push(removed);
+    insertIdx = Math.max(0, insertIdx - 1);
   }
+  insertIdx = Math.max(0, Math.min(insertIdx, targetParent.children.length));
+  targetParent.children.splice(insertIdx, 0, removed);
+
   return clonedRoot;
 }
 

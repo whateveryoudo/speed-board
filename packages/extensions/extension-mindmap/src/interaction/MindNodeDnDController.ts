@@ -53,6 +53,10 @@ export class MindNodeDnDController {
     return this.isDragging;
   }
 
+  public get hasDragCandidate(): boolean {
+    return Boolean(this.startPoint && this.draggedNodeId);
+  }
+
   public onPointerDown(event: PointerEvent): boolean {
     const target = event.target as HTMLElement | SVGElement | null;
     const nodeEl = target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null;
@@ -70,7 +74,7 @@ export class MindNodeDnDController {
     if (!info) return false;
 
     // 根节点由 board.isMovable 负责全图拖拽，DnD 控制器只负责子节点的拓扑排序与嵌套
-    if (info.root.id === nodeId || info.root.isRoot) {
+    if (info.root.id === nodeId) {
       return false;
     }
 

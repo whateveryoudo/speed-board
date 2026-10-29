@@ -60,6 +60,9 @@ export function buildBezierBranchPath(
 ): string {
   const [sx, sy] = source;
   const [tx, ty] = target;
+  if (Math.abs(ty - sy) < 4) {
+    return `M ${sx} ${sy} L ${tx} ${ty}`;
+  }
   const dx = Math.max(Math.abs(tx - sx) * 0.5, 16);
   const factor = tx >= sx ? 1 : -1;
   const cx1 = sx + dx * factor;

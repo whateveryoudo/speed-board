@@ -8,6 +8,7 @@ export interface InlineEditorOptions {
   board: PlaitBoard;
   box: NodeLayoutBox;
   initialText: string;
+  firstChar?: string;
   onCommit: (newText: string) => void;
   onCancel?: () => void;
 }
@@ -16,7 +17,7 @@ export interface InlineEditorOptions {
  * 启动节点就地编辑 (精确覆盖在节点卡片之上，自动全选文本)
  */
 export function startInlineEditing(options: InlineEditorOptions): void {
-  const { board, box, initialText, onCommit, onCancel } = options;
+  const { board, box, initialText, firstChar, onCommit, onCancel } = options;
 
   closeInlineEditing();
 
@@ -41,7 +42,7 @@ export function startInlineEditing(options: InlineEditorOptions): void {
 
   const textarea = document.createElement('textarea');
   textarea.className = 'speed-mind-inline-editor';
-  textarea.value = initialText;
+  textarea.value = typeof firstChar === 'string' ? firstChar : initialText;
 
   Object.assign(textarea.style, {
     position: 'fixed',
@@ -102,9 +103,21 @@ export function startInlineEditing(options: InlineEditorOptions): void {
   textarea.addEventListener('click', (e) => e.stopPropagation());
   textarea.addEventListener('dblclick', (e) => e.stopPropagation());
 
+  let isComposing = false;
+  textarea.addEventListener('compositionstart', () => {
+    isComposing = true;
+  });
+  textarea.addEventListener('compositionend', () => {
+    isComposing = false;
+    autoResize();
+  });
+
   textarea.addEventListener('input', autoResize);
 
   textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.isComposing || isComposing) {
+      return;
+    }
     if (e.key === 'Enter') {
       if (e.shiftKey) {
         // Shift + Enter 换行
@@ -141,7 +154,11 @@ export function startInlineEditing(options: InlineEditorOptions): void {
   // 聚焦并全选内容
   setTimeout(() => {
     textarea.focus();
-    textarea.select();
+    if (typeof firstChar === 'string') {
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    } else {
+      textarea.select();
+    }
     autoResize();
   }, 10);
 }
