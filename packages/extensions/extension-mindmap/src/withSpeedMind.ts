@@ -294,13 +294,49 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     globalPointerUp(event);
   };
 
-  // 6. 双击节点启动就地编辑
+  // 6. 双击节点启动就地编辑 (优先坐标几何碰撞判定，同步设置画布选中态与全选文本)
   board.dblClick = (event: MouseEvent) => {
+    const point = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
+    const mindElements = board.children.filter((el) => (el as any).type === 'mind') as SpeedMindElement[];
+
+    for (const mindEl of mindElements) {
+      const layout = MIND_LAYOUT_CACHE.get(mindEl) || computeMindLayout(mindEl);
+      for (const box of layout.nodeMap.values()) {
+        if (
+          point[0] >= box.x &&
+          point[0] <= box.x + box.width &&
+          point[1] >= box.y &&
+          point[1] <= box.y + box.height
+        ) {
+          clearSelectedElement(board);
+          addSelectedElement(board, mindEl);
+          setSelectedMindNodeId(board, box.id);
+
+          const wrapper = (board as any).boardWrapper;
+          wrapper?.emit?.('selection:change', { selected: [mindEl] });
+          (board as any).apply({ type: 'set_selection' } as any);
+
+          editMindNodeTopic(board, box.id);
+          event.stopPropagation();
+          return;
+        }
+      }
+    }
+
+    // 兜底：DOM target closest 判定
     const target = event.target as HTMLElement | SVGElement | null;
     const nodeEl = target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null;
     if (nodeEl) {
       const nodeId = nodeEl.getAttribute('data-node-id');
       if (nodeId) {
+        const info = findMindRootAndPath(nodeId);
+        if (info) {
+          clearSelectedElement(board);
+          addSelectedElement(board, info.root);
+          const wrapper = (board as any).boardWrapper;
+          wrapper?.emit?.('selection:change', { selected: [info.root] });
+          (board as any).apply({ type: 'set_selection' } as any);
+        }
         setSelectedMindNodeId(board, nodeId);
         editMindNodeTopic(board, nodeId);
         event.stopPropagation();

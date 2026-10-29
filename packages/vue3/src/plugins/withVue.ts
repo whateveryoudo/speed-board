@@ -346,14 +346,13 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
             }
           });
 
-          // 初始化选区：如果存在 savedDomOffsets 则恢复选区，否则光标放置在末尾
+          // 初始化选区：如果存在 savedDomOffsets 则恢复选区，否则全选文本 (对标 Plait 原生 Transforms.select(editor, [0]))
           if ((editor as any).savedDomOffsets) {
             const { start, end, isBackward } = (editor as any).savedDomOffsets;
             setDomCharSelection(editableEl, start, end, isBackward);
           } else {
             const range = document.createRange();
             range.selectNodeContents(editableEl);
-            range.collapse(false);
             const sel = window.getSelection();
             sel?.removeAllRanges();
             sel?.addRange(range);
