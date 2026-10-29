@@ -71,6 +71,8 @@ export class SpeedVectorLineComponent
       hasResizeHandle: () => true,
     }) as any;
 
+    (this.activeGenerator as any).needUpdate = () => false;
+
     this.getRef().updateActiveSection = () => {
       this.activeGenerator.processDrawing(
         this.element,
@@ -91,8 +93,18 @@ export class SpeedVectorLineComponent
     value: PlaitPluginElementContext<PlaitVectorLine, PlaitBoard>,
     previous: PlaitPluginElementContext<PlaitVectorLine, PlaitBoard>
   ) {
-    super.onContextChanged(value, previous);
-    this.getRef().updateActiveSection?.();
+    if (value.element !== previous.element || value.hasThemeChanged) {
+      this.shapeGenerator.processDrawing(this.element, this.getElementG());
+      this.getRef().updateActiveSection?.();
+    } else {
+      const needUpdate =
+        value.selected !== previous.selected ||
+        ((this.activeGenerator as any)?.needUpdate ? (this.activeGenerator as any).needUpdate() : false) ||
+        value.selected;
+      if (needUpdate) {
+        this.getRef().updateActiveSection?.();
+      }
+    }
   }
 
   destroy(): void {

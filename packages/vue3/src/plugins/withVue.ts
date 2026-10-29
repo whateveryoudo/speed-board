@@ -166,11 +166,34 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
     const ref: RenderComponentRef<TextProps> = {
       destroy: () => {
         el.innerHTML = '';
+        if (!isReadonly) {
+          const wrapper = (newBoard as any).boardWrapper;
+          wrapper?.emit?.('text:editing', false);
+          wrapper?.emit?.('selection:change');
+        }
       },
-      update: (newProps: TextProps) => {
-        currentText = newProps.text;
-        isReadonly = newProps.readonly !== false;
-        renderDOM();
+      update: (updatedProps: Partial<TextProps>) => {
+        const readonlyChanged =
+          updatedProps.readonly !== undefined && (updatedProps.readonly !== false) !== isReadonly;
+        if (updatedProps.text) {
+          currentText = updatedProps.text;
+          editor.children = [currentText as any];
+        }
+        if (updatedProps.readonly !== undefined) {
+          isReadonly = updatedProps.readonly !== false;
+        }
+
+        if (readonlyChanged) {
+          const wrapper = (newBoard as any).boardWrapper;
+          wrapper?.emit?.('text:editing', !isReadonly);
+          wrapper?.emit?.('selection:change');
+        }
+
+        // 仅在只读状态发生变化，或者在只读模式下文本更新时才重绘 DOM。
+        // 如果正在编辑输入中，DOM 由用户输入实时更新，千万不能重构 innerHTML 破坏光标位置！
+        if (readonlyChanged || isReadonly) {
+          renderDOM();
+        }
       },
     };
 
