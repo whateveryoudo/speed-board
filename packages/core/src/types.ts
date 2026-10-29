@@ -16,6 +16,7 @@ export interface FloatingToolbarPosition {
   top: number;
   width?: number;
   height?: number;
+  placement?: 'top' | 'bottom';
 }
 
 export interface FloatingToolbarProperties {

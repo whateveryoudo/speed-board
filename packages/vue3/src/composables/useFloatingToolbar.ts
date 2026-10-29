@@ -12,7 +12,16 @@ import {
 } from '@speed-board/core';
 import { resolveBoard, type BoardSource } from './useBoardEvent';
 
-export function computeFloatingToolbarPosition(board: Board): FloatingToolbarPosition | null {
+export interface UseFloatingToolbarOptions {
+  board?: BoardSource;
+  offset?: number;
+  containerRef?: any;
+}
+
+export function computeFloatingToolbarPosition(
+  board: Board,
+  offset = 28
+): FloatingToolbarPosition | null {
   if (!board.raw) return null;
   const selected = board.selectedElements;
   if (!selected || selected.length === 0) return null;
@@ -56,18 +65,29 @@ export function computeFloatingToolbarPosition(board: Board): FloatingToolbarPos
     const offsetLeft = containerRect ? containerRect.left : 0;
     const offsetTop = containerRect ? containerRect.top : 0;
 
+    // 当顶部空间不足 (例如元素极度靠顶，顶部距离画板容器小于 48px) 时，自适应翻转到元素下方，避免被顶栏遮挡
+    const rawTop = screenStart[1] - offsetTop;
+    const isFlipToBottom = rawTop - offset < 48;
+    const top = isFlipToBottom
+      ? screenEnd[1] - offsetTop + offset
+      : rawTop - offset;
+
     return {
       left: screenStart[0] - offsetLeft + width / 2,
-      top: screenStart[1] - offsetTop - 12,
+      top,
       width,
       height,
+      placement: isFlipToBottom ? 'bottom' : 'top',
     };
   } catch {
     return null;
   }
 }
 
-export function computeFloatingToolbarProperties(board: Board | null): FloatingToolbarProperties {
+export function computeFloatingToolbarProperties(
+  board: Board | null,
+  offset = 28
+): FloatingToolbarProperties {
   const defaultState: FloatingToolbarProperties = {
     visible: false,
     position: { left: 0, top: 0 },
@@ -97,7 +117,7 @@ export function computeFloatingToolbarProperties(board: Board | null): FloatingT
     return defaultState;
   }
 
-  const pos = computeFloatingToolbarPosition(board);
+  const pos = computeFloatingToolbarPosition(board, offset);
   if (!pos) return defaultState;
 
   const cell = selectionInfo.selectedCell;
@@ -133,7 +153,28 @@ export function computeFloatingToolbarProperties(board: Board | null): FloatingT
   };
 }
 
-export function useFloatingToolbar(source: BoardSource) {
+export function useFloatingToolbar(
+  sourceOrOptions: BoardSource | UseFloatingToolbarOptions,
+  options?: { offset?: number }
+) {
+  let source: BoardSource;
+  let customOffset = 28;
+
+  if (
+    sourceOrOptions &&
+    typeof sourceOrOptions === 'object' &&
+    'board' in sourceOrOptions &&
+    !('raw' in sourceOrOptions) &&
+    !('value' in sourceOrOptions)
+  ) {
+    const opts = sourceOrOptions as UseFloatingToolbarOptions;
+    source = opts.board as BoardSource;
+    if (opts.offset !== undefined) customOffset = opts.offset;
+  } else {
+    source = sourceOrOptions as BoardSource;
+    if (options?.offset !== undefined) customOffset = options.offset;
+  }
+
   const defaultState: FloatingToolbarProperties = {
     visible: false,
     position: { left: 0, top: 0 },
@@ -155,7 +196,7 @@ export function useFloatingToolbar(source: BoardSource) {
 
   const sync = () => {
     const board = resolveBoard(source);
-    state.value = computeFloatingToolbarProperties(board);
+    state.value = computeFloatingToolbarProperties(board, customOffset);
   };
 
   watch(
@@ -178,11 +219,12 @@ export function useFloatingToolbar(source: BoardSource) {
   );
 
   const toolbarStyle = computed(() => {
+    const isBottom = state.value.position.placement === 'bottom';
     return {
       position: 'absolute' as const,
       left: `${state.value.position.left}px`,
       top: `${state.value.position.top}px`,
-      transform: 'translate(-50%, -100%)',
+      transform: isBottom ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
       zIndex: 1000,
     };
   });
@@ -260,7 +302,9 @@ export function useFloatingToolbar(source: BoardSource) {
 
   return {
     state,
+    visible: computed(() => state.value.visible),
     toolbarStyle,
+    floatingStyle: toolbarStyle,
     sync,
     updateFill,
     updateStrokeColor,

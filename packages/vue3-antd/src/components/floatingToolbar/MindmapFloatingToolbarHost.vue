@@ -64,7 +64,7 @@ const floatingToolbarRef = ref<HTMLDivElement | null>(null);
 const { visible, floatingStyle } = useFloatingToolbar({
   board: () => props.board,
   containerRef: floatingToolbarRef,
-  offset: 12,
+  offset: 28,
 });
 </script>
 
