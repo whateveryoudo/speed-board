@@ -5,6 +5,9 @@ export interface MindTopicChild {
   color?: string;
   fontSize?: number;
   fontWeight?: string;
+  bold?: boolean;
+  italic?: boolean;
+  [key: string]: any;
 }
 
 export interface MindTopicData {

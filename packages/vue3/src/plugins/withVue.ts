@@ -247,8 +247,19 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         (currentText as any)?.id?.startsWith?.('mind') ||
         (props as any)?.isMind;
       const textAlign = (currentText as any)?.align || (isMindTopic ? 'center' : 'left');
-      const flexJustify =
-        textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start';
+
+      // 垂直对齐配置：思维导图节点垂直居中，纯文本默认居顶 (与语雀、Figma 一致)
+      const vAlign =
+        (currentText as any)?.verticalAlign ||
+        (props as any)?.verticalAlign ||
+        (isMindTopic ? 'middle' : (currentText as any)?.shape === 'text' || (props as any)?.isText ? 'top' : 'top');
+      const flexJustifyY =
+        vAlign === 'middle' || vAlign === 'center'
+          ? 'center'
+          : vAlign === 'bottom'
+          ? 'flex-end'
+          : 'flex-start';
+
       const color = firstChild.color || '#333333';
       const fontWeight = firstChild.bold ? 'bold' : 'normal';
       const fontStyle = firstChild.italic ? 'italic' : 'normal';
@@ -261,7 +272,11 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         textDecoration = 'line-through';
       }
 
-      const baseStyle = `outline: none; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft Yahei', 'Hiragino Sans GB', Arial, sans-serif; text-align: ${textAlign}; color: ${color}; font-weight: ${fontWeight}; font-style: ${fontStyle}; text-decoration: ${textDecoration}; white-space: pre-wrap; word-break: break-all; overflow-wrap: break-word; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; justify-content: ${flexJustify};`;
+      // 外层弹性容器：负责整个文本块在图形/文本框内的垂直对齐与边界约束
+      const wrapperStyle = `width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: ${flexJustifyY}; box-sizing: border-box; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft Yahei', 'Hiragino Sans GB', Arial, sans-serif;`;
+
+      // 内层块级容器：必须是 display: block，让内部所有 span 作为行内自然流动排版，避免成为 flex-item 导致分栏立柱畸变
+      const textStyle = `display: block; width: 100%; text-align: ${textAlign}; color: ${color}; font-weight: ${fontWeight}; font-style: ${fontStyle}; text-decoration: ${textDecoration}; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: inherit; white-space: pre-wrap; word-break: break-all; overflow-wrap: break-word; outline: none; box-sizing: border-box;`;
 
       const spansHtml = renderSlateSpansHtml((currentText as any)?.children, {
         defaultFontSize: fontSize,
@@ -270,12 +285,12 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
       });
 
       if (isReadonly) {
-        // 只读模式：直接渲染轻量 HTML，零组件创建开销
-        el.innerHTML = `<div class="plait-text-container slate-editable-container" style="${baseStyle} user-select: none;">${spansHtml}</div>`;
+        // 只读模式：外层 wrapper 负责垂直定位，内层 block 容器负责自然文本行流式排版
+        el.innerHTML = `<div class="plait-text-wrapper" style="${wrapperStyle} user-select: none;"><div class="plait-text-container slate-editable-container" style="${textStyle}">${spansHtml}</div></div>`;
       } else {
-        // 编辑模式：渲染 contenteditable 容器
-        el.innerHTML = `<div class="plait-text-container slate-editable-container" contenteditable="true" style="${baseStyle} min-width: 20px; min-height: ${lineHeight}px; caret-color: auto;">${spansHtml}</div>`;
-        const editableEl = el.firstElementChild as HTMLElement;
+        // 编辑模式：渲染 contenteditable 块级容器
+        el.innerHTML = `<div class="plait-text-wrapper" style="${wrapperStyle}"><div class="plait-text-container slate-editable-container" contenteditable="true" style="${textStyle} min-width: 20px; min-height: ${lineHeight}px; caret-color: auto;">${spansHtml}</div></div>`;
+        const editableEl = (el.querySelector('.slate-editable-container') || el.firstElementChild) as HTMLElement;
         if (editableEl) {
           editableEl.focus();
           let typingTimer: any = null;

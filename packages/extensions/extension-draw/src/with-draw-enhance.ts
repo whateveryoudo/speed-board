@@ -1,6 +1,6 @@
 import type { PlaitBoard } from '@plait/core';
 import { RectangleClient } from '@plait/core';
-import { TextGenerator, ShapeDefaultSpace } from '@plait/draw';
+import { TextGenerator, ShapeDefaultSpace, PlaitDrawElement } from '@plait/draw';
 
 let isPatched = false;
 
@@ -8,6 +8,7 @@ let isPatched = false;
  * 增强 TextGenerator:
  * 支持图形内部文本垂直对齐 (top / middle / bottom)。
  * Plait 原生默认始终垂直居中，当配置 verticalAlign 时动态计算 foreignObject 的 y 坐标。
+ * 纯文本框 (shape === 'text') 默认顶对齐 (与语雀、飞书一致)。
  */
 export const patchTextGeneratorVerticalAlign = () => {
   if (isPatched) return;
@@ -25,7 +26,9 @@ export const patchTextGeneratorVerticalAlign = () => {
       return defaultRect;
     }
 
-    const vAlign = element.verticalAlign || element.text?.verticalAlign || 'middle';
+    const isPureText = PlaitDrawElement.isText(element) || element.shape === 'text';
+    const defaultAlign = isPureText ? 'top' : 'middle';
+    const vAlign = element.verticalAlign || element.text?.verticalAlign || defaultAlign;
     if (!vAlign || vAlign === 'middle') {
       return defaultRect;
     }

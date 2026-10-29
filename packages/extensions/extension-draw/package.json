@@ -11,6 +11,7 @@
     "@plait/common": "^0.94.1",
     "@plait/core": "^0.94.1",
     "@plait/draw": "^0.94.1",
+    "@speed-board/core": "workspace:*",
     "@speed-board/shared": "workspace:*",
     "is-hotkey": "^0.2.0",
     "roughjs": "^4.6.6"

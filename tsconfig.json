@@ -20,7 +20,11 @@
       "@speed-board/vue3-antd": ["packages/vue3-antd/src"],
       "@speed-board/vue3-antd/*": ["packages/vue3-antd/src/*"],
       "@speed-board/shared": ["packages/shared/src"],
-      "@speed-board/shared/*": ["packages/shared/src/*"]
+      "@speed-board/shared/*": ["packages/shared/src/*"],
+      "@speed-board/extension-draw": ["packages/extensions/extension-draw/src"],
+      "@speed-board/extension-draw/*": ["packages/extensions/extension-draw/src/*"],
+      "@speed-board/extension-mindmap": ["packages/extensions/extension-mindmap/src"],
+      "@speed-board/extension-mindmap/*": ["packages/extensions/extension-mindmap/src/*"]
     }
   }
 }

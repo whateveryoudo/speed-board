@@ -12,6 +12,7 @@ import {
   getDefaultGeometryPoints,
   DrawTransforms,
   ArrowLineShape,
+  ArrowLineMarkerType,
 } from '@plait/draw';
 
 export function registerBoardDraw(): void {
@@ -54,7 +55,12 @@ export function registerBoardDraw(): void {
     if (shape === 'curve') arrowShape = ArrowLineShape.curve;
     else if (shape === 'elbow') arrowShape = ArrowLineShape.elbow;
 
-    const arrowLine = createArrowLineElement(board.raw, points as any, arrowShape);
+    const arrowLine = createArrowLineElement(
+      arrowShape,
+      points as [any, any],
+      { marker: ArrowLineMarkerType.none },
+      { marker: ArrowLineMarkerType.arrow }
+    );
     if (options.stroke) arrowLine.strokeColor = options.stroke;
     if (options.strokeWidth) arrowLine.strokeWidth = options.strokeWidth;
 

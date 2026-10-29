@@ -757,7 +757,7 @@ export function getShapeTightViewBox(svgHtml: string, shapeId?: string): string 
 
   if (typeof document !== 'undefined') {
     try {
-      let measurer = document.getElementById('speed-svg-measurer') as SVGSVGElement | null;
+      let measurer = document.getElementById('speed-svg-measurer') as unknown as SVGSVGElement | null;
       if (!measurer) {
         measurer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         measurer.id = 'speed-svg-measurer';

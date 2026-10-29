@@ -97,6 +97,9 @@ importers:
       '@plait/draw':
         specifier: ^0.94.1
         version: 0.94.1
+      '@speed-board/core':
+        specifier: workspace:*
+        version: link:../../core
       '@speed-board/shared':
         specifier: workspace:*
         version: link:../../shared
