@@ -13,7 +13,7 @@ export interface InlineEditorOptions {
 }
 
 /**
- * 启动节点就地编辑 (覆盖在文字之上，自动全选文本)
+ * 启动节点就地编辑 (精确覆盖在节点卡片之上，自动全选文本)
  */
 export function startInlineEditing(options: InlineEditorOptions): void {
   const { board, box, initialText, onCommit, onCancel } = options;
@@ -23,16 +23,22 @@ export function startInlineEditing(options: InlineEditorOptions): void {
   const boardContainer = PlaitBoard.getBoardContainer(board) || document.body;
   const isRoot = Boolean(box.element.isRoot || box.depth === 0);
 
-  // 获取视口缩放与平移偏移
-  const zoom = (board as any).viewport?.zoom || 1;
-  const origX = (board as any).viewport?.origX || 0;
-  const origY = (board as any).viewport?.origY || 0;
+  // 关键：直接通过 DOM 真实矩形计算像素偏移，100% 精确覆盖卡片位置，杜绝任何视口缩放与平移计算偏差！
+  const nodeEl = boardContainer.querySelector(`[data-node-id="${box.id}"]`);
+  const containerRect = boardContainer.getBoundingClientRect();
 
-  // 将画板坐标转换为容器绝对像素
-  const leftPx = (box.x + origX) * zoom;
-  const topPx = (box.y + origY) * zoom;
-  const widthPx = Math.max(80, box.width * zoom);
-  const heightPx = Math.max(32, box.height * zoom);
+  let leftPx = 100;
+  let topPx = 100;
+  let widthPx = Math.max(80, box.width);
+  let heightPx = Math.max(32, box.height);
+
+  if (nodeEl) {
+    const rect = nodeEl.getBoundingClientRect();
+    leftPx = rect.left - containerRect.left;
+    topPx = rect.top - containerRect.top;
+    widthPx = Math.max(70, rect.width);
+    heightPx = Math.max(30, rect.height);
+  }
 
   const textarea = document.createElement('textarea');
   textarea.className = 'speed-mind-inline-editor';
@@ -42,22 +48,23 @@ export function startInlineEditing(options: InlineEditorOptions): void {
     position: 'absolute',
     left: `${leftPx}px`,
     top: `${topPx}px`,
-    minWidth: `${widthPx}px`,
-    minHeight: `${heightPx}px`,
-    maxWidth: '400px',
-    padding: isRoot ? '4px 12px' : '3px 8px',
-    fontSize: `${(isRoot ? 16 : 14) * zoom}px`,
+    width: `${widthPx}px`,
+    height: `${heightPx}px`,
+    minWidth: '60px',
+    maxWidth: '500px',
+    padding: isRoot ? '4px 10px' : '3px 8px',
+    fontSize: isRoot ? '16px' : '14px',
     fontWeight: isRoot ? 'bold' : 'normal',
     color: '#1f2937',
     background: '#ffffff',
-    border: '2px solid #2563eb',
+    border: '2px solid #3b82f6',
     borderRadius: isRoot ? '8px' : '6px',
-    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
+    boxShadow: '0 4px 14px rgba(59, 130, 246, 0.25)',
     boxSizing: 'border-box',
     outline: 'none',
     resize: 'none',
     overflow: 'hidden',
-    zIndex: '9999',
+    zIndex: '99999',
     textAlign: 'center',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif',
@@ -68,7 +75,7 @@ export function startInlineEditing(options: InlineEditorOptions): void {
     textarea.style.height = 'auto';
     textarea.style.height = `${Math.max(heightPx, textarea.scrollHeight)}px`;
     textarea.style.width = 'auto';
-    textarea.style.width = `${Math.max(widthPx, textarea.scrollWidth + 8)}px`;
+    textarea.style.width = `${Math.max(widthPx, textarea.scrollWidth + 12)}px`;
   };
 
   let committed = false;
@@ -124,10 +131,12 @@ export function startInlineEditing(options: InlineEditorOptions): void {
   activeEditorEl = textarea;
   activeEditorNodeId = box.id;
 
-  // 聚焦并全选
-  textarea.focus();
-  textarea.select();
-  autoResize();
+  // 聚焦并全选内容
+  setTimeout(() => {
+    textarea.focus();
+    textarea.select();
+    autoResize();
+  }, 10);
 }
 
 /**

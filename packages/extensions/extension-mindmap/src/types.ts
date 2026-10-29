@@ -31,6 +31,8 @@ export interface SpeedMindNodeData {
   [key: string]: any;
 }
 
+export type MindNodeShape = 'roundRectangle' | 'capsule' | 'rectangle' | 'underline';
+
 export interface SpeedMindElement {
   id: string;
   type: 'mind';
@@ -40,7 +42,7 @@ export interface SpeedMindElement {
   isRoot?: boolean;
   isCollapsed?: boolean;
   rightNodeCount?: number;
-  shape?: 'roundRectangle' | 'underline';
+  shape?: MindNodeShape;
   fill?: string;
   strokeColor?: string;
   strokeWidth?: number;

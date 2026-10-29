@@ -26,12 +26,12 @@ export function ensureMarkerSpriteInjected(): void {
  */
 export function renderNodeTopicHtml(node: SpeedMindElement, isRoot: boolean): string {
   const children = node.data?.topic?.children;
-  const defaultColor = isRoot ? (node.fill === '#ffffff' ? '#1f2937' : '#ffffff') : '#1f2937';
+  const defaultColor = '#1f2937';
   const defaultFontSize = isRoot ? 16 : 14;
   const defaultFontWeight = isRoot ? 'bold' : 'normal';
 
   if (!children || children.length === 0) {
-    const defaultText = isRoot ? '中心主题' : '分支主题';
+    const defaultText = isRoot ? '思维导图' : '分支主题';
     return `<span style="color: ${defaultColor}; font-size: ${defaultFontSize}px; font-weight: ${defaultFontWeight};">${defaultText}</span>`;
   }
 
@@ -96,7 +96,8 @@ export function renderNodeMarkersHtml(node: SpeedMindElement): string {
 }
 
 /**
- * 绘制单个脑图节点卡片 (Card 矩形 / 下划线 + ForeignObject 文本与图标)
+ * 绘制单个脑图节点卡片 (Card 矩形 / 下划线 / 胶囊 + ForeignObject 文本与图标)
+ * 纯粹单层边框，杜绝双层框！
  */
 export function renderNodeCardSvg(
   nodeG: SVGGElement,
@@ -107,33 +108,17 @@ export function renderNodeCardSvg(
 
   const element = box.element;
   const isRoot = Boolean(element.isRoot || box.depth === 0);
-  const isUnderline = element.shape === 'underline';
-  const branchColor = element.branchColor || (isRoot ? '#2563eb' : '#8b5cf6');
+  const shape = element.shape || 'roundRectangle';
+  const isUnderline = shape === 'underline' || (shape as string) === 'none';
+  const isCapsule = shape === 'capsule';
+  const branchColor = element.branchColor || '#8b5cf6';
 
   nodeG.innerHTML = '';
-  nodeG.setAttribute('class', `speed-mind-node-g ${isRoot ? 'is-root' : 'is-child'}`);
+  nodeG.setAttribute('class', `speed-mind-node-g ${isRoot ? 'is-root' : 'is-child'} ${isSelected ? 'is-selected' : ''}`);
   nodeG.setAttribute('data-node-id', box.id);
   nodeG.style.cursor = 'pointer';
 
-  // 1. 选中高亮光晕 (Selection focus ring)
-  if (isSelected) {
-    const selRing = document.createElementNS(SVG_NS, 'rect');
-    selRing.setAttribute('x', String(box.x - 3));
-    selRing.setAttribute('y', String(box.y - 3));
-    selRing.setAttribute('width', String(box.width + 6));
-    selRing.setAttribute('height', String(box.height + 6));
-    selRing.setAttribute('rx', String(isRoot ? 10 : 8));
-    selRing.setAttribute('ry', String(isRoot ? 10 : 8));
-    selRing.setAttribute('fill', 'none');
-    selRing.setAttribute('stroke', '#3b82f6');
-    selRing.setAttribute('stroke-width', '2');
-    selRing.setAttribute('stroke-opacity', '0.9');
-    selRing.setAttribute('class', 'speed-mind-selection-ring');
-    selRing.style.pointerEvents = 'none';
-    nodeG.appendChild(selRing);
-  }
-
-  // 2. 节点主体形状 (Body Rect / Underline)
+  // 1. 节点主体形状 (Body Rect / Underline) —— 单层边框
   if (isUnderline) {
     // 下划线样式：透明背景 + 底部粗色条
     const underlineRect = document.createElementNS(SVG_NS, 'rect');
@@ -143,33 +128,46 @@ export function renderNodeCardSvg(
     underlineRect.setAttribute('height', '3');
     underlineRect.setAttribute('rx', '1.5');
     underlineRect.setAttribute('ry', '1.5');
-    underlineRect.setAttribute('fill', branchColor);
+    underlineRect.setAttribute('fill', isSelected ? '#3b82f6' : branchColor);
     underlineRect.setAttribute('class', 'speed-mind-node-underline');
     nodeG.appendChild(underlineRect);
   } else {
-    // 圆角矩形卡片 (X6 风格)
+    // 矩形卡片或胶囊卡片
     const bodyRect = document.createElementNS(SVG_NS, 'rect');
     bodyRect.setAttribute('x', String(box.x));
     bodyRect.setAttribute('y', String(box.y));
     bodyRect.setAttribute('width', String(box.width));
     bodyRect.setAttribute('height', String(box.height));
-    bodyRect.setAttribute('rx', String(isRoot ? 8 : 6));
-    bodyRect.setAttribute('ry', String(isRoot ? 8 : 6));
+
+    const rx = isCapsule ? box.height / 2 : (isRoot ? 8 : 6);
+    bodyRect.setAttribute('rx', String(rx));
+    bodyRect.setAttribute('ry', String(rx));
 
     if (isRoot) {
-      bodyRect.setAttribute('fill', element.fill || '#2563eb');
-      bodyRect.setAttribute('stroke', element.strokeColor || '#2563eb');
-      bodyRect.setAttribute('stroke-width', '1.5');
+      bodyRect.setAttribute('fill', element.fill || '#f3f4f6');
+      bodyRect.setAttribute(
+        'stroke',
+        isSelected ? '#3b82f6' : (element.strokeColor || '#e5e7eb')
+      );
+      bodyRect.setAttribute('stroke-width', isSelected ? '2' : String(element.strokeWidth || 1.5));
     } else {
       bodyRect.setAttribute('fill', element.fill || '#ffffff');
-      bodyRect.setAttribute('stroke', element.strokeColor || branchColor);
-      bodyRect.setAttribute('stroke-width', '1.5');
+      bodyRect.setAttribute(
+        'stroke',
+        isSelected ? '#3b82f6' : (element.strokeColor || branchColor)
+      );
+      bodyRect.setAttribute('stroke-width', isSelected ? '2' : String(element.strokeWidth || 1.5));
     }
+
+    if (isSelected) {
+      bodyRect.style.filter = 'drop-shadow(0 2px 6px rgba(59, 130, 246, 0.25))';
+    }
+
     bodyRect.setAttribute('class', 'speed-mind-node-body');
     nodeG.appendChild(bodyRect);
   }
 
-  // 3. ForeignObject 渲染文字与标记
+  // 2. ForeignObject 渲染文字与标记
   const fo = document.createElementNS(SVG_NS, 'foreignObject');
   fo.setAttribute('x', String(box.x));
   fo.setAttribute('y', String(box.y));

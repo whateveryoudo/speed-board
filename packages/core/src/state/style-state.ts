@@ -26,7 +26,7 @@ export function getNodeStyleState(selectedElements: any[] = []): NodeStyleState 
 
   if (isMindmapNode(cell)) {
     return {
-      fill: cell.fill || (cell.isRoot ? '#2563eb' : '#ffffff'),
+      fill: cell.fill || (cell.isRoot ? '#f3f4f6' : '#ffffff'),
       stroke: cell.strokeColor || cell.branchColor || cell.stroke || '#374151',
       strokeWidth: cell.strokeWidth ?? 2,
       strokeDasharray: cell.strokeStyle || cell.strokeDasharray || 'none',

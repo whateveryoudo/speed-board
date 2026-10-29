@@ -1,8 +1,8 @@
-import type { SpeedMindElement } from '../types';
+import type { SpeedMindElement, MindNodeShape } from '../types';
 
 export const DEFAULT_BRANCH_COLORS = [
-  '#2563eb', // 经典蓝
-  '#8b5cf6', // 优雅紫
+  '#8b5cf6', // 优雅紫 (默认主色)
+  '#3b82f6', // 经典蓝
   '#06b6d4', // 科技青
   '#10b981', // 清新绿
   '#f59e0b', // 活力橙
@@ -25,7 +25,8 @@ export function createEmptyMindmap(
   } = {}
 ): SpeedMindElement {
   const pts = options.points || [[400, 300]];
-  const rootColor = options.fill || '#2563eb';
+  const rootFill = options.fill || '#f3f4f6';
+  const rootStroke = options.strokeColor || '#e5e7eb';
 
   return {
     id: `mind-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
@@ -33,20 +34,20 @@ export function createEmptyMindmap(
     points: pts,
     isRoot: true,
     shape: 'roundRectangle',
-    fill: rootColor,
-    strokeColor: options.strokeColor || rootColor,
-    strokeWidth: 2,
-    branchColor: rootColor,
+    fill: rootFill,
+    strokeColor: rootStroke,
+    strokeWidth: 1.5,
+    branchColor: '#8b5cf6',
     branchShape: options.branchShape || 'curve',
-    layout: options.layout || 'standard',
+    layout: options.layout || 'right', // 默认向右分布，对标经典体验
     data: {
       topic: {
         children: [
           {
             text: topic,
-            color: '#ffffff',
+            color: '#1f2937',
             fontSize: 16,
-            fontWeight: '500',
+            fontWeight: 'bold',
           },
         ],
         align: 'center',
@@ -60,13 +61,13 @@ export function createChildNode(
   topic = '分支主题',
   options: {
     branchColor?: string;
-    shape?: 'roundRectangle' | 'underline';
+    shape?: MindNodeShape;
     branchShape?: 'curve' | 'polyline' | 'bight';
     isSummary?: boolean;
     summaryFor?: string[];
   } = {}
 ): SpeedMindElement {
-  const color = options.branchColor || '#2563eb';
+  const color = options.branchColor || '#8b5cf6';
   const shape = options.shape || 'roundRectangle';
 
   return {
@@ -78,7 +79,7 @@ export function createChildNode(
     strokeWidth: 1.5,
     branchColor: color,
     branchWidth: 2,
-    branchShape: options.branchShape || 'curve',
+    branchShape: (options.branchShape === 'polyline' ? 'polyline' : 'curve'),
     data: {
       topic: {
         children: [

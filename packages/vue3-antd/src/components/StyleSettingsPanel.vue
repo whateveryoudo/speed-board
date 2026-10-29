@@ -23,80 +23,66 @@
       <div class="panel-content">
         <!-- 3.1 样式 Tab -->
         <template v-if="activeTab === 'style'">
-          <!-- 填充颜色 -->
-          <div v-if="hasFill" class="setter-row">
-            <span class="label">填充颜色</span>
-            <div class="color-control-wrapper">
-              <a-popover v-model:open="fillOpen" trigger="click" placement="left"
-                overlay-class-name="style-popover-overlay plait-board-attached" :arrow="false">
-                <template #content>
-                  <div class="color-picker-grid">
-                    <div class="color-dot is-transparent-dot" title="无填充" @click="updateFill('transparent')">
-                      <span class="transparent-slash" />
-                    </div>
-                    <div v-for="color in presetColors" :key="color" class="color-dot"
-                      :style="{ backgroundColor: color }" @click="updateFill(color)" />
-                  </div>
-                </template>
-                <div class="color-preview-block" :style="{ backgroundColor: styleState.fill }" />
-              </a-popover>
-            </div>
-          </div>
-
-          <!-- 边框描边 -->
-          <div v-if="hasStroke" class="setter-row">
-            <span class="label">边框描边</span>
-            <div class="color-control-wrapper">
-              <a-popover v-model:open="strokeOpen" trigger="click" placement="left"
-                overlay-class-name="style-popover-overlay plait-board-attached" :arrow="false">
-                <template #content>
-                  <div class="color-picker-grid">
-                    <div v-for="color in presetColors" :key="color" class="color-dot"
-                      :style="{ backgroundColor: color }" @click="updateStrokeColor(color)" />
-                  </div>
-                </template>
-                <div class="color-preview-block" :style="{ backgroundColor: styleState.stroke }" />
-              </a-popover>
-            </div>
-          </div>
-
-          <!-- 描边粗细 -->
-          <div v-if="hasStroke" class="setter-row">
-            <span class="label">描边粗细</span>
-            <a-input-number :value="styleState.strokeWidth" :min="0" :max="20" size="small" style="width: 80px;"
-              @change="(v) => updateStyle({ strokeWidth: Number(v) })" />
-          </div>
-
-          <!-- 不透明度 -->
-          <div class="setter-row">
-            <span class="label">不透明度</span>
-            <a-slider :value="Math.round(styleState.opacity * 100)" :min="10" :max="100" size="small"
-              style="flex: 1; margin-left: 16px;" @change="(v) => updateStyle({ opacity: Number(v) / 100 })" />
-          </div>
-
-          <!-- 脑图专属：结构布局与分支 -->
+          <!-- 思维导图专属面板：100% 对标 X6 经典版 (布局结构、节点形状与色盘、分支粗细与类型) -->
           <template v-if="selectedType.startsWith('mindmap')">
+            <MindmapLayoutSetter :board="props.board" />
             <div class="panel-divider" />
-            <div class="setter-section-title">脑图结构</div>
-            <div class="setter-row">
-              <button class="struct-btn" @click="props.board?.setMindmapLayout('standard')">
-                平衡 (双侧)
-              </button>
-              <button class="struct-btn" @click="props.board?.setMindmapLayout('right')">
-                向右分布
-              </button>
-              <button class="struct-btn" @click="props.board?.setMindmapLayout('left')">
-                向左分布
-              </button>
+            <MindmapNodeSetter :board="props.board" />
+            <div class="panel-divider" />
+            <MindmapBranchSetter :board="props.board" />
+          </template>
+
+          <!-- 常规矢量/白板图元设置 -->
+          <template v-else>
+            <!-- 填充颜色 -->
+            <div v-if="hasFill" class="setter-row">
+              <span class="label">填充颜色</span>
+              <div class="color-control-wrapper">
+                <a-popover v-model:open="fillOpen" trigger="click" placement="left"
+                  overlay-class-name="style-popover-overlay plait-board-attached" :arrow="false">
+                  <template #content>
+                    <div class="color-picker-grid">
+                      <div class="color-dot is-transparent-dot" title="无填充" @click="updateFill('transparent')">
+                        <span class="transparent-slash" />
+                      </div>
+                      <div v-for="color in presetColors" :key="color" class="color-dot"
+                        :style="{ backgroundColor: color }" @click="updateFill(color)" />
+                    </div>
+                  </template>
+                  <div class="color-preview-block" :style="{ backgroundColor: styleState.fill }" />
+                </a-popover>
+              </div>
             </div>
-            <div class="setter-section-title" style="margin-top: 10px;">分支连线</div>
+
+            <!-- 边框描边 -->
+            <div v-if="hasStroke" class="setter-row">
+              <span class="label">边框描边</span>
+              <div class="color-control-wrapper">
+                <a-popover v-model:open="strokeOpen" trigger="click" placement="left"
+                  overlay-class-name="style-popover-overlay plait-board-attached" :arrow="false">
+                  <template #content>
+                    <div class="color-picker-grid">
+                      <div v-for="color in presetColors" :key="color" class="color-dot"
+                        :style="{ backgroundColor: color }" @click="updateStrokeColor(color)" />
+                    </div>
+                  </template>
+                  <div class="color-preview-block" :style="{ backgroundColor: styleState.stroke }" />
+                </a-popover>
+              </div>
+            </div>
+
+            <!-- 描边粗细 -->
+            <div v-if="hasStroke" class="setter-row">
+              <span class="label">描边粗细</span>
+              <a-input-number :value="styleState.strokeWidth" :min="0" :max="20" size="small" style="width: 80px;"
+                @change="(v) => updateStyle({ strokeWidth: Number(v) })" />
+            </div>
+
+            <!-- 不透明度 -->
             <div class="setter-row">
-              <button class="struct-btn" @click="props.board?.setMindmapBranchShape('curve')">
-                曲线/圆角
-              </button>
-              <button class="struct-btn" @click="props.board?.setMindmapBranchShape('straight')">
-                直角/折线
-              </button>
+              <span class="label">不透明度</span>
+              <a-slider :value="Math.round(styleState.opacity * 100)" :min="10" :max="100" size="small"
+                style="flex: 1; margin-left: 16px;" @change="(v) => updateStyle({ opacity: Number(v) / 100 })" />
             </div>
           </template>
         </template>
@@ -302,6 +288,9 @@ import {
 import { IconFont as SIconFont } from 'speed-components-ui/components'
 import type { Board } from '@speed-board/core'
 import { useNodeStyle } from '@speed-board/vue3'
+import MindmapLayoutSetter from './setters/MindmapLayoutSetter.vue'
+import MindmapNodeSetter from './setters/MindmapNodeSetter.vue'
+import MindmapBranchSetter from './setters/MindmapBranchSetter.vue'
 
 const props = withDefaults(
   defineProps<{

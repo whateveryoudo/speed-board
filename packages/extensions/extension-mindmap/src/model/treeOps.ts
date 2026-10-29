@@ -172,6 +172,37 @@ export function setNodeTopicText(
 }
 
 /**
+ * 移动/重新父级化节点 (支持拖拽调整顺序与层级)
+ */
+export function moveNode(
+  root: SpeedMindElement,
+  sourceId: string,
+  targetParentId: string,
+  targetIndex?: number
+): SpeedMindElement | null {
+  if (sourceId === root.id || sourceId === targetParentId) return null;
+  const clonedRoot = cloneTree(root);
+  const sourceInfo = findParentNode(clonedRoot, sourceId);
+  if (!sourceInfo) return null;
+
+  const [removed] = sourceInfo.parent.children.splice(sourceInfo.index, 1);
+  const targetParent = findNodeById(clonedRoot, targetParentId);
+  if (!targetParent) return null;
+
+  if (!targetParent.children) targetParent.children = [];
+  if (
+    typeof targetIndex === 'number' &&
+    targetIndex >= 0 &&
+    targetIndex <= targetParent.children.length
+  ) {
+    targetParent.children.splice(targetIndex, 0, removed);
+  } else {
+    targetParent.children.push(removed);
+  }
+  return clonedRoot;
+}
+
+/**
  * 添加概要节点 (大括号关联一组子节点)
  */
 export function addSummaryNode(

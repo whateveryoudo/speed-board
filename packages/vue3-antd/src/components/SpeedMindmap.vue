@@ -77,8 +77,9 @@ const mergedOptions = computed(() => {
     props.data ||
     createEmptyMindmap('中心主题', {
       points: [[400, 300]],
-      fill: '#2563eb',
-      strokeColor: '#2563eb',
+      fill: '#f3f4f6',
+      strokeColor: '#e5e7eb',
+      layout: 'right',
     });
 
   return {

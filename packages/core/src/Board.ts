@@ -369,6 +369,8 @@ export class Board {
   static setMindmapLayoutHandler?: (board: Board, layout: string) => void;
   static setMindmapBranchShapeHandler?: (board: Board, shape: string) => void;
   static setMindmapShapeHandler?: (board: Board, shape: string) => void;
+  static setMindmapNodePropertyHandler?: (board: Board, properties: Record<string, any>) => void;
+  static setMindmapBranchPropertyHandler?: (board: Board, properties: Record<string, any>) => void;
   static addMindmapSummaryHandler?: (board: Board) => void;
   static setMindmapMarkersHandler?: (board: Board, markers: Record<string, any>) => void;
 
@@ -406,6 +408,22 @@ export class Board {
   setMindmapShape(shape: string) {
     if (Board.setMindmapShapeHandler) {
       Board.setMindmapShapeHandler(this, shape);
+    }
+  }
+
+  setMindmapNodeProperty(properties: Record<string, any>) {
+    if (Board.setMindmapNodePropertyHandler) {
+      Board.setMindmapNodePropertyHandler(this, properties);
+    } else {
+      this.setShapeProperty(properties);
+    }
+  }
+
+  setMindmapBranchProperty(properties: Record<string, any>) {
+    if (Board.setMindmapBranchPropertyHandler) {
+      Board.setMindmapBranchPropertyHandler(this, properties);
+    } else {
+      this.setShapeProperty(properties);
     }
   }
 

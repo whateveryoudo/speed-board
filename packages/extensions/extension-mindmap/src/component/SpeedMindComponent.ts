@@ -46,6 +46,14 @@ export class SpeedMindComponent
   extends CommonElementFlavour<SpeedMindElement, PlaitBoard>
   implements OnContextChanged<SpeedMindElement, PlaitBoard>
 {
+  /**
+   * 关键覆盖：告诉 Plait 核心无需对其 children 递归启动 ListRender。
+   * 本组件为自包含的一体化脑图渲染引擎，避免 Plait 重复为每个子节点实例化独立组件产生重影与错位！
+   */
+  override get hasChildren(): boolean {
+    return false;
+  }
+
   private linksG: SVGGElement | null = null;
   private summariesG: SVGGElement | null = null;
   private nodesG: SVGGElement | null = null;

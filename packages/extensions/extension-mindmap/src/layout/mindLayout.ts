@@ -36,17 +36,18 @@ export function estimateNodeDimensions(
  */
 function mapToMindLayoutType(layout?: string): MindLayoutType {
   switch (layout) {
-    case 'right':
-      return MindLayoutType.right;
+    case 'standard':
+    case 'balanced':
+      return MindLayoutType.standard;
     case 'left':
       return MindLayoutType.left;
     case 'downward':
       return MindLayoutType.downward;
     case 'upward':
       return MindLayoutType.upward;
-    case 'standard':
+    case 'right':
     default:
-      return MindLayoutType.standard;
+      return MindLayoutType.right;
   }
 }
 

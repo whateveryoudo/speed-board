@@ -77,16 +77,88 @@ export function registerBoardMindmap(): void {
     if (selected.length === 0) return;
 
     const nodeShape =
-      shape === 'none' || shape === 'underline' ? 'underline' : 'roundRectangle';
-    board.syncNodeIndices();
-    selected.forEach((el) => {
-      const path = board.getElementPath(el);
-      if (path) {
-        Transforms.setNode(board.raw, { shape: nodeShape }, path);
+      shape === 'capsule'
+        ? 'capsule'
+        : shape === 'none' || shape === 'underline'
+        ? 'underline'
+        : 'roundRectangle';
+
+    const root = selected[0];
+    const selectedNodeId = getSelectedMindNodeId(board.raw);
+
+    const clonedRoot = cloneTree(root);
+    if (selectedNodeId && selectedNodeId !== clonedRoot.id) {
+      const node = findNodeById(clonedRoot, selectedNodeId);
+      if (node) {
+        node.shape = nodeShape as any;
       }
-    });
+    } else {
+      clonedRoot.shape = nodeShape as any;
+    }
+
     board.syncNodeIndices();
-    board.emit('change', {});
+    const path = board.getElementPath(root);
+    if (path) {
+      Transforms.setNode(board.raw, clonedRoot, path);
+      board.syncNodeIndices();
+      board.emit('change', {});
+    }
+  };
+
+  Board.setMindmapNodePropertyHandler = (board: Board, properties: Record<string, any>) => {
+    const selected = (board.selectedElements || []).filter(
+      (el) => (el as any).type === 'mind'
+    ) as SpeedMindElement[];
+    if (selected.length === 0) return;
+
+    const root = selected[0];
+    const selectedNodeId = getSelectedMindNodeId(board.raw);
+
+    const clonedRoot = cloneTree(root);
+    if (selectedNodeId && selectedNodeId !== clonedRoot.id) {
+      const node = findNodeById(clonedRoot, selectedNodeId);
+      if (node) {
+        Object.assign(node, properties);
+      }
+    } else {
+      Object.assign(clonedRoot, properties);
+    }
+
+    board.syncNodeIndices();
+    const path = board.getElementPath(root);
+    if (path) {
+      Transforms.setNode(board.raw, clonedRoot, path);
+      board.syncNodeIndices();
+      board.emit('change', {});
+    }
+  };
+
+  Board.setMindmapBranchPropertyHandler = (board: Board, properties: Record<string, any>) => {
+    const selected = (board.selectedElements || []).filter(
+      (el) => (el as any).type === 'mind'
+    ) as SpeedMindElement[];
+    if (selected.length === 0) return;
+
+    const root = selected[0];
+    const selectedNodeId = getSelectedMindNodeId(board.raw);
+
+    const clonedRoot = cloneTree(root);
+    if (selectedNodeId && selectedNodeId !== clonedRoot.id) {
+      const node = findNodeById(clonedRoot, selectedNodeId);
+      if (node) {
+        Object.assign(node, properties);
+      }
+    } else {
+      Object.assign(clonedRoot, properties);
+    }
+
+    board.syncNodeIndices();
+    const path = board.getElementPath(root);
+    if (path) {
+      Transforms.setNode(board.raw, clonedRoot, path);
+      board.syncNodeIndices();
+      board.emit('change', {});
+    }
   };
 
   Board.addMindmapSummaryHandler = (board: Board) => {

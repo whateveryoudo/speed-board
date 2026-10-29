@@ -49,9 +49,18 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     getRectangle,
     isHit,
     isRectangleHit,
+    isMovable,
   } = board;
 
-  // 1. 注册思维导图图形渲染组件
+  // 1. 允许思维导图整树在画布上直接拖拽平移
+  board.isMovable = (element: any): boolean => {
+    if (element.type === 'mind') {
+      return true;
+    }
+    return isMovable ? isMovable(element) : false;
+  };
+
+  // 2. 注册思维导图图形渲染组件
   board.drawElement = (context: PlaitPluginElementContext) => {
     if (context.element.type === 'mind') {
       return SpeedMindComponent;
