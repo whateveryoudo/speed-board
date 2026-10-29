@@ -80,8 +80,24 @@ export function addChildNode(
 }
 
 /**
- * 添加同级节点 (纯不可变函数)
+ * 辅助函数：根据 nodeId 定位其所属的脑图根元素及索引 Path
  */
+export function findMindRootAndPath(
+  board: any,
+  nodeId: string
+): { root: SpeedMindElement; path: [number] } | null {
+  if (!board?.children) return null;
+  for (let i = 0; i < board.children.length; i++) {
+    const child = board.children[i] as any;
+    if (child && child.type === 'mind') {
+      const found = findNodeById(child, nodeId);
+      if (found) {
+        return { root: child, path: [i] };
+      }
+    }
+  }
+  return null;
+}
 export function addSiblingNode(
   root: SpeedMindElement,
   targetId: string,

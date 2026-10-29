@@ -251,7 +251,7 @@ onMounted(() => {
   };
   const onPointerUp = (e: PointerEvent) => board.pointerUp(e);
   const onDblClick = (e: MouseEvent) => {
-    if (PlaitBoard.isFocus(board) && !PlaitBoard.hasBeenTextEditing(board)) {
+    if (!PlaitBoard.hasBeenTextEditing(board)) {
       board.dblClick(e);
     }
   };

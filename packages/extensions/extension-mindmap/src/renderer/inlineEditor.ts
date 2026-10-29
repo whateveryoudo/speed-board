@@ -23,9 +23,8 @@ export function startInlineEditing(options: InlineEditorOptions): void {
   const boardContainer = PlaitBoard.getBoardContainer(board) || document.body;
   const isRoot = Boolean(box.element.isRoot || box.depth === 0);
 
-  // 关键：直接通过 DOM 真实矩形计算像素偏移，100% 精确覆盖卡片位置，杜绝任何视口缩放与平移计算偏差！
+  // 关键：通过 DOM 真实矩形计算屏幕像素位置，使用 position: fixed 精确覆盖卡片位置，完全不受容器嵌套与滚动干扰！
   const nodeEl = boardContainer.querySelector(`[data-node-id="${box.id}"]`);
-  const containerRect = boardContainer.getBoundingClientRect();
 
   let leftPx = 100;
   let topPx = 100;
@@ -34,8 +33,8 @@ export function startInlineEditing(options: InlineEditorOptions): void {
 
   if (nodeEl) {
     const rect = nodeEl.getBoundingClientRect();
-    leftPx = rect.left - containerRect.left;
-    topPx = rect.top - containerRect.top;
+    leftPx = rect.left;
+    topPx = rect.top;
     widthPx = Math.max(70, rect.width);
     heightPx = Math.max(30, rect.height);
   }
@@ -45,7 +44,7 @@ export function startInlineEditing(options: InlineEditorOptions): void {
   textarea.value = initialText;
 
   Object.assign(textarea.style, {
-    position: 'absolute',
+    position: 'fixed',
     left: `${leftPx}px`,
     top: `${topPx}px`,
     width: `${widthPx}px`,
@@ -83,7 +82,9 @@ export function startInlineEditing(options: InlineEditorOptions): void {
   const commit = () => {
     if (committed) return;
     committed = true;
-    const newText = textarea.value.trim();
+    const val = textarea.value.trim();
+    // 关键：若输入为空，保留原文字或默认文字，绝不变成无字空框！
+    const newText = val || initialText || (isRoot ? '思维导图' : '分支主题');
     closeInlineEditing();
     onCommit(newText);
   };
@@ -94,6 +95,12 @@ export function startInlineEditing(options: InlineEditorOptions): void {
     closeInlineEditing();
     onCancel?.();
   };
+
+  // 阻止冒泡，避免画板拦截输入框内的鼠标拖拽与点击事件
+  textarea.addEventListener('pointerdown', (e) => e.stopPropagation());
+  textarea.addEventListener('mousedown', (e) => e.stopPropagation());
+  textarea.addEventListener('click', (e) => e.stopPropagation());
+  textarea.addEventListener('dblclick', (e) => e.stopPropagation());
 
   textarea.addEventListener('input', autoResize);
 
@@ -127,7 +134,7 @@ export function startInlineEditing(options: InlineEditorOptions): void {
     commit();
   });
 
-  boardContainer.appendChild(textarea);
+  document.body.appendChild(textarea);
   activeEditorEl = textarea;
   activeEditorNodeId = box.id;
 

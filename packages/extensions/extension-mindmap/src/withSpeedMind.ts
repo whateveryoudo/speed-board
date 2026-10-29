@@ -37,6 +37,7 @@ import {
   startInlineEditing,
   isInlineEditingActive,
 } from './renderer/inlineEditor';
+import { MindNodeDnDController } from './interaction/MindNodeDnDController';
 import './registerBoardMindmap';
 
 export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T => {
@@ -44,17 +45,24 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     drawElement,
     pointerDown,
     pointerMove,
+    globalPointerUp,
     dblClick,
     keyDown,
+    globalKeyDown,
     getRectangle,
     isHit,
     isRectangleHit,
     isMovable,
   } = board;
 
-  // 1. 允许思维导图整树在画布上直接拖拽平移
+  const dndController = new MindNodeDnDController(board);
+
+  // 1. 允许思维导图整树在画布上直接拖拽平移 (子节点拖拽由 dndController 接管)
   board.isMovable = (element: any): boolean => {
     if (element.type === 'mind') {
+      if (dndController.isActiveDragging) {
+        return false;
+      }
       return true;
     }
     return isMovable ? isMovable(element) : false;
@@ -234,16 +242,20 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
                     box: newBox,
                     initialText: '分支主题',
                     onCommit: (txt) => {
-                      const updated = setNodeTopicText(
-                        addRes.clonedRoot,
-                        addRes.newChild.id,
-                        txt
-                      );
-                      Transforms.setNode(
-                        board,
-                        { children: updated.children },
-                        path
-                      );
+                      const cur = findMindRootAndPath(addRes.newChild.id);
+                      if (cur) {
+                        const updated = setNodeTopicText(
+                          cur.root,
+                          addRes.newChild.id,
+                          txt
+                        );
+                        Transforms.setNode(
+                          board,
+                          { data: updated.data, children: updated.children },
+                          cur.path
+                        );
+                        ((board as any).boardWrapper || board)?.emit?.('change', {});
+                      }
                     },
                   });
                 }
@@ -288,11 +300,18 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       }
     }
 
+    // 尝试启动子节点拖拽检测
+    dndController.onPointerDown(event);
+
     pointerDown(event);
   };
 
-  // 5. 悬浮监听：高亮节点外延加号按钮
+  // 5. 悬浮监听与子节点拖拽联动
   board.pointerMove = (event: PointerEvent) => {
+    if (dndController.onPointerMove(event)) {
+      return;
+    }
+
     const target = event.target as HTMLElement | SVGElement | null;
     const nodeEl = target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null;
     if (nodeEl) {
@@ -302,6 +321,14 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       setHoverMindNodeId(board, null);
     }
     pointerMove(event);
+  };
+
+  // 5.1 全局抬起：子节点拖拽释放判定
+  board.globalPointerUp = (event: PointerEvent) => {
+    if (dndController.onGlobalPointerUp(event)) {
+      return;
+    }
+    globalPointerUp(event);
   };
 
   // 6. 双击节点启动就地编辑
@@ -341,7 +368,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
   };
 
   // 7. 快捷键支持 (Enter 同级/子级, Tab 子级, Space 编辑, Delete 删除)
-  board.keyDown = (event: KeyboardEvent) => {
+  board.globalKeyDown = (event: KeyboardEvent) => {
     if (isInlineEditingActive()) {
       return;
     }
@@ -387,16 +414,20 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
                   box: newBox,
                   initialText: '分支主题',
                   onCommit: (txt) => {
-                    const updated = setNodeTopicText(
-                      result.clonedRoot,
-                      newCreated.id,
-                      txt
-                    );
-                    Transforms.setNode(
-                      board,
-                      { children: updated.children },
-                      path
-                    );
+                    const cur = findMindRootAndPath(newCreated.id);
+                    if (cur) {
+                      const updated = setNodeTopicText(
+                        cur.root,
+                        newCreated.id,
+                        txt
+                      );
+                      Transforms.setNode(
+                        board,
+                        { data: updated.data, children: updated.children },
+                        cur.path
+                      );
+                      ((board as any).boardWrapper || board)?.emit?.('change', {});
+                    }
                   },
                 });
               }
@@ -428,16 +459,20 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
                   box: newBox,
                   initialText: '分支主题',
                   onCommit: (txt) => {
-                    const updated = setNodeTopicText(
-                      addRes.clonedRoot,
-                      addRes.newChild.id,
-                      txt
-                    );
-                    Transforms.setNode(
-                      board,
-                      { children: updated.children },
-                      path
-                    );
+                    const cur = findMindRootAndPath(addRes.newChild.id);
+                    if (cur) {
+                      const updated = setNodeTopicText(
+                        cur.root,
+                        addRes.newChild.id,
+                        txt
+                      );
+                      Transforms.setNode(
+                        board,
+                        { data: updated.data, children: updated.children },
+                        cur.path
+                      );
+                      ((board as any).boardWrapper || board)?.emit?.('change', {});
+                    }
                   },
                 });
               }
@@ -495,7 +530,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       }
     }
 
-    keyDown(event);
+    globalKeyDown(event);
   };
 
   return board;
