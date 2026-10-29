@@ -300,11 +300,17 @@ export class MindNodeDnDController {
         const nodeIndex = parentInfo.index;
 
         // 判定光标相对于卡片的位置：
-        // 1. 光标位于卡片右半部分或右侧延伸区 -> 判定为插入成为该节点的子节点
-        if (cursorX > box.x + box.width * 0.65) {
+        // 1. 卡片内部中间 50% (0.25 <= relY <= 0.75) 或向右拖动 -> 判定为收纳为该节点的子节点 (in-parent)
+        // 2. 卡片顶部 25% (或上边缘/上间隙) -> 判定为同级向前插入 (insert-before)
+        // 3. 卡片底部 25% (或下边缘/下间隙) -> 判定为同级向后插入 (insert-after)
+        const relY = (cursorY - box.y) / box.height;
+        const isRightDrag = cursorX > box.x + box.width * 0.7;
+        const isMiddleCard = cursorX >= box.x && cursorX <= box.x + box.width && relY >= 0.25 && relY <= 0.75;
+
+        if (isRightDrag || isMiddleCard) {
           const indicatorX = box.x + box.width + 36;
           const indicatorY = box.y + box.height / 2;
-          const dist = Math.hypot(cursorX - (box.x + box.width), cursorY - indicatorY);
+          const dist = Math.hypot(cursorX - (box.x + box.width / 2), cursorY - indicatorY);
           if (dist < minDistance) {
             minDistance = dist;
             bestCandidate = {
@@ -316,8 +322,8 @@ export class MindNodeDnDController {
             };
           }
         } else {
-          // 2. 光标位于卡片左侧或中心，根据 Y 轴判定上半区 (前插) 或下半区 (后插)
-          const isTop = cursorY < box.y + box.height * 0.5;
+          // 2. 顶部 25% (前插) 或 底部 25% (后插)
+          const isTop = relY < 0.5;
           const targetIndex = isTop ? nodeIndex : nodeIndex + 1;
 
           // 过滤紧邻自身的无意义移动 (no-op)
