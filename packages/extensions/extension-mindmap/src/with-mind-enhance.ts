@@ -1,25 +1,28 @@
 import {
   PlaitBoard,
-  getSelectedElements,
-  type PlaitPlugin,
   PlaitElement,
+  getSelectedElements,
   toHostPoint,
   toViewBoxPoint,
   BoardTransforms,
   PlaitPointerType,
   clearSelectedElement,
   addSelectedElement,
+  Transforms,
 } from '@plait/core';
 import { BoardCreationMode, setCreationMode } from '@plait/common';
 import {
   MindElement,
+  PlaitMind,
   MindNodeComponent,
-  editTopic,
   createEmptyMind,
   MindElementShape,
   MindTransforms,
   MindPointerType,
+  BranchShape,
+  getNextBranchColor,
 } from '@plait/mind';
+import { AbstractNode } from '@plait/layouts';
 import isHotkey from 'is-hotkey';
 
 const isEnterHotkey = isHotkey('enter');
@@ -34,9 +37,75 @@ export function renderMarkerSvgHtml(symbolId: string, size = 18): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 22 22" style="display:inline-block;vertical-align:middle;flex-shrink:0;user-select:none;pointer-events:none;"><use xlink:href="#${symbolId}" href="#${symbolId}"></use></svg>`;
 }
 
+// 补丁 MindTransforms：拦截 insertChildNode 与 insertSiblingNode，确保新节点（尤其从根节点创建的一级子节点）自动带上完整的卡片与分支样式！
+let isMindTransformsPatched = false;
+export function patchMindTransforms() {
+  if (isMindTransformsPatched) return;
+  isMindTransformsPatched = true;
+
+  const rawInsertChildNode = MindTransforms.insertChildNode;
+  MindTransforms.insertChildNode = (board: any, element: MindElement) => {
+    rawInsertChildNode(board, element);
+
+    // 检查新插入的节点，如果缺乏样式（比如从根节点刚创建的一级节点），立即补齐优雅样式！
+    const selectedElements = getSelectedElements(board);
+    if (selectedElements.length === 1 && MindElement.isMindElement(board, selectedElements[0])) {
+      const newNode = selectedElements[0];
+      const path = PlaitBoard.findPath(board, newNode);
+      if (path) {
+        const patch: Record<string, any> = {};
+        if (PlaitMind.isMind(element)) {
+          // 从根节点创建一级子节点
+          const branchColor =
+            getNextBranchColor(board, element) || (element as any).branchColor || '#2563eb';
+          patch.shape = (element as any).shape || MindElementShape.roundRectangle;
+          patch.branchColor = branchColor;
+          patch.strokeColor = branchColor;
+          patch.fill = '#ffffff';
+          patch.strokeWidth = 2;
+          patch.branchWidth = 2;
+          patch.branchShape = (element as any).branchShape || BranchShape.bight;
+        } else {
+          // 从子节点创建子级节点
+          patch.shape = (element as any).shape || MindElementShape.roundRectangle;
+          patch.branchColor = (element as any).branchColor;
+          patch.strokeColor = (element as any).strokeColor || (element as any).branchColor;
+          patch.fill = (element as any).fill || '#ffffff';
+          patch.strokeWidth = (element as any).strokeWidth || 2;
+          patch.branchWidth = (element as any).branchWidth || 2;
+          patch.branchShape = (element as any).branchShape || BranchShape.bight;
+        }
+        Transforms.setNode(board, patch, path);
+      }
+    }
+  };
+
+  const rawInsertSiblingNode = MindTransforms.insertSiblingNode;
+  MindTransforms.insertSiblingNode = (board: any, element: MindElement) => {
+    rawInsertSiblingNode(board, element);
+
+    const selectedElements = getSelectedElements(board);
+    if (selectedElements.length === 1 && MindElement.isMindElement(board, selectedElements[0])) {
+      const newNode = selectedElements[0];
+      const path = PlaitBoard.findPath(board, newNode);
+      if (path) {
+        const patch: Record<string, any> = {
+          shape: (element as any).shape || MindElementShape.roundRectangle,
+          branchColor: (element as any).branchColor,
+          strokeColor: (element as any).strokeColor || (element as any).branchColor,
+          fill: (element as any).fill || '#ffffff',
+          strokeWidth: (element as any).strokeWidth || 2,
+          branchWidth: (element as any).branchWidth || 2,
+          branchShape: (element as any).branchShape || BranchShape.bight,
+        };
+        Transforms.setNode(board, patch, path);
+      }
+    }
+  };
+}
+
 // 补丁 NodeMoreGenerator：定制折叠与添加按钮样式为紧凑圆环和内指箭头
 let isNodeMoreGeneratorPatched = false;
-
 function patchNodeMoreGenerator() {
   if (isNodeMoreGeneratorPatched) return;
   try {
@@ -89,11 +158,10 @@ function patchNodeMoreGenerator() {
           const arrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           const cx = center[0];
           const cy = center[1];
-          // 判断是左侧还是右侧分支 (根据 addCenter 与 center 的相对 X 坐标)
           const isLeftBranch = addCenter ? addCenter[0] < center[0] : false;
           const d = isLeftBranch
-            ? `M ${cx - 1.8} ${cy - 3.8} L ${cx + 2.2} ${cy} L ${cx - 1.8} ${cy + 3.8}` // 指向右侧父节点
-            : `M ${cx + 1.8} ${cy - 3.8} L ${cx - 2.2} ${cy} L ${cx + 1.8} ${cy + 3.8}`; // 指向左侧父节点
+            ? `M ${cx - 1.8} ${cy - 3.8} L ${cx + 2.2} ${cy} L ${cx - 1.8} ${cy + 3.8}`
+            : `M ${cx + 1.8} ${cy - 3.8} L ${cx - 2.2} ${cy} L ${cx + 1.8} ${cy + 3.8}`;
 
           arrowPath.setAttribute('d', d);
           arrowPath.setAttribute('fill', 'none');
@@ -158,6 +226,7 @@ function patchNodeMoreGenerator() {
 
 export const withMindEnhance = <T extends PlaitBoard = PlaitBoard>(board: T): T => {
   patchNodeMoreGenerator();
+  patchMindTransforms();
 
   // 1. 安全封装 getRectangle：在未挂载或初始构建阶段提供保底外包矩形，避免 console.error('mind element has not been mounted')
   const rawGetRectangle = board.getRectangle;
@@ -214,17 +283,31 @@ export const withMindEnhance = <T extends PlaitBoard = PlaitBoard>(board: T): T 
     };
   };
 
-  // 3. 增强键盘事件：Enter 键进入编辑模式
+  // 3. 增强键盘快捷键：
+  //    - 选中中心主题/根节点时按 Enter：新增一级子节点（带完整样式并进入编辑）！
+  //    - 选中分支子节点时按 Enter：新增同级节点（带完整样式并进入编辑）！
+  //    - 正在编辑文本时按 Enter：让 Slate 正常提交完成编辑！
   const { keyDown } = board;
   board.keyDown = (event: KeyboardEvent) => {
     if (isEnterHotkey(event)) {
       const selectedElements = getSelectedElements(board);
       if (selectedElements.length === 1 && MindElement.isMindElement(board, selectedElements[0])) {
-        if (!PlaitBoard.hasBeenTextEditing(board)) {
-          event.preventDefault();
-          editTopic(selectedElements[0]);
+        // 如果正在文本编辑模式中，让 Slate 正常处理提交，不拦截
+        if (PlaitBoard.hasBeenTextEditing(board)) {
+          keyDown(event);
           return;
         }
+
+        const target = selectedElements[0];
+        event.preventDefault();
+        if (PlaitMind.isMind(target)) {
+          // 根节点按 Enter -> 增加一级子节点！
+          MindTransforms.insertChildNode(board as any, target);
+        } else if (!AbstractNode.isAbstract(target)) {
+          // 普通子节点按 Enter -> 增加同级节点！
+          MindTransforms.insertSiblingNode(board as any, target);
+        }
+        return;
       }
     }
     keyDown(event);
