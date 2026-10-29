@@ -188,6 +188,24 @@ export function setNodeTopicText(
 }
 
 /**
+ * 修改节点富文本对象 (纯不可变函数)
+ */
+export function setNodeTopic(
+  root: SpeedMindElement,
+  targetId: string,
+  newTopic: any
+): SpeedMindElement {
+  const clonedRoot = cloneTree(root);
+  const node = findNodeById(clonedRoot, targetId);
+  if (!node) return root;
+
+  if (!node.data) node.data = { topic: newTopic };
+  else node.data.topic = newTopic;
+
+  return clonedRoot;
+}
+
+/**
  * 移动/重新父级化节点 (支持拖拽调整顺序与层级)
  */
 export function moveNode(

@@ -240,7 +240,11 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
     const renderDOM = () => {
       // 提取纯文本内容与排版属性
       const firstChild = (currentText as any)?.children?.[0] || {};
-      const fontSize = firstChild['font-size'] ? parseFloat(firstChild['font-size']) : 14;
+      const fontSize = firstChild['font-size']
+        ? parseFloat(firstChild['font-size'])
+        : firstChild.fontSize
+        ? parseFloat(firstChild.fontSize)
+        : 14;
       const lineHeight = fontSize === 14 ? 20 : Math.round(fontSize * 1.5);
       const isMindTopic =
         (currentText as any)?.align === 'center' ||

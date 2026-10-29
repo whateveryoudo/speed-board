@@ -1,9 +1,11 @@
 import {
   CommonElementFlavour,
   PlaitCommonElementRef,
+  TextManage,
 } from '@plait/common';
 import {
   createG,
+  Transforms,
   type OnContextChanged,
   type PlaitBoard,
   type PlaitPluginElementContext,
@@ -11,8 +13,15 @@ import {
 import type { NodeLayoutBox, SpeedMindElement } from '../types';
 import { computeMindLayout } from '../layout/mindLayout';
 import { renderBranchLinksSvg, renderSummaryBracketsSvg } from '../renderer/drawLinks';
-import { renderNodeCardSvg } from '../renderer/drawNode';
+import {
+  renderNodeCardShape,
+  updateNodeCardShape,
+  getTopicRectangleByBox,
+  getNodeTopicData,
+} from '../renderer/drawNode';
 import { renderNodeHandlesSvg } from '../renderer/drawHandles';
+import { MIND_NODE_TEXT_MANAGES } from '../renderer/inlineEditor';
+import { findMindRootAndPath, setNodeTopic } from '../model/treeOps';
 
 export const MIND_LAYOUT_CACHE = new WeakMap<SpeedMindElement, ReturnType<typeof computeMindLayout>>();
 export const MIND_SELECTED_NODE_ID = new WeakMap<PlaitBoard, string>();
@@ -40,7 +49,7 @@ export function setHoverMindNodeId(board: PlaitBoard, nodeId: string | null): vo
 
 /**
  * 纯 SVG 自研脑图组件 (继承 Plait ElementFlavour)
- * 具备极简、高性能、Immer 不可变性安全、绝不产生 WeakMap 崩溃等特性
+ * 内置原生 TextManage + Slate 富文本渲染，与画板 Text/Shape 共享统一文本基础设施
  */
 export class SpeedMindComponent
   extends CommonElementFlavour<SpeedMindElement, PlaitBoard>
@@ -58,6 +67,9 @@ export class SpeedMindComponent
   private summariesG: SVGGElement | null = null;
   private nodesG: SVGGElement | null = null;
   private handlesG: SVGGElement | null = null;
+
+  private nodeGMap = new Map<string, SVGGElement>();
+  private textManageMap = new Map<string, TextManage>();
 
   constructor() {
     super(new PlaitCommonElementRef());
@@ -112,19 +124,94 @@ export class SpeedMindComponent
     renderBranchLinksSvg(this.linksG, layout.links);
     renderSummaryBracketsSvg(this.summariesG, layout.summaries);
 
-    // 3. 渲染所有节点卡片
-    this.nodesG.innerHTML = '';
+    // 3. 渲染所有节点卡片 (复用 TextManage，保障正在编辑态的 DOM 节点不被销毁)
+    const activeIds = new Set(layout.nodeMap.keys());
+    for (const [id, tm] of this.textManageMap.entries()) {
+      if (!activeIds.has(id)) {
+        tm.destroy();
+        this.textManageMap.delete(id);
+        this.nodeGMap.get(id)?.remove();
+        this.nodeGMap.delete(id);
+      }
+    }
+
     const selectedNodeId = getSelectedMindNodeId(board);
     const hoverNodeId = getHoverMindNodeId(board);
 
     layout.nodeMap.forEach((box: NodeLayoutBox) => {
-      const nodeG = createG();
-      const isSelected = this.selected && (selectedNodeId === box.id || (!selectedNodeId && box.id === element.id));
-      renderNodeCardSvg(nodeG, box, isSelected);
-      this.nodesG!.appendChild(nodeG);
+      const isSelected =
+        this.selected &&
+        (selectedNodeId === box.id || (!selectedNodeId && box.id === element.id));
+
+      let nodeG = this.nodeGMap.get(box.id);
+      let textManage = this.textManageMap.get(box.id);
+
+      if (!nodeG || !textManage) {
+        nodeG = createG();
+        nodeG.setAttribute(
+          'class',
+          `speed-mind-node-g ${box.element.isRoot ? 'is-root' : 'is-child'} ${isSelected ? 'is-selected' : ''}`
+        );
+        nodeG.setAttribute('data-node-id', box.id);
+        nodeG.style.cursor = 'pointer';
+
+        renderNodeCardShape(nodeG, box, isSelected);
+
+        textManage = new TextManage(board, {
+          getRectangle: () => {
+            const currentLayout =
+              MIND_LAYOUT_CACHE.get(this.element) || computeMindLayout(this.element);
+            const curBox = currentLayout.nodeMap.get(box.id) || box;
+            return getTopicRectangleByBox(curBox);
+          },
+          onChange: (data) => {
+            const cur = findMindRootAndPath(board, box.id);
+            if (cur) {
+              const updated = setNodeTopic(cur.root, box.id, data.newText);
+              Transforms.setNode(
+                board,
+                { data: updated.data, children: updated.children },
+                cur.path
+              );
+            }
+          },
+          getMaxWidth: () => 800,
+        });
+
+        const isRoot = Boolean(box.element.isRoot || box.depth === 0);
+        textManage.draw(getNodeTopicData(box.element, isRoot));
+
+        this.textManageMap.set(box.id, textManage);
+        this.nodeGMap.set(box.id, nodeG);
+
+        nodeG.appendChild(textManage.g);
+        this.nodesG!.appendChild(nodeG);
+      } else {
+        updateNodeCardShape(nodeG, box, isSelected);
+        if (!textManage.isEditing) {
+          const isRoot = Boolean(box.element.isRoot || box.depth === 0);
+          textManage.updateText(getNodeTopicData(box.element, isRoot));
+        }
+        textManage.updateRectangle();
+
+        if (nodeG.parentElement !== this.nodesG) {
+          this.nodesG!.appendChild(nodeG);
+        }
+      }
     });
 
-    // 4. 渲染悬浮/激活操作手柄
+    // 4. 将 textManageMap 注册到全局 WeakMap 供快捷键/事件触发 edit
+    MIND_NODE_TEXT_MANAGES.set(board, this.textManageMap);
+
+    // 5. 初始化当前选中的 TextManage 到 Plait ElementRef，联动浮动格式工具栏
+    const selectedTm = selectedNodeId ? this.textManageMap.get(selectedNodeId) : null;
+    if (selectedTm) {
+      this.getRef().initializeTextManage(selectedTm);
+    } else {
+      this.getRef().initializeTextManage(Array.from(this.textManageMap.values()));
+    }
+
+    // 6. 渲染悬浮/激活操作手柄
     this.handlesG.innerHTML = '';
     const activeBox =
       (selectedNodeId && layout.nodeMap.get(selectedNodeId)) ||
@@ -141,6 +228,13 @@ export class SpeedMindComponent
     if (this.element) {
       MIND_LAYOUT_CACHE.delete(this.element);
     }
+    for (const tm of this.textManageMap.values()) {
+      tm.destroy();
+    }
+    this.textManageMap.clear();
+    this.nodeGMap.clear();
+    MIND_NODE_TEXT_MANAGES.delete(this.board);
+
     this.linksG?.remove();
     this.summariesG?.remove();
     this.nodesG?.remove();

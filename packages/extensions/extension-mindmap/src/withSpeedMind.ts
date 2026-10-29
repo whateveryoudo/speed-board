@@ -1,5 +1,5 @@
 import {
-  type PlaitBoard,
+  PlaitBoard,
   type PlaitPluginElementContext,
   type Point,
   type Selection,
@@ -34,8 +34,7 @@ import {
   setHoverMindNodeId,
 } from './component/SpeedMindComponent';
 import {
-  startInlineEditing,
-  isInlineEditingActive,
+  editMindNodeTopic,
 } from './renderer/inlineEditor';
 import { MindNodeDnDController } from './interaction/MindNodeDnDController';
 import './registerBoardMindmap';
@@ -192,6 +191,11 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       return;
     }
 
+    if (PlaitBoard.hasBeenTextEditing(board)) {
+      pointerDown(event);
+      return;
+    }
+
     const target = event.target as HTMLElement | SVGElement | null;
 
     // 4.2 点击外延操作手柄 (+ 按钮 / 折叠展开)
@@ -217,32 +221,8 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
               // 自动拉起新节点就地输入
               setTimeout(() => {
-                const layout = computeMindLayout(addRes.clonedRoot);
-                const newBox = layout.nodeMap.get(addRes.newChild.id);
-                if (newBox) {
-                  startInlineEditing({
-                    board,
-                    box: newBox,
-                    initialText: '分支主题',
-                    onCommit: (txt) => {
-                      const cur = findMindRootAndPath(addRes.newChild.id);
-                      if (cur) {
-                        const updated = setNodeTopicText(
-                          cur.root,
-                          addRes.newChild.id,
-                          txt
-                        );
-                        Transforms.setNode(
-                          board,
-                          { data: updated.data, children: updated.children },
-                          cur.path
-                        );
-                        ((board as any).boardWrapper || board)?.emit?.('change', {});
-                      }
-                    },
-                  });
-                }
-              }, 50);
+                editMindNodeTopic(board, addRes.newChild.id);
+              }, 30);
             }
             event.stopPropagation();
             return;
@@ -321,30 +301,10 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     if (nodeEl) {
       const nodeId = nodeEl.getAttribute('data-node-id');
       if (nodeId) {
-        const info = findMindRootAndPath(nodeId);
-        if (info) {
-          const { root, path } = info;
-          const layout = computeMindLayout(root);
-          const box = layout.nodeMap.get(nodeId);
-          if (box) {
-            const initialText = getNodeTopicText(box.element);
-            startInlineEditing({
-              board,
-              box,
-              initialText,
-              onCommit: (newText) => {
-                const updated = setNodeTopicText(root, nodeId, newText);
-                Transforms.setNode(
-                  board,
-                  { data: updated.data, children: updated.children },
-                  path
-                );
-              },
-            });
-            event.stopPropagation();
-            return;
-          }
-        }
+        setSelectedMindNodeId(board, nodeId);
+        editMindNodeTopic(board, nodeId);
+        event.stopPropagation();
+        return;
       }
     }
     dblClick(event);
@@ -352,7 +312,8 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
   // 7. 快捷键支持 (Enter 同级/子级, Tab 子级, Space 编辑, Delete 删除)
   board.globalKeyDown = (event: KeyboardEvent) => {
-    if (isInlineEditingActive()) {
+    if (PlaitBoard.hasBeenTextEditing(board)) {
+      globalKeyDown(event);
       return;
     }
 
@@ -380,27 +341,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
         if (isPrintableKey) {
           event.preventDefault();
           event.stopPropagation();
-          const layout = computeMindLayout(root);
-          const box = layout.nodeMap.get(selectedMindNodeId);
-          if (box) {
-            startInlineEditing({
-              board,
-              box,
-              initialText: getNodeTopicText(box.element),
-              onCommit: (txt) => {
-                const cur = findMindRootAndPath(selectedMindNodeId);
-                if (cur) {
-                  const updated = setNodeTopicText(cur.root, selectedMindNodeId, txt);
-                  Transforms.setNode(
-                    board,
-                    { data: updated.data, children: updated.children },
-                    cur.path
-                  );
-                  ((board as any).boardWrapper || board)?.emit?.('change', {});
-                }
-              },
-            });
-          }
+          editMindNodeTopic(board, selectedMindNodeId);
           return;
         }
 
@@ -423,32 +364,8 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
             setSelectedMindNodeId(board, newCreated.id);
 
             setTimeout(() => {
-              const layout = computeMindLayout(result.clonedRoot);
-              const newBox = layout.nodeMap.get(newCreated.id);
-              if (newBox) {
-                startInlineEditing({
-                  board,
-                  box: newBox,
-                  initialText: '分支主题',
-                  onCommit: (txt) => {
-                    const cur = findMindRootAndPath(newCreated.id);
-                    if (cur) {
-                      const updated = setNodeTopicText(
-                        cur.root,
-                        newCreated.id,
-                        txt
-                      );
-                      Transforms.setNode(
-                        board,
-                        { data: updated.data, children: updated.children },
-                        cur.path
-                      );
-                      ((board as any).boardWrapper || board)?.emit?.('change', {});
-                    }
-                  },
-                });
-              }
-            }, 50);
+              editMindNodeTopic(board, newCreated.id);
+            }, 30);
           }
           return;
         }
@@ -468,32 +385,8 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
             setSelectedMindNodeId(board, addRes.newChild.id);
 
             setTimeout(() => {
-              const layout = computeMindLayout(addRes.clonedRoot);
-              const newBox = layout.nodeMap.get(addRes.newChild.id);
-              if (newBox) {
-                startInlineEditing({
-                  board,
-                  box: newBox,
-                  initialText: '分支主题',
-                  onCommit: (txt) => {
-                    const cur = findMindRootAndPath(addRes.newChild.id);
-                    if (cur) {
-                      const updated = setNodeTopicText(
-                        cur.root,
-                        addRes.newChild.id,
-                        txt
-                      );
-                      Transforms.setNode(
-                        board,
-                        { data: updated.data, children: updated.children },
-                        cur.path
-                      );
-                      ((board as any).boardWrapper || board)?.emit?.('change', {});
-                    }
-                  },
-                });
-              }
-            }, 50);
+              editMindNodeTopic(board, addRes.newChild.id);
+            }, 30);
           }
           return;
         }
@@ -502,28 +395,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
         if (event.key === ' ' || event.code === 'Space') {
           event.preventDefault();
           event.stopPropagation();
-
-          const layout = computeMindLayout(root);
-          const box = layout.nodeMap.get(selectedMindNodeId);
-          if (box) {
-            startInlineEditing({
-              board,
-              box,
-              initialText: getNodeTopicText(box.element),
-              onCommit: (txt) => {
-                const cur = findMindRootAndPath(selectedMindNodeId);
-                if (cur) {
-                  const updated = setNodeTopicText(cur.root, selectedMindNodeId, txt);
-                  Transforms.setNode(
-                    board,
-                    { data: updated.data, children: updated.children },
-                    cur.path
-                  );
-                  ((board as any).boardWrapper || board)?.emit?.('change', {});
-                }
-              },
-            });
-          }
+          editMindNodeTopic(board, selectedMindNodeId);
           return;
         }
 
