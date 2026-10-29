@@ -248,11 +248,11 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         (props as any)?.isMind;
       const textAlign = (currentText as any)?.align || (isMindTopic ? 'center' : 'left');
 
-      // 垂直对齐配置：思维导图节点垂直居中，纯文本默认居顶 (与语雀、Figma 一致)
+      // 垂直对齐配置：跟随 verticalAlign 属性，默认垂直居中 (middle)
       const vAlign =
         (currentText as any)?.verticalAlign ||
         (props as any)?.verticalAlign ||
-        (isMindTopic ? 'middle' : (currentText as any)?.shape === 'text' || (props as any)?.isText ? 'top' : 'top');
+        'middle';
       const flexJustifyY =
         vAlign === 'middle' || vAlign === 'center'
           ? 'center'

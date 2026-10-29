@@ -26,9 +26,12 @@ export const patchTextGeneratorVerticalAlign = () => {
       return defaultRect;
     }
 
-    const isPureText = PlaitDrawElement.isText(element) || element.shape === 'text';
-    const defaultAlign = isPureText ? 'top' : 'middle';
-    const vAlign = element.verticalAlign || element.text?.verticalAlign || defaultAlign;
+    // 跟随属性：图形或文本均以 verticalAlign 为准，默认垂直居中 (middle)
+    const vAlign =
+      element.verticalAlign ||
+      element.text?.verticalAlign ||
+      (text as any)?.verticalAlign ||
+      'middle';
     if (!vAlign || vAlign === 'middle') {
       return defaultRect;
     }

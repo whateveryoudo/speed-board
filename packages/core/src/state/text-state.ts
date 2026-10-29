@@ -302,9 +302,18 @@ export function patchNodeText(
           Transforms.setNode(board, newProps as any, path);
         }
 
+        if (editor.children?.[0]) {
+          if (patch.align !== undefined) (editor.children[0] as any).align = patch.align;
+          if (patch.verticalAlign !== undefined) (editor.children[0] as any).verticalAlign = patch.verticalAlign;
+        }
+
         const textManages = getTextManages(element);
         textManages.forEach((manage) => {
-          manage.textComponentRef?.update?.({ text: editor.children[0] as any });
+          if (patch.verticalAlign !== undefined) {
+            manage.updateRectangle();
+          }
+          const textToUpdate = isMindmapNode(element) ? (element.data?.topic as any) : newText;
+          manage.textComponentRef?.update?.({ text: textToUpdate });
         });
 
         handledByEditor = true;
@@ -383,5 +392,13 @@ export function patchNodeText(
     if (patch.link !== undefined) newProps.link = patch.link;
 
     Transforms.setNode(board, newProps as any, path);
+
+    const textManages = getTextManages(element);
+    textManages.forEach((manage) => {
+      if (patch.verticalAlign !== undefined) {
+        manage.updateRectangle();
+      }
+      manage.textComponentRef?.update?.({ text: newText as any });
+    });
   });
 }
