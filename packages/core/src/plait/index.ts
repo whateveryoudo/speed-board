@@ -72,6 +72,10 @@ export {
   degreesToRadians,
   radiansToDegrees,
   rotatePoints,
+  getHitElementByPoint,
+  toImage,
+  toSvg,
+  downloadImage,
 } from '@plait/core';
 
 export {

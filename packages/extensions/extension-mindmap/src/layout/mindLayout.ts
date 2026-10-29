@@ -25,8 +25,16 @@ export function estimateNodeDimensions(
       ? Object.keys(node.data.markers).length
       : 0;
 
-  const width = calculateMindmapNodeWidth(text, isRoot, markersCount);
-  const height = isRoot ? 42 : 32;
+  let width = calculateMindmapNodeWidth(text, isRoot, markersCount);
+  let height = isRoot ? 42 : 32;
+
+  // 如果节点包含图片，增加图片尺寸与卡片高度
+  if (node.data?.image?.url) {
+    const imgW = node.data.image.width || 120;
+    const imgH = node.data.image.height || 80;
+    width = Math.max(width, imgW + (isRoot ? 24 : 16));
+    height = height + imgH + 8;
+  }
 
   return { width, height };
 }

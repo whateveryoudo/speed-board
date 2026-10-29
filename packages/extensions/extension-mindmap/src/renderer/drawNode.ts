@@ -65,14 +65,19 @@ export function getTopicRectangleByBox(box: NodeLayoutBox): RectangleClient {
   const markerWidth = markerCount > 0 ? markerCount * 21 : 0;
   const paddingX = isRoot ? 12 : 8;
 
+  const hasImage = Boolean(box.element.data?.image?.url);
+  const imgH = hasImage ? (box.element.data?.image?.height || 80) : 0;
+
   const textX = box.x + (markerWidth > 0 ? paddingX + markerWidth : 0);
   const textWidth = Math.max(10, box.width - (markerWidth > 0 ? paddingX + markerWidth : 0));
+  const textY = box.y + (hasImage ? imgH + 6 : 0);
+  const textHeight = hasImage ? Math.max(20, box.height - imgH - 8) : box.height;
 
   return {
     x: textX,
-    y: box.y,
+    y: textY,
     width: textWidth,
-    height: box.height,
+    height: textHeight,
   };
 }
 
@@ -102,9 +107,12 @@ export function renderNodeMarkersSvg(
   }
   if (markerList.length === 0) return 0;
 
+  const hasImage = Boolean(node.data?.image?.url);
+  const imgH = hasImage ? (node.data?.image?.height || 80) : 0;
   const isRoot = Boolean(node.isRoot || box.depth === 0);
   const startX = box.x + (isRoot ? 12 : 8);
-  const startY = box.y + (box.height - 18) / 2;
+  const textHeight = hasImage ? Math.max(20, box.height - imgH - 8) : box.height;
+  const startY = box.y + (hasImage ? imgH + 6 : 0) + (textHeight - 18) / 2;
 
   const markersG = document.createElementNS(SVG_NS, 'g');
   markersG.setAttribute('class', 'speed-mind-node-markers');
@@ -219,6 +227,106 @@ export function renderNodeCardShape(
 
   // 2. 渲染标记 (Markers)
   renderNodeMarkersSvg(nodeG, element, box);
+
+  // 3. 渲染附加内容 (图片/链接/备注)
+  renderNodeExtras(nodeG, element, box);
+}
+
+/**
+ * 渲染卡片附加内容 (图片 Image, 链接 Link, 备注 Note)
+ */
+export function renderNodeExtras(
+  nodeG: SVGGElement,
+  element: SpeedMindElement,
+  box: NodeLayoutBox
+): void {
+  // 1. 渲染图片
+  const existingImg = nodeG.querySelector('.speed-mind-node-image');
+  existingImg?.remove();
+
+  if (element.data?.image?.url) {
+    const imgW = element.data.image.width || 120;
+    const imgH = element.data.image.height || 80;
+    const imgX = box.x + (box.width - imgW) / 2;
+    const imgY = box.y + 6;
+
+    const imgEl = document.createElementNS(SVG_NS, 'image');
+    imgEl.setAttribute('class', 'speed-mind-node-image');
+    imgEl.setAttribute('href', element.data.image.url);
+    imgEl.setAttribute('x', String(imgX));
+    imgEl.setAttribute('y', String(imgY));
+    imgEl.setAttribute('width', String(imgW));
+    imgEl.setAttribute('height', String(imgH));
+    imgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    imgEl.style.borderRadius = '4px';
+    imgEl.style.pointerEvents = 'none';
+    nodeG.appendChild(imgEl);
+  }
+
+  // 2. 渲染链接与备注角标
+  const existingBadges = nodeG.querySelector('.speed-mind-node-badges');
+  existingBadges?.remove();
+
+  if (element.data?.link || element.data?.note) {
+    const badgesG = document.createElementNS(SVG_NS, 'g');
+    badgesG.setAttribute('class', 'speed-mind-node-badges');
+    badgesG.style.pointerEvents = 'auto';
+
+    let badgeOffset = 0;
+    if (element.data?.link) {
+      const linkA = document.createElementNS(SVG_NS, 'a');
+      linkA.setAttribute('href', element.data.link);
+      linkA.setAttribute('target', '_blank');
+      linkA.setAttribute('class', 'speed-mind-badge-link');
+      linkA.setAttribute('title', `跳转链接: ${element.data.link}`);
+      linkA.style.cursor = 'pointer';
+
+      const iconSvg = document.createElementNS(SVG_NS, 'svg');
+      iconSvg.setAttribute('x', String(box.x + box.width - 18 - badgeOffset));
+      iconSvg.setAttribute('y', String(box.y + 4));
+      iconSvg.setAttribute('width', '14');
+      iconSvg.setAttribute('height', '14');
+      iconSvg.setAttribute('viewBox', '0 0 24 24');
+      iconSvg.setAttribute('fill', 'none');
+      iconSvg.setAttribute('stroke', '#3b82f6');
+      iconSvg.setAttribute('stroke-width', '2');
+      iconSvg.setAttribute('stroke-linecap', 'round');
+      iconSvg.setAttribute('stroke-linejoin', 'round');
+      iconSvg.innerHTML = '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>';
+
+      linkA.appendChild(iconSvg);
+      badgesG.appendChild(linkA);
+      badgeOffset += 18;
+    }
+
+    if (element.data?.note) {
+      const noteG = document.createElementNS(SVG_NS, 'g');
+      noteG.setAttribute('class', 'speed-mind-badge-note');
+      noteG.style.cursor = 'help';
+
+      const title = document.createElementNS(SVG_NS, 'title');
+      title.textContent = `备注: ${element.data.note}`;
+      noteG.appendChild(title);
+
+      const iconSvg = document.createElementNS(SVG_NS, 'svg');
+      iconSvg.setAttribute('x', String(box.x + box.width - 18 - badgeOffset));
+      iconSvg.setAttribute('y', String(box.y + 4));
+      iconSvg.setAttribute('width', '14');
+      iconSvg.setAttribute('height', '14');
+      iconSvg.setAttribute('viewBox', '0 0 24 24');
+      iconSvg.setAttribute('fill', 'none');
+      iconSvg.setAttribute('stroke', '#f59e0b');
+      iconSvg.setAttribute('stroke-width', '2');
+      iconSvg.setAttribute('stroke-linecap', 'round');
+      iconSvg.setAttribute('stroke-linejoin', 'round');
+      iconSvg.innerHTML = '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>';
+
+      noteG.appendChild(iconSvg);
+      badgesG.appendChild(noteG);
+    }
+
+    nodeG.appendChild(badgesG);
+  }
 }
 
 /**
@@ -309,6 +417,9 @@ export function updateNodeCardShape(
 
   // 更新标记
   renderNodeMarkersSvg(nodeG, element, box);
+
+  // 更新附加内容 (图片/链接/备注)
+  renderNodeExtras(nodeG, element, box);
 }
 
 /**

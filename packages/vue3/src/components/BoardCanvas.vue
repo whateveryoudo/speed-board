@@ -8,6 +8,7 @@
     :theme="props.options?.theme"
     @created="onPlaitCreated"
     @change="onPlaitChange"
+    @contextmenu="onContextMenu"
   >
     <slot />
   </PlaitBoard>
@@ -24,6 +25,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'created', board: Board): void;
+  (e: 'contextmenu', event: MouseEvent): void;
 }>();
 
 const plaitBoardRef = ref();
@@ -42,6 +44,10 @@ const onPlaitCreated = (plaitBoard: PlaitBoardType) => {
 const onPlaitChange = (data: any) => {
   boardInstance?.emit('change', data);
   boardInstance?.emit('selection:change', data.selection);
+};
+
+const onContextMenu = (e: MouseEvent) => {
+  emit('contextmenu', e);
 };
 
 onBeforeUnmount(() => {

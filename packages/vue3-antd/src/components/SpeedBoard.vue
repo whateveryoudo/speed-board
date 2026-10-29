@@ -45,20 +45,43 @@
       :board="boardInstance"
     />
 
+    <!-- 右键快捷上下文菜单 (区分脑图节点与通用图形，右键直接选中目标) -->
+    <ContextMenu
+      :board="boardInstance"
+      :visible="contextMenuVisible"
+      :position="contextMenuPosition"
+      :target-type="contextMenuTargetType"
+      :target-data="contextMenuTargetData"
+      @close="contextMenuVisible = false"
+    />
+
     <!-- 主画布承载容器 (100% 纯正 Plait 原生 SVG 容器) -->
-    <div ref="canvasWrapperRef" class="speed-board-canvas-wrapper">
-      <BoardCanvas :options="mergedOptions" @created="onBoardCreated" />
+    <div
+      ref="canvasWrapperRef"
+      class="speed-board-canvas-wrapper"
+      @contextmenu.prevent="handleContextMenu"
+    >
+      <BoardCanvas
+        :options="mergedOptions"
+        @created="onBoardCreated"
+        @contextmenu="handleContextMenu"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, computed } from 'vue';
+import { ref, shallowRef, computed, onMounted, onBeforeUnmount } from 'vue';
 import { message } from 'ant-design-vue';
 import {
   Board,
   type BoardOptions,
   PlaitPointerType,
+  clearSelectedElement,
+  addSelectedElement,
+  toHostPoint,
+  toViewBoxPoint,
+  getHitElementByPoint,
 } from '@speed-board/core';
 import {
   withDrawKit,
@@ -67,13 +90,19 @@ import {
   VectorLinePointerType,
   FreehandShape,
 } from '@speed-board/extension-draw';
-import { withSpeedMind, MindPointerType } from '@speed-board/extension-mindmap';
+import {
+  withSpeedMind,
+  MindPointerType,
+  findMindRootAndPath,
+  setSelectedMindNodeId,
+} from '@speed-board/extension-mindmap';
 import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
 import LeftToolbar from './LeftToolbar.vue';
 import FloatingToolbar from './FloatingToolbar.vue';
 import MindmapMarkerQuickPicker from './MindmapMarkerQuickPicker.vue';
 import StyleSettingsPanel from './StyleSettingsPanel.vue';
+import ContextMenu from './ContextMenu.vue';
 import { useAntdCssVars } from 'speed-components-ui/hooks';
 import type { IconProvider } from '../data/defaultIcons';
 import '../style/index.less';
@@ -200,6 +229,120 @@ const onToolbarModeChange = (payload: {
       break;
   }
 };
+
+// --- 右键上下文菜单状态与事件 ---
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextMenuTargetType = ref<'mindmap' | 'element' | 'blank'>('blank');
+const contextMenuTargetData = ref<any>({});
+
+const handleContextMenu = (e: MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (!boardInstance.value) return;
+  const board = boardInstance.value;
+  const rawBoard = board.raw;
+
+  const target = e.target as HTMLElement | SVGElement | null;
+  const hostPoint = toHostPoint(rawBoard, e.clientX, e.clientY);
+  const viewBoxPoint = toViewBoxPoint(rawBoard, hostPoint);
+
+  // 1. 检查是否右键点击思维导图节点
+  const nodeEl = target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null;
+  let hitNodeId = nodeEl?.getAttribute('data-node-id');
+  let hitMindRoot: any = null;
+
+  if (hitNodeId) {
+    const info = findMindRootAndPath(rawBoard, hitNodeId);
+    if (info) {
+      hitMindRoot = info.root;
+    }
+  }
+
+  if (hitNodeId && hitMindRoot) {
+    // 立即选中该脑图节点
+    clearSelectedElement(rawBoard);
+    addSelectedElement(rawBoard, hitMindRoot);
+    setSelectedMindNodeId(rawBoard, hitNodeId);
+    board.emit('selection:change', { selected: [hitMindRoot] });
+    (rawBoard as any).apply({ type: 'set_selection' } as any);
+
+    contextMenuTargetType.value = 'mindmap';
+    contextMenuTargetData.value = {
+      nodeId: hitNodeId,
+      root: hitMindRoot,
+    };
+    contextMenuPosition.value = { x: e.clientX, y: e.clientY };
+    contextMenuVisible.value = true;
+    return;
+  }
+
+  // 2. 检查是否右键命中常规图元
+  const hitElement = getHitElementByPoint(rawBoard, viewBoxPoint);
+  if (hitElement) {
+    // 立即选中该图元
+    clearSelectedElement(rawBoard);
+    addSelectedElement(rawBoard, hitElement);
+    board.emit('selection:change', { selected: [hitElement] });
+    (rawBoard as any).apply({ type: 'set_selection' } as any);
+
+    contextMenuTargetType.value = 'element';
+    contextMenuTargetData.value = {
+      element: hitElement,
+    };
+    contextMenuPosition.value = { x: e.clientX, y: e.clientY };
+    contextMenuVisible.value = true;
+    return;
+  }
+
+  // 3. 右键画板空白区域
+  contextMenuTargetType.value = 'blank';
+  contextMenuTargetData.value = {};
+  contextMenuPosition.value = { x: e.clientX, y: e.clientY };
+  contextMenuVisible.value = true;
+};
+
+// 全局层级快捷键支持 (⌘+] 置顶, ⌘+[ 置底, ⌘+Option+] 上移一层, ⌘+Option+[ 下移一层)
+const onGlobalKeyDown = (e: KeyboardEvent) => {
+  if (!boardInstance.value) return;
+  const isInput =
+    (e.target as HTMLElement)?.tagName === 'INPUT' ||
+    (e.target as HTMLElement)?.tagName === 'TEXTAREA' ||
+    (e.target as HTMLElement)?.isContentEditable;
+  if (isInput) return;
+
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+  // ⌘+] 置顶 / ⌘+Option+] 上移一层
+  if (cmdOrCtrl && (e.key === ']' || e.code === 'BracketRight')) {
+    e.preventDefault();
+    if (e.altKey) {
+      boardInstance.value.bringSelectedForward();
+    } else {
+      boardInstance.value.bringSelectedToFront();
+    }
+  }
+
+  // ⌘+[ 置底 / ⌘+Option+[ 下移一层
+  if (cmdOrCtrl && (e.key === '[' || e.code === 'BracketLeft')) {
+    e.preventDefault();
+    if (e.altKey) {
+      boardInstance.value.sendSelectedBackward();
+    } else {
+      boardInstance.value.sendSelectedToBack();
+    }
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', onGlobalKeyDown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onGlobalKeyDown);
+});
 </script>
 
 <style scoped>

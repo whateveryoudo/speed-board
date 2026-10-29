@@ -107,6 +107,7 @@ const emit = defineEmits<{
     selection: PlaitSelection | null;
     theme?: PlaitTheme;
   }): void;
+  (e: 'contextmenu', event: MouseEvent): void;
 }>();
 
 const boardContainerRef = ref<HTMLDivElement>();
@@ -294,7 +295,10 @@ onMounted(() => {
     }
   };
 
-  const onContextMenu = (e: MouseEvent) => e.preventDefault();
+  const onContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    emit('contextmenu', e);
+  };
 
   const onWheel = (e: WheelEvent) => {
     if (e.metaKey || e.ctrlKey) {

@@ -18,6 +18,7 @@ import { createEmptyMindmap } from './model/createMindmap';
 import {
   addChildNode,
   addSiblingNode,
+  addParentNode,
   deleteNode,
   findNodeById,
   findParentNode,
@@ -478,10 +479,29 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
           return;
         }
 
-        // 7.2 Tab: 统一添加子级
+        // 7.2 Tab: 统一添加子级 / Shift+Tab: 添加父级
         if (event.key === 'Tab') {
           event.preventDefault();
           event.stopPropagation();
+
+          if (event.shiftKey) {
+            if (!isRootNode) {
+              const parentRes = addParentNode(root, selectedMindNodeId, '父主题');
+              if (parentRes) {
+                Transforms.setNode(
+                  board,
+                  { children: parentRes.clonedRoot.children },
+                  path
+                );
+                setSelectedMindNodeId(board, parentRes.newParent.id);
+
+                setTimeout(() => {
+                  editMindNodeTopic(board, parentRes.newParent.id);
+                }, 30);
+              }
+            }
+            return;
+          }
 
           const addRes = addChildNode(root, selectedMindNodeId, '分支主题');
           if (addRes) {

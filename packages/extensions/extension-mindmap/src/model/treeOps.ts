@@ -5,6 +5,18 @@ export function cloneTree(node: SpeedMindElement): SpeedMindElement {
   return JSON.parse(JSON.stringify(node));
 }
 
+export function cloneTreeWithNewIds(node: SpeedMindElement): SpeedMindElement {
+  const cloned = cloneTree(node);
+  function renewId(n: SpeedMindElement) {
+    n.id = `mind-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    if (n.children && Array.isArray(n.children)) {
+      n.children.forEach(renewId);
+    }
+  }
+  renewId(cloned);
+  return cloned;
+}
+
 export function findNodeById(
   root: SpeedMindElement,
   targetId: string
@@ -265,4 +277,102 @@ export function addSummaryNode(
   parent.children.push(summaryNode);
 
   return { clonedRoot, summaryNode };
+}
+
+/**
+ * 添加父级节点 (在当前节点与其原父节点之间插入一个新的父节点)
+ */
+export function addParentNode(
+  root: SpeedMindElement,
+  targetId: string,
+  topic = '父主题'
+): { clonedRoot: SpeedMindElement; newParent: SpeedMindElement } | null {
+  if (root.id === targetId) {
+    // 根节点无法在其上方插入父级
+    return null;
+  }
+
+  const clonedRoot = cloneTree(root);
+  const parentInfo = findParentNode(clonedRoot, targetId);
+  if (!parentInfo) return null;
+
+  const { parent, index } = parentInfo;
+  const currentTarget = parent.children[index];
+
+  let branchColor = parent.branchColor || '#2563eb';
+  if (parent.isRoot) {
+    branchColor = getBranchColorByIndex(index);
+  }
+
+  const newParent = createChildNode(topic, {
+    branchColor,
+    shape: parent.shape || 'roundRectangle',
+    branchShape: parent.branchShape || 'curve',
+  });
+
+  // 把当前节点作为新父节点的子节点
+  newParent.children = [currentTarget];
+  // 替换原位置
+  parent.children.splice(index, 1, newParent);
+
+  return { clonedRoot, newParent };
+}
+
+/**
+ * 更新节点数据 (如图片、链接、备注等)
+ */
+export function updateNodeData(
+  root: SpeedMindElement,
+  targetId: string,
+  dataUpdates: Partial<SpeedMindElement['data']>
+): SpeedMindElement {
+  const clonedRoot = cloneTree(root);
+  const node = findNodeById(clonedRoot, targetId);
+  if (!node) return root;
+
+  node.data = {
+    ...node.data,
+    ...dataUpdates,
+  };
+  return clonedRoot;
+}
+
+/**
+ * 递归导出节点及其子树为缩进纯文本
+ */
+export function copyNodeAsText(node: SpeedMindElement, depth = 0): string {
+  const indent = '  '.repeat(depth);
+  const text = getNodeTopicText(node) || (node.isRoot ? '思维导图' : '分支主题');
+  let result = `${indent}${text}\n`;
+  if (node.children && node.children.length > 0) {
+    for (const child of node.children) {
+      result += copyNodeAsText(child, depth + 1);
+    }
+  }
+  return result;
+}
+
+/**
+ * 递归导出节点及其子树为标准 Markdown 结构
+ */
+export function copyNodeAsMarkdown(node: SpeedMindElement, depth = 0): string {
+  const text = getNodeTopicText(node) || (node.isRoot ? '思维导图' : '分支主题');
+  let line = '';
+  if (depth === 0) {
+    line = `# ${text}\n\n`;
+  } else if (depth === 1) {
+    line = `## ${text}\n\n`;
+  } else if (depth === 2) {
+    line = `### ${text}\n\n`;
+  } else {
+    const indent = '  '.repeat(Math.max(0, depth - 3));
+    line = `${indent}- ${text}\n`;
+  }
+  let result = line;
+  if (node.children && node.children.length > 0) {
+    for (const child of node.children) {
+      result += copyNodeAsMarkdown(child, depth + 1);
+    }
+  }
+  return result;
 }

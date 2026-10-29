@@ -26,6 +26,13 @@ export interface MindMarkerItem {
 export interface SpeedMindNodeData {
   topic: MindTopicData;
   markers?: MindmapMarkers;
+  image?: {
+    url: string;
+    width?: number;
+    height?: number;
+  };
+  link?: string;
+  note?: string;
   isSummary?: boolean;
   summaryFor?: string[];
   [key: string]: any;
