@@ -156,6 +156,15 @@ importers:
 
   packages/vue3:
     dependencies:
+      '@plait/common':
+        specifier: ^0.94.1
+        version: 0.94.1
+      '@plait/core':
+        specifier: ^0.94.1
+        version: 0.94.1(immer@10.2.0)(is-hotkey@0.2.1)
+      '@plait/text-plugins':
+        specifier: ^0.94.1
+        version: 0.94.1
       '@speed-board/core':
         specifier: workspace:*
         version: link:../core

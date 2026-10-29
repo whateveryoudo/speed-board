@@ -17,7 +17,7 @@ export function useMindmap(source: BoardSource) {
   const toggleMarker = (markerType: string, markerId: string) => {
     const board = resolveBoard(source);
     if (!board) return;
-    board.toggleMindmapMarker(markerType, markerId);
+    (board as any).toggleMindmapMarker?.(markerType, markerId);
   };
 
   return {

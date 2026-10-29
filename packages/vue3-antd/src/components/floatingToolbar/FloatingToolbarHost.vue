@@ -4,7 +4,7 @@
     ref="toolbarRef"
     class="floating-bubble-toolbar plait-board-attached"
     :style="toolbarStyle"
-    @mousedown.stop
+    @mousedown="onToolbarMouseDown"
     @pointerdown.stop
     @mouseup.stop
     @pointerup.stop
@@ -275,6 +275,14 @@ const shouldShowDivider = (item: string, idx: number) => {
   if (item === 'fill') return true
   if (item === 'text') return true
   return false
+}
+
+const onToolbarMouseDown = (e: MouseEvent) => {
+  e.stopPropagation()
+  const target = e.target as HTMLElement
+  if (!target.closest('input, textarea, [contenteditable], .ant-select')) {
+    e.preventDefault()
+  }
 }
 </script>
 

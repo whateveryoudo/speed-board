@@ -8,9 +8,13 @@ import {
   getTextMarksByElement,
   PlaitMarkEditor,
   LinkEditor,
+  withMark,
 } from '@plait/text-plugins';
+import { getTextEditorsByElement, getTextManages } from '@plait/common';
+import { Editor, Range, Transforms as SlateTransforms } from 'slate';
 
 export {
+  withMark,
   TextTransforms,
   MarkTypes,
   FontSizes,
@@ -138,7 +142,43 @@ export function getNodeTextState(selectedElements: any[] = []): NodeTextState {
   const textObj = getElementTextObject(selected);
   const child = textObj.children?.[0] || textObj;
 
-  return {
+  let partialState: Partial<NodeTextState> = {};
+  try {
+    const editors = getTextEditorsByElement(selected);
+    const editor = editors?.[0];
+    const currentSelection = (editor as any)?.savedSelection || editor?.selection;
+    const hasExpandedSelection = currentSelection && !Range.isCollapsed(currentSelection);
+
+    if (editor && hasExpandedSelection) {
+      editor.selection = currentSelection;
+      const isBold = PlaitMarkEditor.isMarkActive(editor, MarkTypes.bold);
+      const isItalic = PlaitMarkEditor.isMarkActive(editor, MarkTypes.italic);
+      const isUnderline = PlaitMarkEditor.isMarkActive(editor, MarkTypes.underline);
+      const isStrike = PlaitMarkEditor.isMarkActive(editor, MarkTypes.strike);
+      const marks = (PlaitMarkEditor.getMarks(editor) as any) || {};
+
+      let selectedText = '';
+      try {
+        selectedText = Editor.string(editor, currentSelection);
+      } catch (e) {
+        // ignore
+      }
+
+      partialState = {
+        text: selectedText,
+        bold: Boolean(isBold),
+        italic: Boolean(isItalic),
+        underline: Boolean(isUnderline),
+        strike: Boolean(isStrike),
+        ...(marks[MarkTypes.color] ? { fill: marks[MarkTypes.color] } : {}),
+        ...(marks[MarkTypes.fontSize] ? { fontSize: Number(marks[MarkTypes.fontSize]) } : {}),
+      };
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const baseState: NodeTextState = {
     text: typeof child.text === 'string' ? child.text : (typeof textObj.text === 'string' ? textObj.text : ''),
     link: selected.data?.link || selected.link || child.url || child.link || '',
     fontSize: child['font-size'] || child.fontSize || (isMind ? (selected.isRoot ? 16 : 14) : 14),
@@ -149,6 +189,11 @@ export function getNodeTextState(selectedElements: any[] = []): NodeTextState {
     underline: Boolean(child.underlined || child.underline || textObj.underline),
     align: textObj.align || child.align || (isMind ? 'center' : 'left'),
     verticalAlign: textObj.verticalAlign || child.verticalAlign || 'middle',
+  };
+
+  return {
+    ...baseState,
+    ...partialState,
   };
 }
 
@@ -162,13 +207,155 @@ export function patchNodeText(
     const path = getElementPath(element);
     if (!path) return;
 
+    let handledByEditor = false;
+
+    try {
+      const editors = getTextEditorsByElement(element);
+      const editor = editors?.[0];
+      const currentSelection = (editor as any)?.savedSelection || editor?.selection;
+      const hasExpandedSelection = currentSelection && !Range.isCollapsed(currentSelection);
+
+      if (editor) {
+        if (hasExpandedSelection) {
+          // 局部富文本格式化：仅应用于选中文本片段
+          editor.selection = currentSelection;
+          if (patch.bold !== undefined) {
+            if (patch.bold) Editor.addMark(editor, MarkTypes.bold, true);
+            else Editor.removeMark(editor, MarkTypes.bold);
+          }
+          if (patch.italic !== undefined) {
+            if (patch.italic) Editor.addMark(editor, MarkTypes.italic, true);
+            else Editor.removeMark(editor, MarkTypes.italic);
+          }
+          if (patch.underline !== undefined) {
+            if (patch.underline) Editor.addMark(editor, MarkTypes.underline, true);
+            else Editor.removeMark(editor, MarkTypes.underline);
+          }
+          if (patch.strike !== undefined) {
+            if (patch.strike) Editor.addMark(editor, MarkTypes.strike, true);
+            else Editor.removeMark(editor, MarkTypes.strike);
+          }
+          if (patch.fill !== undefined) {
+            PlaitMarkEditor.setColorMark(editor, patch.fill);
+          }
+          if (patch.fontSize !== undefined) {
+            PlaitMarkEditor.setFontSizeMark(editor, patch.fontSize as any);
+          }
+          if (patch.text !== undefined) {
+            Editor.insertText(editor, patch.text);
+          }
+          (editor as any).savedSelection = editor.selection;
+        } else {
+          // 全量格式化：未选中文本（光标折叠或仅选中节点），改变该节点的所有文本
+          SlateTransforms.select(editor, [0]);
+          if (patch.bold !== undefined) {
+            if (patch.bold) Editor.addMark(editor, MarkTypes.bold, true);
+            else Editor.removeMark(editor, MarkTypes.bold);
+          }
+          if (patch.italic !== undefined) {
+            if (patch.italic) Editor.addMark(editor, MarkTypes.italic, true);
+            else Editor.removeMark(editor, MarkTypes.italic);
+          }
+          if (patch.underline !== undefined) {
+            if (patch.underline) Editor.addMark(editor, MarkTypes.underline, true);
+            else Editor.removeMark(editor, MarkTypes.underline);
+          }
+          if (patch.strike !== undefined) {
+            if (patch.strike) Editor.addMark(editor, MarkTypes.strike, true);
+            else Editor.removeMark(editor, MarkTypes.strike);
+          }
+          if (patch.fill !== undefined) {
+            PlaitMarkEditor.setColorMark(editor, patch.fill);
+          }
+          if (patch.fontSize !== undefined) {
+            PlaitMarkEditor.setFontSizeMark(editor, patch.fontSize as any);
+          }
+          (editor as any).savedSelection = null;
+        }
+
+        const newChildren = (editor.children?.[0] as any)?.children || [{ text: '' }];
+
+        if (isMindmapNode(element)) {
+          const topic = element.data?.topic || { children: [{ text: '' }] };
+          const newTopic = {
+            ...topic,
+            children: newChildren,
+          };
+          if (patch.align !== undefined) newTopic.align = patch.align;
+          const newData = {
+            ...(element.data || {}),
+            topic: newTopic,
+          };
+          Transforms.setNode(board, { data: newData } as any, path);
+        } else {
+          const currentText = element.text || { children: [{ text: '' }] };
+          const newText = {
+            ...currentText,
+            children: newChildren,
+          };
+          if (patch.align !== undefined) newText.align = patch.align;
+          if (patch.verticalAlign !== undefined) newText.verticalAlign = patch.verticalAlign;
+
+          const newProps: any = { text: newText };
+          if (patch.verticalAlign !== undefined) newProps.verticalAlign = patch.verticalAlign;
+          if (patch.link !== undefined) newProps.link = patch.link;
+          Transforms.setNode(board, newProps as any, path);
+        }
+
+        const textManages = getTextManages(element);
+        textManages.forEach((manage) => {
+          manage.textComponentRef?.update?.({ text: editor.children[0] as any });
+        });
+
+        handledByEditor = true;
+      }
+    } catch (e) {
+      handledByEditor = false;
+    }
+
+    if (handledByEditor) return;
+
+    // Fallback: 无 editor（如服务端 Node.js 环境或组件未挂载前）
     if (isMindmapNode(element)) {
       const topic = element.data?.topic || { children: [{ text: '' }] };
       const children = topic.children || [{ text: '' }];
-      const first = children[0] || { text: '' };
-      const updated = { ...first };
+      const updatedChildren = children.map((child: any, idx: number) => {
+        const updated = { ...child };
+        if (patch.text !== undefined && idx === 0) updated.text = patch.text;
+        if (patch.fontSize !== undefined) {
+          updated['font-size'] = patch.fontSize;
+          updated.fontSize = patch.fontSize;
+        }
+        if (patch.fill !== undefined) {
+          updated.color = patch.fill;
+          updated.fill = patch.fill;
+        }
+        if (patch.bold !== undefined) updated.bold = patch.bold;
+        if (patch.italic !== undefined) updated.italic = patch.italic;
+        if (patch.underline !== undefined) updated.underlined = patch.underline;
+        if (patch.strike !== undefined) updated.strikethrough = patch.strike;
+        return updated;
+      });
 
-      if (patch.text !== undefined) updated.text = patch.text;
+      const newTopic = {
+        ...topic,
+        children: updatedChildren,
+      };
+      if (patch.align !== undefined) newTopic.align = patch.align;
+      const newData = {
+        ...(element.data || {}),
+        topic: newTopic,
+      };
+      Transforms.setNode(board, { data: newData } as any, path);
+      return;
+    }
+
+    // 普通白板图形 (Fallback)
+    const currentText = element.text || { children: [{ text: '' }] };
+    const currentChildren = currentText.children || [{ text: '' }];
+    const updatedChildren = currentChildren.map((child: any, idx: number) => {
+      const updated = { ...child };
+      if (patch.text !== undefined && idx === 0) updated.text = patch.text;
       if (patch.fontSize !== undefined) {
         updated['font-size'] = patch.fontSize;
         updated.fontSize = patch.fontSize;
@@ -181,43 +368,12 @@ export function patchNodeText(
       if (patch.italic !== undefined) updated.italic = patch.italic;
       if (patch.underline !== undefined) updated.underlined = patch.underline;
       if (patch.strike !== undefined) updated.strikethrough = patch.strike;
-
-      const newTopic = {
-        ...topic,
-        children: [updated, ...children.slice(1)],
-      };
-      if (patch.align !== undefined) newTopic.align = patch.align;
-      const newData = {
-        ...(element.data || {}),
-        topic: newTopic,
-      };
-      Transforms.setNode(board, { data: newData } as any, path);
-      return;
-    }
-
-    // 普通白板图形
-    const currentText = element.text || { children: [{ text: '' }] };
-    const currentChildren = currentText.children || [{ text: '' }];
-    const firstChild = currentChildren[0] || { text: '' };
-
-    const updatedChild = { ...firstChild };
-    if (patch.text !== undefined) updatedChild.text = patch.text;
-    if (patch.fontSize !== undefined) {
-      updatedChild['font-size'] = patch.fontSize;
-      updatedChild.fontSize = patch.fontSize;
-    }
-    if (patch.fill !== undefined) {
-      updatedChild.color = patch.fill;
-      updatedChild.fill = patch.fill;
-    }
-    if (patch.bold !== undefined) updatedChild.bold = patch.bold;
-    if (patch.italic !== undefined) updatedChild.italic = patch.italic;
-    if (patch.underline !== undefined) updatedChild.underlined = patch.underline;
-    if (patch.strike !== undefined) updatedChild.strikethrough = patch.strike;
+      return updated;
+    });
 
     const newText = {
       ...currentText,
-      children: [updatedChild, ...currentChildren.slice(1)],
+      children: updatedChildren,
     };
     if (patch.align !== undefined) newText.align = patch.align;
     if (patch.verticalAlign !== undefined) newText.verticalAlign = patch.verticalAlign;

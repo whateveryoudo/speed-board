@@ -15,6 +15,7 @@
             class="fmt-btn is-bold"
             :class="{ 'is-active': textState.bold }"
             title="加粗"
+            @mousedown.prevent
             @click="toggleBold"
           >
             B
@@ -23,6 +24,7 @@
             class="fmt-btn is-italic"
             :class="{ 'is-active': textState.italic }"
             title="斜体"
+            @mousedown.prevent
             @click="toggleItalic"
           >
             I
@@ -31,6 +33,7 @@
             class="fmt-btn is-strike"
             :class="{ 'is-active': textState.strike }"
             title="删除线"
+            @mousedown.prevent
             @click="toggleStrike"
           >
             S
@@ -39,6 +42,7 @@
             class="fmt-btn is-underline"
             :class="{ 'is-active': textState.underline }"
             title="下划线"
+            @mousedown.prevent
             @click="toggleUnderline"
           >
             U

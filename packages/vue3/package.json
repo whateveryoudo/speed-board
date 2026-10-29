@@ -13,6 +13,9 @@
     "./styles": "./src/styles/plait-board.css"
   },
   "dependencies": {
+    "@plait/common": "^0.94.1",
+    "@plait/core": "^0.94.1",
+    "@plait/text-plugins": "^0.94.1",
     "@speed-board/core": "workspace:*",
     "@speed-board/shared": "workspace:*",
     "roughjs": "^4.6.6",

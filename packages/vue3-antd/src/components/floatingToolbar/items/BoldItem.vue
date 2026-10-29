@@ -3,6 +3,7 @@
     <button
       class="bubble-toolbar-btn"
       :class="{ 'is-active': textState.bold }"
+      @mousedown.prevent
       @click="toggleBold"
     >
       <span class="bold-b">B</span>
