@@ -8,14 +8,15 @@ export function renderBranchLinksSvg(
   g.setAttribute('class', 'speed-mindmap-branches');
 
   function renderBranch(parent: NodeLayoutBox, child: NodeLayoutBox) {
+    const isParentRoot = Boolean(parent.element.isRoot || parent.id === rootElement.id);
     const isUnderline = child.element.shape === 'underline';
-    const isParentUnderline = parent.element.shape === 'underline';
+    const isParentUnderline = !isParentRoot && parent.element.shape === 'underline';
     const isLeft = child.left;
 
     let startX: number;
     let startY: number;
 
-    if (parent.element.isRoot) {
+    if (isParentRoot) {
       startX = isLeft ? parent.x : parent.x + parent.width;
       startY = parent.y + parent.height / 2;
     } else {
@@ -36,12 +37,19 @@ export function renderBranchLinksSvg(
 
     const dx = Math.max(20, Math.abs(endX - startX));
     const factor = 0.45;
-    const c1x = isLeft ? startX - dx * factor : startX + dx * factor;
-    const c1y = startY;
-    const c2x = isLeft ? endX + dx * factor : endX - dx * factor;
-    const c2y = endY;
+    const branchShape = child.element.branchShape || parent.element.branchShape || rootElement.branchShape || 'curve';
 
-    let d = `M ${startX} ${startY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`;
+    let d: string;
+    if (branchShape === 'polyline') {
+      const midX = isLeft ? startX - dx * 0.5 : startX + dx * 0.5;
+      d = `M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`;
+    } else {
+      const c1x = isLeft ? startX - dx * factor : startX + dx * factor;
+      const c1y = startY;
+      const c2x = isLeft ? endX + dx * factor : endX - dx * factor;
+      const c2y = endY;
+      d = `M ${startX} ${startY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`;
+    }
 
     // 如果下划线形状，连线横穿下划线底部
     if (isUnderline) {

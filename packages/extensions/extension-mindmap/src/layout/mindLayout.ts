@@ -51,6 +51,7 @@ function prepareLayoutTree(node: SpeedMindElement): any {
 }
 
 export interface ComputedMindLayout {
+  rootBox: NodeLayoutBox;
   nodes: NodeLayoutBox[];
   nodeMap: Map<string, NodeLayoutBox>;
   bounds: { x: number; y: number; width: number; height: number };
@@ -149,5 +150,7 @@ export function computeMindLayout(root: SpeedMindElement): ComputedMindLayout {
     height: Number.isFinite(maxY - minY) ? maxY - minY : 50,
   };
 
-  return { nodes, nodeMap, bounds };
+  const rootBox = nodeMap.get(root.id) || nodes.find((n) => n.id === root.id) || nodes[nodes.length - 1];
+
+  return { rootBox, nodes, nodeMap, bounds };
 }

@@ -415,8 +415,8 @@ export class Board {
       left: 'left',
       'org-down': 'downward',
       downward: 'downward',
-      'tree-right': 'rightBottomIndented',
-      'tree-left': 'leftBottomIndented',
+      'tree-right': 'right-bottom-indented',
+      'tree-left': 'left-bottom-indented',
       'timeline-up': 'upward',
       upward: 'upward',
     };

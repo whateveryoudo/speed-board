@@ -76,7 +76,8 @@ export function addChildNode(
     parent.isCollapsed = false;
   }
 
-  const newChild = createChildMindNode(nodeData?.data?.topic?.children?.[0]?.text || '分支主题', {
+  const defaultText = parent === root ? `分支主题 ${parent.children.length + 1}` : '子主题';
+  const newChild = createChildMindNode(nodeData?.data?.topic?.children?.[0]?.text || defaultText, {
     branchColor: parent.branchColor || root.branchColor,
     ...nodeData,
   });
@@ -103,7 +104,8 @@ export function addSiblingNode(
     return addChildNode(root, siblingId, nodeData);
   }
 
-  const newSibling = createChildMindNode(nodeData?.data?.topic?.children?.[0]?.text || '分支主题', {
+  const defaultText = parent === root ? `分支主题 ${parent.children.length + 1}` : '子主题';
+  const newSibling = createChildMindNode(nodeData?.data?.topic?.children?.[0]?.text || defaultText, {
     shape: node.shape,
     fill: node.fill,
     strokeColor: node.strokeColor,

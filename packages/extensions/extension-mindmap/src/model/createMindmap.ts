@@ -11,28 +11,8 @@ export function createEmptyMindmap(
   const rootId = options?.id || generateNodeId('mind-root');
   const defaultChildren: SpeedMindElement[] = [
     createChildMindNode('分支主题 1'),
-    {
-      id: generateNodeId('mind-node'),
-      type: 'mind',
-      shape: 'roundRectangle',
-      fill: '#f3f4f6',
-      strokeColor: '#3b82f6',
-      strokeWidth: 1,
-      branchColor: '#2563eb',
-      branchWidth: 2,
-      branchShape: 'curve',
-      data: {
-        topic: {
-          children: [
-            { text: '思维', color: '#1f2937', fontSize: 20, bold: true },
-            { text: '导图', color: '#4b5563', fontSize: 13 },
-          ],
-          align: 'left',
-        },
-        markers: { priority: 1 },
-      },
-      children: [],
-    },
+    createChildMindNode('分支主题 2'),
+    createChildMindNode('分支主题 3'),
   ];
 
   return {
@@ -71,7 +51,7 @@ export function createChildMindNode(
     type: 'mind',
     shape: options?.shape || 'underline',
     fill: options?.fill || 'transparent',
-    strokeColor: options?.strokeColor || '#374151',
+    strokeColor: options?.strokeColor || options?.branchColor || '#2563eb',
     strokeWidth: options?.strokeWidth || 2,
     branchColor: options?.branchColor || '#2563eb',
     branchWidth: options?.branchWidth || 2,

@@ -22,6 +22,7 @@ import {
   addSiblingNode,
   deleteNode,
   toggleCollapse,
+  findNodeById,
 } from '../model/treeOps';
 import { computeMindLayout, type ComputedMindLayout } from '../layout/mindLayout';
 import { renderBranchLinksSvg } from '../renderer/drawLinks';
@@ -91,7 +92,7 @@ export class SpeedMindComponent
     const layout = getMindLayout(this.element);
 
     // 1. 绘制连线
-    const rootBox = layout.nodes[0];
+    const rootBox = layout.rootBox || layout.nodeMap.get(this.element.id);
     if (rootBox) {
       const linksG = renderBranchLinksSvg(rootBox, this.element);
       g.appendChild(linksG);
@@ -255,7 +256,8 @@ export const withSpeedMind: PlaitPlugin = (board: PlaitBoard) => {
     const nodeEl = target?.closest?.('.speed-mindmap-node') as HTMLElement | null;
     if (nodeEl) {
       const nodeId = nodeEl.getAttribute('data-node-id');
-      const mindElement = (board.children as PlaitElement[]).find(isSpeedMind);
+      const mindElements = (board.children as PlaitElement[]).filter(isSpeedMind);
+      const mindElement = mindElements.find((m) => findNodeById(m, nodeId || ''));
 
       if (mindElement && nodeId) {
         mindElement.selectedNodeId = nodeId;
@@ -274,7 +276,8 @@ export const withSpeedMind: PlaitPlugin = (board: PlaitBoard) => {
     const nodeEl = target?.closest?.('.speed-mindmap-node') as HTMLElement | null;
     if (nodeEl && !PlaitBoard.isReadonly(board)) {
       const nodeId = nodeEl.getAttribute('data-node-id');
-      const mindElement = (board.children as PlaitElement[]).find(isSpeedMind);
+      const mindElements = (board.children as PlaitElement[]).filter(isSpeedMind);
+      const mindElement = mindElements.find((m) => findNodeById(m, nodeId || ''));
 
       if (mindElement && nodeId) {
         event.preventDefault();
