@@ -7,7 +7,7 @@ import {
 } from '@plait/core';
 import type { SpeedMindElement, NodeLayoutBox } from '../types';
 import { computeMindLayout, buildBezierBranchPath, buildStraightBranchPath } from '../layout/mindLayout';
-import { moveNode, getNodeTopicText, findNodeById, findMindRootAndPath } from '../model/treeOps';
+import { moveNode, getNodeTopicText, findNodeById, findMindRootAndPath, findParentNode } from '../model/treeOps';
 import { setSelectedMindNodeId } from '../component/SpeedMindComponent';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -221,6 +221,14 @@ export class MindNodeDnDController {
 
   /**
    * 探测最佳释放插槽并渲染对齐 Plait Mind 的高品质蓝色指示胶囊
+   * 采用与 Plait Mind 原生 directionDetector / directionCorrector 一致的几何判定模型：
+   * 1. 根节点 (Root)：没有父级与兄弟，拖到根节点周围只能作为子节点 (child)
+   * 2. 非根子节点 (Subnode)：
+   *    - 节点卡片右部 35% 或右侧延伸区 (cursorX > box.x + box.width * 0.65) -> 插入成为子节点 (child)
+   *    - 节点卡片上半区 (cursorY < box.y + box.height * 0.5) -> 同级向前插入 (sibling before)
+   *    - 节点卡片下半区 (cursorY >= box.y + box.height * 0.5) -> 同级向后插入 (sibling after)
+   * 3. 自身及紧邻原位过滤：拖到自身原本的同级位置不触发插槽 (no-op)
+   * 4. 子孙回路防护：禁止拖到自身子孙节点中
    */
   private detectAndRenderDropSlot(cursorX: number, cursorY: number): void {
     if (!this.dropIndicatorG || !this.draggedRoot || !this.draggedNodeId) return;
@@ -244,90 +252,109 @@ export class MindNodeDnDController {
       collectDescendants(draggedSubtree);
     }
 
-    // 1. 优先探测是否直接悬停于某节点内部 (插入节点成为子级)
+    const draggedParentInfo = findParentNode(this.draggedRoot, draggedId);
+
+    let bestCandidate: DropSlot | null = null;
+    let minDistance = Infinity;
+
     for (const [nodeId, box] of layout.nodeMap) {
       if (descendantIds.has(nodeId)) continue;
 
+      const isRoot = Boolean(box.element.isRoot || box.depth === 0);
+
+      // 卡片吸附有效外扩范围
+      const padLeft = 30;
+      const padRight = 80;
+      const padY = 20;
+
       if (
-        cursorX >= box.x &&
-        cursorX <= box.x + box.width &&
-        cursorY >= box.y &&
-        cursorY <= box.y + box.height
+        cursorX < box.x - padLeft ||
+        cursorX > box.x + box.width + padRight ||
+        cursorY < box.y - padY ||
+        cursorY > box.y + box.height + padY
       ) {
-        // 命中节点卡片本体 -> 插入成为其子节点
-        this.activeDropSlot = {
-          type: 'child',
-          parentId: nodeId,
-          indicatorX: box.x + box.width + 30,
-          indicatorY: box.y + box.height / 2,
-          targetBox: box,
-        };
-        this.renderChildSlot(this.activeDropSlot);
-        return;
+        continue;
       }
-    }
 
-    // 2. 探测同级插槽 (兄弟节点上下插入与换序)
-    let bestSiblingSlot: DropSlot | null = null;
-    let minDistance = Infinity;
-
-    // 遍历所有有子节点的父级
-    const checkParentChildren = (parent: SpeedMindElement) => {
-      if (!parent.children || parent.children.length === 0) return;
-      if (descendantIds.has(parent.id)) return;
-
-      const parentBox = layout.nodeMap.get(parent.id);
-      if (!parentBox) return;
-
-      // 获取该父级下的有效兄弟节点盒模型
-      const siblingBoxes: { box: NodeLayoutBox; originalIndex: number }[] = [];
-      parent.children.forEach((child, idx) => {
-        if (child.id === draggedId) return; // 忽略正在被拖拽的自身
-        const cBox = layout.nodeMap.get(child.id);
-        if (cBox) {
-          siblingBoxes.push({ box: cBox, originalIndex: idx });
+      if (isRoot) {
+        // 根节点：只能作为父级接收子节点 (对标 Plait Mind: Root 只允许 'right' 方向)
+        const indicatorX = box.x + box.width + 36;
+        const indicatorY = box.y + box.height / 2;
+        const dist = Math.hypot(cursorX - indicatorX, cursorY - indicatorY);
+        if (dist < minDistance) {
+          minDistance = dist;
+          bestCandidate = {
+            type: 'child',
+            parentId: nodeId,
+            indicatorX,
+            indicatorY,
+            targetBox: box,
+          };
         }
-      });
+      } else {
+        // 非根节点：获取该节点的父级及索引
+        const parentInfo = findParentNode(this.draggedRoot, nodeId);
+        if (!parentInfo) continue;
 
-      if (siblingBoxes.length === 0) return;
+        const parentBox = layout.nodeMap.get(parentInfo.parent.id);
+        const nodeIndex = parentInfo.index;
 
-      siblingBoxes.sort((a, b) => a.box.y - b.box.y);
-
-      for (let i = 0; i <= siblingBoxes.length; i++) {
-        let slotY = 0;
-        let targetIndex = 0;
-        const refBox = i === 0 ? siblingBoxes[0].box : siblingBoxes[i - 1].box;
-
-        if (i === 0) {
-          // 最上面第一个兄弟上方
-          const first = siblingBoxes[0].box;
-          slotY = first.y - 12;
-          targetIndex = 0;
-        } else if (i === siblingBoxes.length) {
-          // 最下面最后一个兄弟下方
-          const last = siblingBoxes[siblingBoxes.length - 1].box;
-          slotY = last.y + last.height + 12;
-          targetIndex = parent.children.length;
+        // 判定光标相对于卡片的位置：
+        // 1. 光标位于卡片右半部分或右侧延伸区 -> 判定为插入成为该节点的子节点
+        if (cursorX > box.x + box.width * 0.65) {
+          const indicatorX = box.x + box.width + 36;
+          const indicatorY = box.y + box.height / 2;
+          const dist = Math.hypot(cursorX - (box.x + box.width), cursorY - indicatorY);
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestCandidate = {
+              type: 'child',
+              parentId: nodeId,
+              indicatorX,
+              indicatorY,
+              targetBox: box,
+            };
+          }
         } else {
-          // 两个兄弟节点中间
-          const prev = siblingBoxes[i - 1].box;
-          const next = siblingBoxes[i].box;
-          slotY = (prev.y + prev.height + next.y) / 2;
-          targetIndex = siblingBoxes[i].originalIndex;
-        }
+          // 2. 光标位于卡片左侧或中心，根据 Y 轴判定上半区 (前插) 或下半区 (后插)
+          const isTop = cursorY < box.y + box.height * 0.5;
+          const targetIndex = isTop ? nodeIndex : nodeIndex + 1;
 
-        const slotX = refBox.x;
-        const xDist = Math.abs(cursorX - (slotX + 16));
-        const yDist = Math.abs(cursorY - slotY);
+          // 过滤紧邻自身的无意义移动 (no-op)
+          if (
+            draggedParentInfo &&
+            parentInfo.parent.id === draggedParentInfo.parent.id &&
+            (targetIndex === draggedParentInfo.index || targetIndex === draggedParentInfo.index + 1)
+          ) {
+            continue;
+          }
 
-        // 插槽吸附有效判定范围
-        if (cursorX >= slotX - 50 && cursorX <= slotX + refBox.width + 60 && yDist <= 32) {
-          const totalDist = Math.hypot(xDist, yDist);
-          if (totalDist < minDistance) {
-            minDistance = totalDist;
-            bestSiblingSlot = {
+          // 计算胶囊指示器的精准 Y 轴居中坐标
+          let slotY = isTop ? box.y - 12 : box.y + box.height + 12;
+          let slotX = box.x;
+
+          if (isTop && targetIndex > 0) {
+            const prevChild = parentInfo.parent.children[targetIndex - 1];
+            const prevBox = layout.nodeMap.get(prevChild.id);
+            if (prevBox) {
+              slotY = (prevBox.y + prevBox.height + box.y) / 2;
+              slotX = Math.min(prevBox.x, box.x);
+            }
+          } else if (!isTop && targetIndex < parentInfo.parent.children.length) {
+            const nextChild = parentInfo.parent.children[targetIndex];
+            const nextBox = layout.nodeMap.get(nextChild.id);
+            if (nextBox) {
+              slotY = (box.y + box.height + nextBox.y) / 2;
+              slotX = Math.min(box.x, nextBox.x);
+            }
+          }
+
+          const dist = Math.hypot(cursorX - slotX, cursorY - slotY);
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestCandidate = {
               type: 'sibling',
-              parentId: parent.id,
+              parentId: parentInfo.parent.id,
               targetIndex,
               indicatorX: slotX,
               indicatorY: slotY,
@@ -336,15 +363,15 @@ export class MindNodeDnDController {
           }
         }
       }
+    }
 
-      parent.children.forEach(checkParentChildren);
-    };
-
-    checkParentChildren(this.draggedRoot);
-
-    if (bestSiblingSlot) {
-      this.activeDropSlot = bestSiblingSlot;
-      this.renderSiblingSlot(bestSiblingSlot);
+    if (bestCandidate) {
+      this.activeDropSlot = bestCandidate;
+      if (bestCandidate.type === 'sibling') {
+        this.renderSiblingSlot(bestCandidate);
+      } else if (bestCandidate.type === 'child') {
+        this.renderChildSlot(bestCandidate);
+      }
     }
   }
 
