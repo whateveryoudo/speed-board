@@ -300,11 +300,13 @@ export class MindNodeDnDController {
         const nodeIndex = parentInfo.index;
 
         // 判定光标相对于卡片的位置：
-        // 1. 卡片内部中间 50% (0.25 <= relY <= 0.75) 或向右拖动 -> 判定为收纳为该节点的子节点 (in-parent)
+        // 1. 卡片内部中间 50% (0.25 <= relY <= 0.75) 或对齐卡片向右拖动 -> 判定为收纳为该节点的子节点 (in-parent)
         // 2. 卡片顶部 25% (或上边缘/上间隙) -> 判定为同级向前插入 (insert-before)
         // 3. 卡片底部 25% (或下边缘/下间隙) -> 判定为同级向后插入 (insert-after)
+        // 注意：间隙区域 (cursorY 不在卡片高度范围内) 必须稳定判定为兄弟插入，严禁因靠右而误判为子级！
         const relY = (cursorY - box.y) / box.height;
-        const isRightDrag = cursorX > box.x + box.width * 0.7;
+        const isVerticallyInCard = cursorY >= box.y && cursorY <= box.y + box.height;
+        const isRightDrag = isVerticallyInCard && cursorX > box.x + box.width * 0.7;
         const isMiddleCard = cursorX >= box.x && cursorX <= box.x + box.width && relY >= 0.25 && relY <= 0.75;
 
         if (isRightDrag || isMiddleCard) {
