@@ -188,27 +188,6 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       const wrapper = (board as any).boardWrapper;
       wrapper?.emit?.('selection:change', { selected: [emptyMind] });
 
-      // 首次放置立即启动就地编辑
-      setTimeout(() => {
-        const layout = computeMindLayout(emptyMind);
-        const rootBox = layout.nodeMap.get(emptyMind.id);
-        if (rootBox) {
-          startInlineEditing({
-            board,
-            box: rootBox,
-            initialText: '中心主题',
-            onCommit: (newText) => {
-              const cur = findMindRootAndPath(emptyMind.id);
-              if (cur) {
-                const updated = setNodeTopicText(cur.root, emptyMind.id, newText);
-                Transforms.setNode(board, { data: updated.data, children: updated.children }, cur.path);
-                ((board as any).boardWrapper || board)?.emit?.('change', {});
-              }
-            },
-          });
-        }
-      }, 50);
-
       event.stopPropagation();
       return;
     }
@@ -408,7 +387,6 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
               board,
               box,
               initialText: getNodeTopicText(box.element),
-              firstChar: event.key,
               onCommit: (txt) => {
                 const cur = findMindRootAndPath(selectedMindNodeId);
                 if (cur) {

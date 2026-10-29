@@ -1,5 +1,6 @@
 import type { NodeLayoutBox, SpeedMindElement } from '../types';
 import { MARKER_SPRITE_ID, MARKER_SPRITE_SVG } from '@speed-board/shared';
+import { getActiveEditingNodeId } from './inlineEditor';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -178,6 +179,7 @@ export function renderNodeCardSvg(
 
   const markersHtml = renderNodeMarkersHtml(element);
   const topicHtml = renderNodeTopicHtml(element, isRoot);
+  const isEditing = getActiveEditingNodeId() === box.id;
   const paddingX = isRoot ? '14px' : '10px';
 
   fo.innerHTML = `
@@ -201,6 +203,7 @@ export function renderNodeCardSvg(
         line-height: 1.4;
         text-align: center;
         overflow: hidden;
+        ${isEditing ? 'visibility: hidden;' : ''}
       ">${topicHtml}</div>
     </div>
   `;

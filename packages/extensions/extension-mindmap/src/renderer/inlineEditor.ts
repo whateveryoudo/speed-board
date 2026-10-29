@@ -1,7 +1,12 @@
-import { PlaitBoard } from '@plait/core';
+import {
+  PlaitBoard,
+  toHostPointFromViewBoxPoint,
+  toScreenPointFromHostPoint,
+} from '@plait/core';
 import type { NodeLayoutBox } from '../types';
+import { calculateMindmapNodeWidth } from '@speed-board/shared';
 
-let activeEditorEl: HTMLTextAreaElement | null = null;
+let activeEditorEl: HTMLInputElement | null = null;
 let activeEditorNodeId: string | null = null;
 
 export interface InlineEditorOptions {
@@ -14,68 +19,125 @@ export interface InlineEditorOptions {
 }
 
 /**
- * 启动节点就地编辑 (精确覆盖在节点卡片之上，自动全选文本)
+ * 启动节点就地编辑 (精确贴合卡片尺寸，纯粹单层边框，绝无双层框或畸变)
  */
 export function startInlineEditing(options: InlineEditorOptions): void {
-  const { board, box, initialText, firstChar, onCommit, onCancel } = options;
+  const { board, box, initialText, onCommit, onCancel } = options;
 
   closeInlineEditing();
 
   const boardContainer = PlaitBoard.getBoardContainer(board) || document.body;
   const isRoot = Boolean(box.element.isRoot || box.depth === 0);
 
-  // 关键：通过 DOM 真实矩形计算屏幕像素位置，使用 position: fixed 精确覆盖卡片位置，完全不受容器嵌套与滚动干扰！
-  const nodeEl = boardContainer.querySelector(`[data-node-id="${box.id}"]`);
+  const nodeEl = boardContainer.querySelector(`.speed-mind-node-g[data-node-id="${box.id}"]`);
 
-  let leftPx = 100;
-  let topPx = 100;
-  let widthPx = Math.max(80, box.width);
-  let heightPx = Math.max(32, box.height);
+  // 1. 使用 Plait 官方数学函数计算精准的屏幕像素位置，杜绝 drop-shadow、手柄或外层容器的干扰
+  let screenX = 0;
+  let screenY = 0;
+  let initialWidthPx = Math.max(40, box.width);
+  let initialHeightPx = Math.max(24, box.height);
 
-  if (nodeEl) {
-    const rect = nodeEl.getBoundingClientRect();
-    leftPx = rect.left;
-    topPx = rect.top;
-    widthPx = Math.max(70, rect.width);
-    heightPx = Math.max(30, rect.height);
+  try {
+    const pt1 = toScreenPointFromHostPoint(
+      board,
+      toHostPointFromViewBoxPoint(board, [box.x, box.y])
+    );
+    const pt2 = toScreenPointFromHostPoint(
+      board,
+      toHostPointFromViewBoxPoint(board, [box.x + box.width, box.y + box.height])
+    );
+    screenX = pt1[0];
+    screenY = pt1[1];
+    initialWidthPx = Math.max(30, pt2[0] - pt1[0]);
+    initialHeightPx = Math.max(20, pt2[1] - pt1[1]);
+  } catch {
+    const bodyRectEl = nodeEl?.querySelector('.speed-mind-node-body') as SVGGraphicsElement | null;
+    const rect = bodyRectEl ? bodyRectEl.getBoundingClientRect() : nodeEl?.getBoundingClientRect();
+    if (rect) {
+      screenX = rect.left;
+      screenY = rect.top;
+      initialWidthPx = rect.width;
+      initialHeightPx = rect.height;
+    }
   }
 
-  const textarea = document.createElement('textarea');
-  textarea.className = 'speed-mind-inline-editor';
-  textarea.value = typeof firstChar === 'string' ? firstChar : initialText;
+  const zoom = initialWidthPx / (box.width || 1);
 
-  Object.assign(textarea.style, {
+  const markersCount =
+    box.element.data?.markers && typeof box.element.data.markers === 'object'
+      ? Object.keys(box.element.data.markers).length
+      : 0;
+
+  // 2. 隐藏底层 SVG 静态文本，防止重影与穿透
+  const textWrap = nodeEl?.querySelector('.mindmap-node-text-wrap') as HTMLElement | null;
+  if (textWrap) {
+    textWrap.style.visibility = 'hidden';
+  } else {
+    const fo = nodeEl?.querySelector('foreignObject');
+    if (fo) {
+      (fo as SVGElement).style.visibility = 'hidden';
+    }
+  }
+
+  // 3. 创建单行 Input 编辑器 (完全透明无多余边框阴影，依托卡片本体展示边框)
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'speed-mind-inline-editor';
+  input.value = initialText;
+
+  const paddingX = Math.round((isRoot ? 14 : 10) * zoom);
+
+  Object.assign(input.style, {
     position: 'fixed',
-    left: `${leftPx}px`,
-    top: `${topPx}px`,
-    width: `${widthPx}px`,
-    height: `${heightPx}px`,
-    minWidth: '60px',
-    maxWidth: '500px',
-    padding: isRoot ? '4px 10px' : '3px 8px',
-    fontSize: isRoot ? '16px' : '14px',
+    left: `${screenX}px`,
+    top: `${screenY}px`,
+    width: `${initialWidthPx}px`,
+    height: `${initialHeightPx}px`,
+    lineHeight: `${initialHeightPx}px`,
+    background: 'transparent',
+    border: 'none',
+    outline: 'none',
+    boxShadow: 'none',
+    margin: '0',
+    padding: `0 ${paddingX}px`,
+    boxSizing: 'border-box',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    fontSize: `${Math.round((isRoot ? 16 : 14) * zoom)}px`,
     fontWeight: isRoot ? 'bold' : 'normal',
     color: '#1f2937',
-    background: '#ffffff',
-    border: '2px solid #3b82f6',
-    borderRadius: isRoot ? '8px' : '6px',
-    boxShadow: '0 4px 14px rgba(59, 130, 246, 0.25)',
-    boxSizing: 'border-box',
-    outline: 'none',
-    resize: 'none',
-    overflow: 'hidden',
-    zIndex: '99999',
-    textAlign: 'center',
+    caretColor: '#2563eb',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif',
-    lineHeight: '1.4',
+    zIndex: '99999',
+    userSelect: 'text',
   });
 
-  const autoResize = () => {
-    textarea.style.height = 'auto';
-    textarea.style.height = `${Math.max(heightPx, textarea.scrollHeight)}px`;
-    textarea.style.width = 'auto';
-    textarea.style.width = `${Math.max(widthPx, textarea.scrollWidth + 12)}px`;
+  const updateWidth = () => {
+    const val = input.value || '';
+    const calcW = calculateMindmapNodeWidth(
+      val || (isRoot ? '思维导图' : '分支主题'),
+      isRoot,
+      markersCount
+    );
+    const targetW = Math.max(box.width, calcW);
+    const targetWPx = targetW * zoom;
+    const centerX = screenX + initialWidthPx / 2;
+    const newLeft = centerX - targetWPx / 2;
+
+    input.style.left = `${newLeft}px`;
+    input.style.width = `${targetWPx}px`;
+
+    // 动态同步更新底层 SVG bodyRect 宽度，输入时所见即所得
+    if (nodeEl) {
+      const bodyRect = nodeEl.querySelector('.speed-mind-node-body');
+      if (bodyRect) {
+        bodyRect.setAttribute('x', String(box.x - (targetW - box.width) / 2));
+        bodyRect.setAttribute('width', String(targetW));
+      }
+    }
   };
 
   let committed = false;
@@ -83,8 +145,7 @@ export function startInlineEditing(options: InlineEditorOptions): void {
   const commit = () => {
     if (committed) return;
     committed = true;
-    const val = textarea.value.trim();
-    // 关键：若输入为空，保留原文字或默认文字，绝不变成无字空框！
+    const val = input.value.trim();
     const newText = val || initialText || (isRoot ? '思维导图' : '分支主题');
     closeInlineEditing();
     onCommit(newText);
@@ -97,33 +158,32 @@ export function startInlineEditing(options: InlineEditorOptions): void {
     onCancel?.();
   };
 
-  // 阻止冒泡，避免画板拦截输入框内的鼠标拖拽与点击事件
-  textarea.addEventListener('pointerdown', (e) => e.stopPropagation());
-  textarea.addEventListener('mousedown', (e) => e.stopPropagation());
-  textarea.addEventListener('click', (e) => e.stopPropagation());
-  textarea.addEventListener('dblclick', (e) => e.stopPropagation());
+  // 阻止冒泡，避免画板拦截输入事件
+  input.addEventListener('pointerdown', (e) => e.stopPropagation());
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+  input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('dblclick', (e) => e.stopPropagation());
 
   let isComposing = false;
-  textarea.addEventListener('compositionstart', () => {
+  input.addEventListener('compositionstart', () => {
     isComposing = true;
   });
-  textarea.addEventListener('compositionend', () => {
+  input.addEventListener('compositionend', () => {
     isComposing = false;
-    autoResize();
+    updateWidth();
   });
 
-  textarea.addEventListener('input', autoResize);
+  input.addEventListener('input', () => {
+    if (!isComposing) {
+      updateWidth();
+    }
+  });
 
-  textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+  input.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.isComposing || isComposing) {
       return;
     }
     if (e.key === 'Enter') {
-      if (e.shiftKey) {
-        // Shift + Enter 换行
-        setTimeout(autoResize, 0);
-        return;
-      }
       e.preventDefault();
       e.stopPropagation();
       commit();
@@ -143,24 +203,17 @@ export function startInlineEditing(options: InlineEditorOptions): void {
     }
   });
 
-  textarea.addEventListener('blur', () => {
+  input.addEventListener('blur', () => {
     commit();
   });
 
-  document.body.appendChild(textarea);
-  activeEditorEl = textarea;
+  document.body.appendChild(input);
+  activeEditorEl = input;
   activeEditorNodeId = box.id;
 
-  // 聚焦并全选内容
-  setTimeout(() => {
-    textarea.focus();
-    if (typeof firstChar === 'string') {
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-    } else {
-      textarea.select();
-    }
-    autoResize();
-  }, 10);
+  // 立即聚焦并全选内容 (免去延时，保证输入法与输入响应零延迟)
+  input.focus();
+  input.select();
 }
 
 /**
@@ -170,6 +223,21 @@ export function closeInlineEditing(): void {
   if (activeEditorEl) {
     activeEditorEl.remove();
     activeEditorEl = null;
+  }
+  if (activeEditorNodeId) {
+    // 恢复被隐藏的 SVG 静态文本
+    const prevNodeEl = document.querySelector(
+      `.speed-mind-node-g[data-node-id="${activeEditorNodeId}"]`
+    );
+    const textWrap = prevNodeEl?.querySelector('.mindmap-node-text-wrap') as HTMLElement | null;
+    if (textWrap) {
+      textWrap.style.visibility = 'visible';
+    } else {
+      const fo = prevNodeEl?.querySelector('foreignObject');
+      if (fo) {
+        (fo as SVGElement).style.visibility = 'visible';
+      }
+    }
     activeEditorNodeId = null;
   }
 }

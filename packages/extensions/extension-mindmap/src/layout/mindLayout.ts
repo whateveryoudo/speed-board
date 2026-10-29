@@ -170,7 +170,7 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
         estimateNodeDimensions(node, Boolean(node.isRoot || node.id === rootElement.id)).width,
       getHorizontalGap: () => DEFAULT_H_GAP,
       getVerticalGap: () => DEFAULT_V_GAP,
-      getVerticalConnectingPosition: () => 'middle' as any,
+      getVerticalConnectingPosition: () => undefined as any,
       getExtendHeight: () => 0,
       getIndentedCrossLevelGap: () => 20,
     },
