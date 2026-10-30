@@ -143,20 +143,51 @@ export function buildSummaryBracketPath(
 }
 
 /**
+ * 递归清洗思维导图树，剥离概要节点，以便 GlobalLayout 引擎纯净地计算常规分支层级与垂直布局
+ */
+function cleanTreeForLayout(node: SpeedMindElement): SpeedMindElement {
+  const cleanChildren = (node.children || [])
+    .filter((c) => !c.isSummary && !c.data?.isSummary)
+    .map((c) => cleanTreeForLayout(c));
+  return {
+    ...node,
+    children: cleanChildren,
+  };
+}
+
+/**
+ * 收集树中所有的概要节点
+ */
+function collectSummaryElements(node: SpeedMindElement, result: SpeedMindElement[] = []): SpeedMindElement[] {
+  if (node.children) {
+    for (const child of node.children) {
+      if (child.isSummary || child.data?.isSummary) {
+        result.push(child);
+      }
+      collectSummaryElements(child, result);
+    }
+  }
+  return result;
+}
+
+/**
  * 利用 @plait/layouts 计算脑图布局
  */
 export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLayout {
   const rootPoint = rootElement.points?.[0] || [400, 300];
   const mindLayoutType = mapToMindLayoutType(rootElement.layout);
 
-  // 1. 标准平衡布局：计算左右子节点配比
+  const summaryElements = collectSummaryElements(rootElement);
+  const cleanRoot = cleanTreeForLayout(rootElement);
+
+  // 1. 标准平衡布局：计算左右子节点配比 (基于无概要的纯净标准节点树)
   const rightNodeCount =
     typeof rootElement.rightNodeCount === 'number'
       ? rootElement.rightNodeCount
-      : Math.ceil((rootElement.children?.length || 0) / 2);
+      : Math.ceil((cleanRoot.children?.length || 0) / 2);
 
   const treeData = {
-    ...rootElement,
+    ...cleanRoot,
     rightNodeCount,
   };
 
@@ -260,49 +291,8 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
       leftTrunkX = (box.x + maxChildX) / 2;
     }
 
-    box.children.forEach((childBox) => {
-      // 区分概要节点
-      if (childBox.element.data?.isSummary && childBox.element.data?.summaryFor) {
-        const coveredIds = childBox.element.data.summaryFor;
-        const coveredBoxes = coveredIds
-          .map((id) => nodeMap.get(id))
-          .filter((b): b is NodeLayoutBox => Boolean(b));
-
-        if (coveredBoxes.length > 0) {
-          const topY = Math.min(...coveredBoxes.map((b) => b.y));
-          const bottomY = Math.max(...coveredBoxes.map((b) => b.y + b.height));
-          const isLeft = childBox.left;
-
-          const bracketX = isLeft
-            ? Math.min(...coveredBoxes.map((b) => b.x)) - 8
-            : Math.max(...coveredBoxes.map((b) => b.x + b.width)) + 8;
-
-          const tipX = isLeft ? bracketX - 14 : bracketX + 14;
-          const targetPoint: [number, number] = isLeft
-            ? [childBox.x + childBox.width, childBox.y + childBox.height / 2]
-            : [childBox.x, childBox.y + childBox.height / 2];
-
-          const bracketPath = buildSummaryBracketPath(
-            topY,
-            bottomY,
-            bracketX,
-            tipX,
-            targetPoint,
-            isLeft
-          );
-
-          summaries.push({
-            id: childBox.id,
-            bracketPath,
-            summaryBox: childBox,
-            coveredBoxes,
-            element: childBox.element,
-          });
-          return;
-        }
-      }
-
-      // 常规分支连线
+    // 6.1 构造常规分支连线
+    regularChildren.forEach((childBox) => {
       const isLeft = childBox.left;
       const from: [number, number] = isLeft
         ? [box.x, box.y + box.height / 2]
@@ -334,6 +324,78 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
     });
   });
 
+  // 6.2 独立计算概要节点位置及大括号曲线 (不受树引擎常规兄弟间距干扰，贴合被包裹分支群右侧居中)
+  summaryElements.forEach((sEl) => {
+    const coveredIds = sEl.data?.summaryFor || [];
+    const coveredBoxes = coveredIds
+      .map((id) => nodeMap.get(id))
+      .filter((b): b is NodeLayoutBox => Boolean(b));
+
+    if (coveredBoxes.length === 0) return;
+
+    const topY = Math.min(...coveredBoxes.map((b) => b.y)) + 4;
+    const bottomY = Math.max(...coveredBoxes.map((b) => b.y + b.height)) - 4;
+    const isLeft = coveredBoxes[0].left;
+
+    const bracketW = 16;
+    let bracketX: number;
+    let tipX: number;
+
+    if (isLeft) {
+      const minLeft = Math.min(...coveredBoxes.map((b) => b.x));
+      bracketX = minLeft - 14;
+      tipX = bracketX - bracketW;
+    } else {
+      const maxRight = Math.max(...coveredBoxes.map((b) => b.x + b.width));
+      bracketX = maxRight + 14;
+      tipX = bracketX + bracketW;
+    }
+
+    const midY = (topY + bottomY) / 2;
+    const sDim = estimateNodeDimensions(sEl, false);
+    const sWidth = sDim.width;
+    const sHeight = sDim.height;
+
+    const nodeX = isLeft ? tipX - 10 - sWidth : tipX + 10;
+    const nodeY = midY - sHeight / 2;
+
+    const targetPoint: [number, number] = isLeft
+      ? [nodeX + sWidth, midY]
+      : [nodeX, midY];
+
+    const bracketPath = buildSummaryBracketPath(
+      topY,
+      bottomY,
+      bracketX,
+      tipX,
+      targetPoint,
+      isLeft
+    );
+
+    const summaryBox: NodeLayoutBox = {
+      id: sEl.id,
+      x: nodeX,
+      y: nodeY,
+      width: sWidth,
+      height: sHeight,
+      depth: (coveredBoxes[0].depth || 1) + 1,
+      left: isLeft,
+      up: false,
+      element: sEl,
+      children: [],
+    };
+
+    nodeMap.set(summaryBox.id, summaryBox);
+
+    summaries.push({
+      id: sEl.id,
+      bracketPath,
+      summaryBox,
+      coveredBoxes,
+      element: sEl,
+    });
+  });
+
   // 7. 计算整棵导图外包围矩形
   let minX = Number.MAX_VALUE;
   let minY = Number.MAX_VALUE;
@@ -345,6 +407,13 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
     minY = Math.min(minY, box.y);
     maxX = Math.max(maxX, box.x + box.width);
     maxY = Math.max(maxY, box.y + box.height);
+  });
+
+  summaries.forEach((s) => {
+    minX = Math.min(minX, s.summaryBox.x);
+    minY = Math.min(minY, s.summaryBox.y);
+    maxX = Math.max(maxX, s.summaryBox.x + s.summaryBox.width);
+    maxY = Math.max(maxY, s.summaryBox.y + s.summaryBox.height);
   });
 
   const boundingRect = {

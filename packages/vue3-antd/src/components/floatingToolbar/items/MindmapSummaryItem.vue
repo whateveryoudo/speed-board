@@ -1,11 +1,24 @@
 <template>
   <a-tooltip title="概要" placement="bottom">
     <button
-      class="bubble-toolbar-btn"
+      class="bubble-toolbar-btn summary-trigger-btn"
       :class="{ 'is-active': isSummaryNode }"
       @click="handleAddSummary"
     >
-      <SIconFont type="icon-kl-fenzhi0" style="transform: rotate(180deg);" :size="18" />
+      <svg
+        class="summary-bracket-icon"
+        viewBox="0 0 24 24"
+        width="17"
+        height="17"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M7 4h3a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2H7" />
+        <line x1="16" y1="12" x2="20" y2="12" />
+      </svg>
     </button>
   </a-tooltip>
 </template>
@@ -14,7 +27,6 @@
 import { computed } from 'vue'
 import { Tooltip as ATooltip } from 'ant-design-vue'
 import type { Board } from '@speed-board/core'
-import { IconFont as SIconFont } from 'speed-components-ui/components'
 
 const props = defineProps<{
   board: Board | null
@@ -25,9 +37,27 @@ const selectedCell = computed(() => {
 })
 
 const isSummaryNode = computed(() => {
-  if (!selectedCell.value) return false
-  const cell = selectedCell.value
-  return Boolean(cell.isSummary || cell.type === 'mindmap-summary')
+  if (!props.board) return false
+  const rawBoard = (props.board as any).raw || props.board
+  const selectedNodeId =
+    (props.board as any).getSelectedMindNodeId?.() ||
+    (rawBoard as any).selectedMindNodeId ||
+    selectedCell.value?.data?.selectedMindNodeId ||
+    selectedCell.value?.id
+
+  if (!selectedCell.value || !selectedNodeId) return false
+  const findNode = (node: any, id: string): any => {
+    if (node.id === id) return node
+    if (node.children) {
+      for (const c of node.children) {
+        const res = findNode(c, id)
+        if (res) return res
+      }
+    }
+    return null
+  }
+  const targetNode = findNode(selectedCell.value, selectedNodeId)
+  return Boolean(targetNode?.isSummary || targetNode?.data?.isSummary)
 })
 
 const handleAddSummary = () => {

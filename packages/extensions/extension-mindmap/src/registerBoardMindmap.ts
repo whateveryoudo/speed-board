@@ -7,8 +7,16 @@ import {
 } from '@speed-board/core';
 import type { SpeedMindElement } from './types';
 import { createEmptyMindmap } from './model/createMindmap';
-import { cloneTree, findNodeById, addSummaryNode, findMindRootAndPath } from './model/treeOps';
+import {
+  cloneTree,
+  findNodeById,
+  findParentNode,
+  addSummaryNode,
+  deleteNode,
+  findMindRootAndPath,
+} from './model/treeOps';
 import { getSelectedMindNodeId, setSelectedMindNodeId } from './component/SpeedMindComponent';
+import { editMindNodeTopic } from './renderer/inlineEditor';
 
 export function registerBoardMindmap(): void {
   Board.insertMindmapHandler = (
@@ -239,17 +247,69 @@ export function registerBoardMindmap(): void {
     if (selected.length === 0) return;
 
     const root = selected[0];
-    const selectedNodeId = getSelectedMindNodeId(board.raw);
+    const selectedNodeId = getSelectedMindNodeId(board.raw) || root.id;
     if (!selectedNodeId) return;
 
-    const parentNode = findNodeById(root, selectedNodeId);
-    if (!parentNode || !parentNode.children || parentNode.children.length === 0) return;
+    const targetNode = findNodeById(root, selectedNodeId);
+    if (!targetNode) return;
+    if (targetNode.isSummary || targetNode.data?.isSummary) return;
 
-    const childIds = parentNode.children
-      .filter((c: any) => !c.data?.isSummary && !c.isSummary)
-      .map((c: any) => c.id);
+    // 确定被包裹的节点 ID 集合
+    let childIds: string[] = [];
+    const hasChildren = Boolean(
+      targetNode.children &&
+      targetNode.children.some((c: any) => !c.data?.isSummary && !c.isSummary)
+    );
+
+    if (hasChildren) {
+      const normalChildren = targetNode.children.filter(
+        (c: any) => !c.data?.isSummary && !c.isSummary
+      );
+      // 若为平衡双侧布局的根节点，根据布局侧向挑选同侧子集
+      if (targetNode.isRoot || targetNode.id === root.id) {
+        const rootLayout = root.layout || 'right';
+        if (rootLayout === 'standard' || rootLayout === 'balanced') {
+          const rightCount =
+            typeof root.rightNodeCount === 'number'
+              ? root.rightNodeCount
+              : Math.ceil(normalChildren.length / 2);
+          childIds = normalChildren.slice(0, rightCount).map((c: any) => c.id);
+        } else {
+          childIds = normalChildren.map((c: any) => c.id);
+        }
+      } else {
+        childIds = normalChildren.map((c: any) => c.id);
+      }
+    } else if (!targetNode.isRoot && targetNode.id !== root.id) {
+      // 叶子节点：对自身生成概要
+      childIds = [targetNode.id];
+    }
+
     if (childIds.length === 0) return;
 
+    // 检查是否已有概要节点覆盖这一组目标
+    const parentInfo = findParentNode(root, childIds[0]);
+    if (!parentInfo) return;
+    const parent = parentInfo.parent;
+    const existingSummary = (parent.children || []).find(
+      (c) =>
+        (c.isSummary || c.data?.isSummary) &&
+        Array.isArray(c.data?.summaryFor) &&
+        c.data.summaryFor.length === childIds.length &&
+        c.data.summaryFor.every((id: string) => childIds.includes(id))
+    );
+
+    if (existingSummary) {
+      setSelectedMindNodeId(board.raw, existingSummary.id);
+      board.emit('selection:change', { selected: [root] });
+      board.emit('change', {});
+      setTimeout(() => {
+        editMindNodeTopic(board.raw, existingSummary.id);
+      }, 30);
+      return;
+    }
+
+    // 创建新概要节点
     const res = addSummaryNode(root, childIds, '概要');
     if (res) {
       board.syncNodeIndices();
@@ -265,6 +325,67 @@ export function registerBoardMindmap(): void {
           board.emit('selection:change', { selected: [updatedRoot] });
         }
         board.emit('change', {});
+
+        // 立即拉起概要节点的就地文本编辑
+        setTimeout(() => {
+          editMindNodeTopic(board.raw, res.summaryNode.id);
+        }, 50);
+      }
+    }
+  };
+
+  Board.deleteMindmapSummaryHandler = (board: Board) => {
+    const selected = (board.selectedElements || []).filter(
+      (el) => (el as any).type === 'mind'
+    ) as SpeedMindElement[];
+    if (selected.length === 0) return;
+
+    const root = selected[0];
+    const selectedNodeId = getSelectedMindNodeId(board.raw);
+    if (!selectedNodeId) return;
+
+    const targetNode = findNodeById(root, selectedNodeId);
+    if (!targetNode) return;
+
+    let summaryIdToDelete: string | null = null;
+    let fallbackFocusId: string = root.id;
+
+    if (targetNode.isSummary || targetNode.data?.isSummary) {
+      summaryIdToDelete = targetNode.id;
+      const pInfo = findParentNode(root, targetNode.id);
+      if (pInfo) fallbackFocusId = pInfo.parent.id;
+    } else {
+      const pInfo = findParentNode(root, targetNode.id);
+      const parent = pInfo?.parent || targetNode;
+      const found = (parent.children || []).find(
+        (c) =>
+          (c.isSummary || c.data?.isSummary) &&
+          Array.isArray(c.data?.summaryFor) &&
+          c.data.summaryFor.includes(targetNode.id)
+      );
+      if (found) {
+        summaryIdToDelete = found.id;
+        fallbackFocusId = targetNode.id;
+      }
+    }
+
+    if (summaryIdToDelete) {
+      const delRes = deleteNode(root, summaryIdToDelete);
+      if (delRes.deleted) {
+        board.syncNodeIndices();
+        const path = board.getElementPath(root);
+        if (path) {
+          Transforms.setNode(board.raw, { children: delRes.clonedRoot.children }, path);
+          board.syncNodeIndices();
+          const updatedRoot = board.raw.children[path[0]] as SpeedMindElement;
+          if (updatedRoot) {
+            clearSelectedElement(board.raw);
+            addSelectedElement(board.raw, updatedRoot);
+            setSelectedMindNodeId(board.raw, fallbackFocusId);
+            board.emit('selection:change', { selected: [updatedRoot] });
+          }
+          board.emit('change', {});
+        }
       }
     }
   };

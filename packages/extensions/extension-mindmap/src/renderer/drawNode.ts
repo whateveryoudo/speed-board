@@ -36,7 +36,9 @@ export function getNodeTopicData(node: SpeedMindElement, isRoot: boolean): any {
       ...node.data.topic,
     };
   }
-  const defaultText = isRoot ? '思维导图' : '分支主题';
+  const defaultText = isRoot
+    ? '思维导图'
+    : (node.isSummary || node.data?.isSummary ? '概要' : '分支主题');
   return {
     children: [
       {

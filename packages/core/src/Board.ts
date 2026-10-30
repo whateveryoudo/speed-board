@@ -372,6 +372,7 @@ export class Board {
   static setMindmapNodePropertyHandler?: (board: Board, properties: Record<string, any>) => void;
   static setMindmapBranchPropertyHandler?: (board: Board, properties: Record<string, any>) => void;
   static addMindmapSummaryHandler?: (board: Board) => void;
+  static deleteMindmapSummaryHandler?: (board: Board) => void;
   static setMindmapMarkersHandler?: (board: Board, markers: Record<string, any>, targetNodeId?: string) => void;
 
   getViewportCenterPoint(): [number, number] {
@@ -430,6 +431,12 @@ export class Board {
   addMindmapSummary() {
     if (Board.addMindmapSummaryHandler) {
       Board.addMindmapSummaryHandler(this);
+    }
+  }
+
+  deleteMindmapSummary() {
+    if (Board.deleteMindmapSummaryHandler) {
+      Board.deleteMindmapSummaryHandler(this);
     }
   }
 
@@ -614,8 +621,15 @@ export class Board {
     return this.getSelectionInfo();
   }
 
+  getSelectedMindNodeId(): string | null {
+    if (this.raw && typeof (this.raw as any).selectedMindNodeId === 'string') {
+      return (this.raw as any).selectedMindNodeId;
+    }
+    return (this as any).selectedMindNodeId || null;
+  }
+
   getSelectionInfo(): SelectionInfo {
-    return getSelectionInfo(this.selectedElements);
+    return getSelectionInfo(this.selectedElements, this.getSelectedMindNodeId());
   }
 
   getNodeStyleState(): NodeStyleState {

@@ -40,6 +40,9 @@ export function renderSummaryBracketsSvg(
   container: SVGGElement,
   summaries: SummaryLayoutInfo[]
 ): void {
+  // 清理已有大括号，防止多帧叠加残留
+  container.innerHTML = '';
+
   summaries.forEach((summary) => {
     const pathEl = document.createElementNS(SVG_NS, 'path');
     pathEl.setAttribute('d', summary.bracketPath);

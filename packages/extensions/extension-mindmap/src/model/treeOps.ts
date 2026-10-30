@@ -158,6 +158,26 @@ export function deleteNode(
   if (!parentInfo) return { clonedRoot: root, deleted: false };
 
   parentInfo.parent.children.splice(parentInfo.index, 1);
+
+  // 清理或更新引用了 targetId 的概要节点；若概要关联的目标节点被全部删除，则同步移除孤立概要节点
+  const cleanSummaries = (node: SpeedMindElement) => {
+    if (!node.children) return;
+    for (let i = node.children.length - 1; i >= 0; i--) {
+      const child = node.children[i];
+      if (child.isSummary || child.data?.isSummary) {
+        if (Array.isArray(child.data?.summaryFor)) {
+          child.data.summaryFor = child.data.summaryFor.filter((id) => id !== targetId);
+          if (child.data.summaryFor.length === 0) {
+            node.children.splice(i, 1);
+            continue;
+          }
+        }
+      }
+      cleanSummaries(child);
+    }
+  };
+  cleanSummaries(clonedRoot);
+
   return { clonedRoot, deleted: true };
 }
 
@@ -272,6 +292,7 @@ export function addSummaryNode(
     isSummary: true,
     summaryFor: nodeIds,
   });
+  summaryNode.isSummary = true;
 
   if (!parent.children) parent.children = [];
   parent.children.push(summaryNode);

@@ -32,7 +32,10 @@ export function isImageNode(element: any): boolean {
   return element.type === 'image' || element.shape === 'image';
 }
 
-export function getSelectionInfo(selectedElements: any[] = []): SelectionInfo {
+export function getSelectionInfo(
+  selectedElements: any[] = [],
+  selectedMindNodeId?: string | null
+): SelectionInfo {
   const count = selectedElements.length;
 
   if (count === 0) {
@@ -81,9 +84,36 @@ export function getSelectionInfo(selectedElements: any[] = []): SelectionInfo {
     first.isRoot ||
     first.children
   ) {
-    if (first.isSummary) selectedType = 'mindmap-summary';
-    else if (first.isRoot) selectedType = 'mindmap-root';
-    else selectedType = 'mindmap-node';
+    let targetNode: any = first;
+    const activeNodeId =
+      selectedMindNodeId ||
+      (first as any).selectedMindNodeId ||
+      (first as any).data?.selectedMindNodeId;
+
+    if (activeNodeId && first.children) {
+      const findInner = (node: any, id: string): any => {
+        if (node.id === id) return node;
+        if (node.children) {
+          for (const c of node.children) {
+            const found = findInner(c, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+      const found = findInner(first, activeNodeId);
+      if (found) {
+        targetNode = found;
+      }
+    }
+
+    if (targetNode.isSummary || targetNode.data?.isSummary) {
+      selectedType = 'mindmap-summary';
+    } else if (targetNode.id === first.id || targetNode.isRoot) {
+      selectedType = 'mindmap-root';
+    } else {
+      selectedType = 'mindmap-node';
+    }
   } else if (isImageNode(first) || type === 'image') {
     selectedType = 'image';
   } else if (isTextNode(first) || type === 'text') {

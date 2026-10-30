@@ -80,6 +80,7 @@ export function createChildNode(
     branchColor: color,
     branchWidth: 2,
     branchShape: (options.branchShape === 'polyline' ? 'polyline' : 'curve'),
+    isSummary: options.isSummary,
     data: {
       topic: {
         children: [
