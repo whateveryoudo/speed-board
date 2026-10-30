@@ -30,14 +30,29 @@ export const MIND_SELECTED_NODE_ID = new WeakMap<PlaitBoard, string>();
 export const MIND_HOVER_NODE_ID = new WeakMap<PlaitBoard, string | null>();
 
 export function getSelectedMindNodeId(board: PlaitBoard): string | null {
-  return MIND_SELECTED_NODE_ID.get(board) || null;
+  return (
+    MIND_SELECTED_NODE_ID.get(board) ||
+    (board as any).selectedMindNodeId ||
+    (board as any).__selectedMindNodeId ||
+    null
+  );
 }
 
 export function setSelectedMindNodeId(board: PlaitBoard, nodeId: string | null): void {
   if (nodeId) {
     MIND_SELECTED_NODE_ID.set(board, nodeId);
+    (board as any).selectedMindNodeId = nodeId;
+    (board as any).__selectedMindNodeId = nodeId;
+    if ((board as any).boardWrapper) {
+      (board as any).boardWrapper.selectedMindNodeId = nodeId;
+    }
   } else {
     MIND_SELECTED_NODE_ID.delete(board);
+    delete (board as any).selectedMindNodeId;
+    delete (board as any).__selectedMindNodeId;
+    if ((board as any).boardWrapper) {
+      delete (board as any).boardWrapper.selectedMindNodeId;
+    }
   }
 }
 

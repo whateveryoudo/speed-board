@@ -73,7 +73,19 @@ export function renderNodeHandlesSvg(
   const colCx = isLeft ? box.x - colOffset : box.x + box.width + colOffset;
   const plusCx = isLeft ? box.x - plusOffset : box.x + box.width + plusOffset;
 
-  // 2.0 延伸连线：从卡片边缘延伸出一段分支线到 + 按钮处 ("不要贴紧，延一点边出来")
+  // 2.0 延伸连线及透明悬浮桥接区 (保证鼠标从卡片边缘滑动到手柄过程中不发生 hover 丢帧)
+  const minBridgeX = Math.min(startX, plusCx - 10);
+  const maxBridgeX = Math.max(startX, plusCx + 10);
+  const bridgeRect = document.createElementNS(SVG_NS, 'rect');
+  bridgeRect.setAttribute('x', String(minBridgeX));
+  bridgeRect.setAttribute('y', String(cy - 16));
+  bridgeRect.setAttribute('width', String(Math.max(20, maxBridgeX - minBridgeX)));
+  bridgeRect.setAttribute('height', '32');
+  bridgeRect.setAttribute('fill', 'transparent');
+  bridgeRect.setAttribute('class', 'speed-mind-handle-bridge');
+  bridgeRect.style.cursor = 'default';
+  handleContainer.appendChild(bridgeRect);
+
   const stubLine = document.createElementNS(SVG_NS, 'line');
   stubLine.setAttribute('x1', String(startX));
   stubLine.setAttribute('y1', String(cy));

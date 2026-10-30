@@ -285,6 +285,7 @@ const selectedMindNodeCanSummary = computed(() => {
   const selectedNodeId =
     (props.board as any).getSelectedMindNodeId?.() ||
     (rawBoard as any).selectedMindNodeId ||
+    (rawBoard as any).__selectedMindNodeId ||
     mindElement.data?.selectedMindNodeId ||
     mindElement.id
 

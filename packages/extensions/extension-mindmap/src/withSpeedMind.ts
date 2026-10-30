@@ -380,7 +380,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     pointerDown(event);
   };
 
-  // 5. 悬浮监听与子节点拖拽联动 (支持 hover 悬浮即显示 + 和 < 操作手柄)
+  // 5. 悬浮监听与子节点拖拽联动 (支持 hover 悬浮及移动到边上即显示 + 和 < 操作手柄)
   board.pointerMove = (event: PointerEvent) => {
     if (dndController.onPointerMove(event)) {
       return;
@@ -389,26 +389,58 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     const target = event.target as HTMLElement | SVGElement | null;
     const compPath = event.composedPath ? (event.composedPath() as Element[]) : [];
 
-    // 检查是否悬浮在操作手柄区（+、<、延伸线）
+    // 检查是否悬浮在操作手柄区（+、<、延伸线、桥接区）
     const isOverHandle = compPath.some(
       (el) =>
         el instanceof Element &&
         (el.classList?.contains('speed-mind-handles-layer') ||
           el.classList?.contains('speed-mind-add-handle') ||
-          el.classList?.contains('speed-mind-collapse-handle'))
+          el.classList?.contains('speed-mind-collapse-handle') ||
+          el.classList?.contains('speed-mind-handle-bridge'))
     );
 
-    // 检查是否悬浮在某个脑图节点卡片上
+    // 检查是否悬浮在某个脑图节点卡片上 (DOM 命中判定)
     const nodeEl =
       (compPath.find((el) => el instanceof Element && el.classList?.contains('speed-mind-node-g')) as HTMLElement | SVGElement | null) ||
       (target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null);
 
-    if (nodeEl) {
-      const nodeId = nodeEl.getAttribute('data-node-id');
+    let activeHoverNodeId: string | null = nodeEl?.getAttribute('data-node-id') || null;
+
+    // 若 DOM 未直接命中卡片且未在手柄上，补充基于画板几何坐标的边缘外延区域探测 (覆盖节点四周及移动到边上 45px 的操作热区)
+    if (!activeHoverNodeId && !isOverHandle) {
+      const clientX = event.clientX ?? (event as any).x;
+      const clientY = event.clientY ?? (event as any).y;
+      if (typeof clientX === 'number' && typeof clientY === 'number') {
+        const point = toViewBoxPoint(board, toHostPoint(board, clientX, clientY));
+        const px = point[0];
+        const py = point[1];
+        const mindElements = board.children.filter((el) => (el as any).type === 'mind') as SpeedMindElement[];
+
+        for (const mindEl of mindElements) {
+          const layout = MIND_LAYOUT_CACHE.get(mindEl) || computeMindLayout(mindEl);
+          for (const box of layout.nodeMap.values()) {
+            const isLeft = box.left;
+            // 外延 45px 包含操作手柄区域，以及上下四周各 6px 的边缘容差
+            const minX = isLeft ? box.x - 45 : box.x - 6;
+            const maxX = isLeft ? box.x + box.width + 6 : box.x + box.width + 45;
+            const minY = box.y - 6;
+            const maxY = box.y + box.height + 6;
+
+            if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
+              activeHoverNodeId = box.id;
+              break;
+            }
+          }
+          if (activeHoverNodeId) break;
+        }
+      }
+    }
+
+    if (activeHoverNodeId) {
       const currentHover = getHoverMindNodeId(board);
-      if (nodeId && nodeId !== currentHover) {
-        setHoverMindNodeId(board, nodeId);
-        notifyMindHandlesUpdate(board, nodeId);
+      if (activeHoverNodeId !== currentHover) {
+        setHoverMindNodeId(board, activeHoverNodeId);
+        notifyMindHandlesUpdate(board, activeHoverNodeId);
       }
     } else if (!isOverHandle) {
       const currentHover = getHoverMindNodeId(board);

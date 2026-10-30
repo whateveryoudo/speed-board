@@ -622,8 +622,9 @@ export class Board {
   }
 
   getSelectedMindNodeId(): string | null {
-    if (this.raw && typeof (this.raw as any).selectedMindNodeId === 'string') {
-      return (this.raw as any).selectedMindNodeId;
+    if (this.raw) {
+      const rawId = (this.raw as any).selectedMindNodeId || (this.raw as any).__selectedMindNodeId;
+      if (typeof rawId === 'string') return rawId;
     }
     return (this as any).selectedMindNodeId || null;
   }
