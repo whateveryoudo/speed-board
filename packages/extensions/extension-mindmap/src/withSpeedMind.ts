@@ -405,8 +405,13 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     globalPointerUp(event);
   };
 
-  // 6. 双击节点启动就地编辑 (优先坐标几何碰撞判定，同步设置画布选中态与全选文本)
+  // 6. 双击节点启动就地编辑 (优先坐标几何碰撞判定，对齐画板文本节点处理逻辑)
   board.dblClick = (event: MouseEvent) => {
+    event.preventDefault();
+    if (PlaitBoard.isReadonly(board)) {
+      return;
+    }
+
     const point = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
     const mindElements = board.children.filter((el) => (el as any).type === 'mind') as SpeedMindElement[];
 
@@ -425,10 +430,8 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
           const wrapper = (board as any).boardWrapper;
           wrapper?.emit?.('selection:change', { selected: [mindEl] });
-          (board as any).apply({ type: 'set_selection' } as any);
 
           editMindNodeTopic(board, box.id);
-          event.preventDefault();
           event.stopPropagation();
           return;
         }
@@ -447,11 +450,9 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
           addSelectedElement(board, info.root);
           const wrapper = (board as any).boardWrapper;
           wrapper?.emit?.('selection:change', { selected: [info.root] });
-          (board as any).apply({ type: 'set_selection' } as any);
         }
         setSelectedMindNodeId(board, nodeId);
         editMindNodeTopic(board, nodeId);
-        event.preventDefault();
         event.stopPropagation();
         return;
       }

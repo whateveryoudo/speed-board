@@ -226,6 +226,11 @@ export class SpeedMindComponent
 
     // 4. 将 textManageMap 注册到全局 WeakMap 供快捷键/事件触发 edit
     MIND_NODE_TEXT_MANAGES.set(board, this.textManageMap);
+    (board as any).__mindNodeTextManages__ = this.textManageMap;
+    if ((board as any).raw) {
+      MIND_NODE_TEXT_MANAGES.set((board as any).raw, this.textManageMap);
+      (board as any).raw.__mindNodeTextManages__ = this.textManageMap;
+    }
 
     // 5. 初始化当前选中的 TextManage 到 Plait ElementRef，联动浮动格式工具栏
     const selectedTm = selectedNodeId ? this.textManageMap.get(selectedNodeId) : null;

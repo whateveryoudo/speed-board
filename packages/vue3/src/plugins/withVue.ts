@@ -57,6 +57,23 @@ export function offsetToSlatePoint(
 }
 
 /**
+ * 将 Slate 的点 { path: [0, spanIndex], offset: offsetInSpan } 转换为全局字符偏移量
+ */
+export function slatePointToOffset(
+  editor: any,
+  point: { path: number[]; offset: number }
+): number {
+  if (!point || !point.path) return 0;
+  const spans = editor.children?.[0]?.children || [];
+  const spanIndex = point.path[1] ?? 0;
+  let accumulated = 0;
+  for (let i = 0; i < spanIndex && i < spans.length; i++) {
+    accumulated += (spans[i].text || '').length;
+  }
+  return accumulated + (point.offset || 0);
+}
+
+/**
  * 根据全局字符偏移量还原 contenteditable 内部的 DOM 选区
  */
 export function setDomCharSelection(
@@ -237,6 +254,39 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
     let currentText = props.text;
     let isReadonly = props.readonly !== false;
 
+    // 同步 Slate 的 selection 操作到真实 DOM 选区 (对齐 Plait 原生 Transforms.select(this.editor, [0]))
+    const syncSlateSelectionToDom = () => {
+      const editableEl = el.querySelector('.slate-editable-container') as HTMLElement | null;
+      if (!editableEl || isReadonly || !editor.selection) return;
+
+      const totalLen = (editableEl.textContent || '').length;
+      const startOffset = slatePointToOffset(editor, editor.selection.anchor);
+      const endOffset = slatePointToOffset(editor, editor.selection.focus);
+      const min = Math.min(startOffset, endOffset);
+      const max = Math.max(startOffset, endOffset);
+      const isBackward = startOffset > endOffset;
+
+      editableEl.focus();
+      if (min === 0 && max >= totalLen) {
+        const range = document.createRange();
+        range.selectNodeContents(editableEl);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      } else {
+        setDomCharSelection(editableEl, min, max, isBackward);
+      }
+    };
+
+    const { apply: originalApply } = editor;
+    editor.apply = (op) => {
+      originalApply(op);
+      if (op.type === 'set_selection' && !isReadonly) {
+        syncSlateSelectionToDom();
+        requestAnimationFrame(syncSlateSelectionToDom);
+      }
+    };
+
     const renderDOM = () => {
       // 提取纯文本内容与排版属性
       const firstChild = (currentText as any)?.children?.[0] || {};
@@ -352,6 +402,7 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
             setDomCharSelection(editableEl, start, end, isBackward);
           } else {
             const selectAll = () => {
+              editableEl.focus();
               const range = document.createRange();
               range.selectNodeContents(editableEl);
               const sel = window.getSelection();
@@ -359,7 +410,9 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
               sel?.addRange(range);
             };
             selectAll();
+            requestAnimationFrame(selectAll);
             setTimeout(selectAll, 0);
+            setTimeout(selectAll, 40);
           }
 
           const notifyTyping = () => {
@@ -484,6 +537,10 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         }
 
         if (readonlyChanged) {
+          if (!isReadonly) {
+            delete (editor as any).savedDomOffsets;
+            delete (editor as any).savedSelection;
+          }
           const wrapper = (newBoard as any).boardWrapper;
           wrapper?.emit?.('text:editing', !isReadonly);
           wrapper?.emit?.('selection:change');

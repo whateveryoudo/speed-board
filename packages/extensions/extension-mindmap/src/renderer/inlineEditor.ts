@@ -6,7 +6,12 @@ import { findMindRootAndPath } from '../model/treeOps';
 export const MIND_NODE_TEXT_MANAGES = new WeakMap<PlaitBoard, Map<string, TextManage>>();
 
 export function getMindNodeTextManage(board: PlaitBoard, nodeId: string): TextManage | null {
-  return MIND_NODE_TEXT_MANAGES.get(board)?.get(nodeId) || null;
+  const map =
+    MIND_NODE_TEXT_MANAGES.get(board) ||
+    MIND_NODE_TEXT_MANAGES.get((board as any).raw) ||
+    (board as any).__mindNodeTextManages__ ||
+    ((board as any).raw && (board as any).raw.__mindNodeTextManages__);
+  return map?.get(nodeId) || null;
 }
 
 /**
@@ -39,8 +44,8 @@ export function editMindNodeTopic(board: PlaitBoard, nodeId: string): void {
     }
   );
 
-  // 延迟全选内部全部文本，防止被浏览器原生双击选词或光标折叠行为覆盖
-  setTimeout(() => {
+  // 立即并多周期执行全选内部文本，对标画板文本节点，彻底防止被浏览器原生双击折叠覆盖
+  const performSelectAll = () => {
     const el = (tm.g?.querySelector?.('[contenteditable="true"]') ||
       document.querySelector(`[data-node-id="${nodeId}"] [contenteditable="true"]`)) as HTMLElement | null;
     if (el) {
@@ -51,7 +56,12 @@ export function editMindNodeTopic(board: PlaitBoard, nodeId: string): void {
       sel?.removeAllRanges();
       sel?.addRange(range);
     }
-  }, 20);
+  };
+
+  performSelectAll();
+  requestAnimationFrame(performSelectAll);
+  setTimeout(performSelectAll, 0);
+  setTimeout(performSelectAll, 40);
 }
 
 export interface InlineEditorOptions {
