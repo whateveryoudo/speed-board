@@ -17,6 +17,12 @@ export function editMindNodeTopic(board: PlaitBoard, nodeId: string): void {
   const tm = getMindNodeTextManage(board, nodeId);
   if (!tm) return;
 
+  // 清除旧的选区偏移记录，确保全新进入编辑时全选文字
+  if (tm.editor) {
+    delete (tm.editor as any).savedDomOffsets;
+    delete (tm.editor as any).savedSelection;
+  }
+
   tm.edit(
     () => {
       // 退出编辑后的回调：触发变更并广播更新
@@ -32,6 +38,20 @@ export function editMindNodeTopic(board: PlaitBoard, nodeId: string): void {
       return kb.key === 'Enter' && !kb.shiftKey;
     }
   );
+
+  // 延迟全选内部全部文本，防止被浏览器原生双击选词或光标折叠行为覆盖
+  setTimeout(() => {
+    const el = (tm.g?.querySelector?.('[contenteditable="true"]') ||
+      document.querySelector(`[data-node-id="${nodeId}"] [contenteditable="true"]`)) as HTMLElement | null;
+    if (el) {
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  }, 20);
 }
 
 export interface InlineEditorOptions {

@@ -428,6 +428,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
           (board as any).apply({ type: 'set_selection' } as any);
 
           editMindNodeTopic(board, box.id);
+          event.preventDefault();
           event.stopPropagation();
           return;
         }
@@ -450,6 +451,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
         }
         setSelectedMindNodeId(board, nodeId);
         editMindNodeTopic(board, nodeId);
+        event.preventDefault();
         event.stopPropagation();
         return;
       }

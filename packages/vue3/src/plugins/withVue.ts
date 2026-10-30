@@ -351,11 +351,15 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
             const { start, end, isBackward } = (editor as any).savedDomOffsets;
             setDomCharSelection(editableEl, start, end, isBackward);
           } else {
-            const range = document.createRange();
-            range.selectNodeContents(editableEl);
-            const sel = window.getSelection();
-            sel?.removeAllRanges();
-            sel?.addRange(range);
+            const selectAll = () => {
+              const range = document.createRange();
+              range.selectNodeContents(editableEl);
+              const sel = window.getSelection();
+              sel?.removeAllRanges();
+              sel?.addRange(range);
+            };
+            selectAll();
+            setTimeout(selectAll, 0);
           }
 
           const notifyTyping = () => {
