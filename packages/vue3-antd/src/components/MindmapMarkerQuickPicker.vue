@@ -114,11 +114,11 @@ const updatePosition = async () => {
   const referenceEl = props.targetEl
 
   const { x, y } = await computePosition(referenceEl, pickerRef.value, {
-    placement: 'bottom-start',
+    placement: 'bottom',
     strategy: 'fixed',
     middleware: [
       offset(6),
-      flip({ fallbackPlacements: ['top-start', 'bottom', 'top'] }),
+      flip({ fallbackPlacements: ['top', 'bottom'] }),
       shift({ padding: 8 }),
     ],
   })
