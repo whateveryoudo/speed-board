@@ -62,6 +62,28 @@ export function renderNodeHandlesSvg(
 
   const isLeft = !isRoot && box.left;
   const hasCollapseBtn = !isRoot && hasChildren && !isCollapsed;
+  const branchColor = box.element.branchColor || '#8b5cf6';
+  const cy = box.y + box.height / 2;
+
+  // 按钮中心与卡片边缘的间距 (无折叠按钮时 + 按钮延出 18px，有折叠按钮时折叠按钮延出 12px，+ 按钮延出 30px)
+  const colOffset = 12;
+  const plusOffset = hasCollapseBtn ? 30 : 18;
+
+  const startX = isLeft ? box.x : box.x + box.width;
+  const colCx = isLeft ? box.x - colOffset : box.x + box.width + colOffset;
+  const plusCx = isLeft ? box.x - plusOffset : box.x + box.width + plusOffset;
+
+  // 2.0 延伸连线：从卡片边缘延伸出一段分支线到 + 按钮处 ("不要贴紧，延一点边出来")
+  const stubLine = document.createElementNS(SVG_NS, 'line');
+  stubLine.setAttribute('x1', String(startX));
+  stubLine.setAttribute('y1', String(cy));
+  stubLine.setAttribute('x2', String(plusCx));
+  stubLine.setAttribute('y2', String(cy));
+  stubLine.setAttribute('stroke', branchColor);
+  stubLine.setAttribute('stroke-width', '2');
+  stubLine.setAttribute('stroke-linecap', 'round');
+  stubLine.setAttribute('pointer-events', 'none');
+  handleContainer.appendChild(stubLine);
 
   // 2.1 折叠按钮：位于 + 按钮的左边 (更贴近节点卡片边缘)，与 + 按钮同等尺寸 (r = 7.5)，使用 < 箭头指示向父级折叠
   if (hasCollapseBtn) {
@@ -71,13 +93,9 @@ export function renderNodeHandlesSvg(
     collapseG.setAttribute('data-node-id', box.id);
     collapseG.style.cursor = 'pointer';
 
-    const colOffset = 9;
-    const colCx = isLeft ? box.x - colOffset : box.x + box.width + colOffset;
-    const colCy = box.y + box.height / 2;
-
     const colCircle = document.createElementNS(SVG_NS, 'circle');
     colCircle.setAttribute('cx', String(colCx));
-    colCircle.setAttribute('cy', String(colCy));
+    colCircle.setAttribute('cy', String(cy));
     colCircle.setAttribute('r', '7.5');
     colCircle.setAttribute('fill', '#ffffff');
     colCircle.setAttribute('stroke', '#94a3b8');
@@ -86,8 +104,8 @@ export function renderNodeHandlesSvg(
     // < 折叠箭头 (右向布局指向左 <，左向布局指向右 >)
     const arrowPath = document.createElementNS(SVG_NS, 'path');
     const d = isLeft
-      ? `M ${colCx - 1.5} ${colCy - 3.5} L ${colCx + 1.5} ${colCy} L ${colCx - 1.5} ${colCy + 3.5}`
-      : `M ${colCx + 1.5} ${colCy - 3.5} L ${colCx - 1.5} ${colCy} L ${colCx + 1.5} ${colCy + 3.5}`;
+      ? `M ${colCx - 1.5} ${cy - 3.5} L ${colCx + 1.5} ${cy} L ${colCx - 1.5} ${cy + 3.5}`
+      : `M ${colCx + 1.5} ${cy - 3.5} L ${colCx - 1.5} ${cy} L ${colCx + 1.5} ${cy + 3.5}`;
 
     arrowPath.setAttribute('d', d);
     arrowPath.setAttribute('fill', 'none');
@@ -114,11 +132,7 @@ export function renderNodeHandlesSvg(
     handleContainer.appendChild(collapseG);
   }
 
-  // 2.2 外侧 `+` 按钮 (尺寸同等 r = 7.5，若有折叠按钮则放其右侧间距 3px，若无则贴紧节点)
-  const plusOffset = hasCollapseBtn ? 27 : 9;
-  const plusCx = isLeft ? box.x - plusOffset : box.x + box.width + plusOffset;
-  const plusCy = box.y + box.height / 2;
-
+  // 2.2 外侧 `+` 按钮 (尺寸同等 r = 7.5，若有折叠按钮则放其右侧间距 3px，若无则延边出来)
   const plusG = document.createElementNS(SVG_NS, 'g');
   plusG.setAttribute('class', 'speed-mind-add-handle');
   plusG.setAttribute('data-action', 'add-child');
@@ -127,7 +141,7 @@ export function renderNodeHandlesSvg(
 
   const circle = document.createElementNS(SVG_NS, 'circle');
   circle.setAttribute('cx', String(plusCx));
-  circle.setAttribute('cy', String(plusCy));
+  circle.setAttribute('cy', String(cy));
   circle.setAttribute('r', '7.5');
   circle.setAttribute('fill', '#ffffff');
   circle.setAttribute('stroke', '#94a3b8');
@@ -137,7 +151,7 @@ export function renderNodeHandlesSvg(
   const crossPath = document.createElementNS(SVG_NS, 'path');
   crossPath.setAttribute(
     'd',
-    `M ${plusCx - 4} ${plusCy} L ${plusCx + 4} ${plusCy} M ${plusCx} ${plusCy - 4} L ${plusCx} ${plusCy + 4}`
+    `M ${plusCx - 4} ${cy} L ${plusCx + 4} ${cy} M ${plusCx} ${cy - 4} L ${plusCx} ${cy + 4}`
   );
   crossPath.setAttribute('stroke', '#64748b');
   crossPath.setAttribute('stroke-width', '1.4');

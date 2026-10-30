@@ -372,7 +372,7 @@ export class Board {
   static setMindmapNodePropertyHandler?: (board: Board, properties: Record<string, any>) => void;
   static setMindmapBranchPropertyHandler?: (board: Board, properties: Record<string, any>) => void;
   static addMindmapSummaryHandler?: (board: Board) => void;
-  static setMindmapMarkersHandler?: (board: Board, markers: Record<string, any>) => void;
+  static setMindmapMarkersHandler?: (board: Board, markers: Record<string, any>, targetNodeId?: string) => void;
 
   getViewportCenterPoint(): [number, number] {
     const container = PlaitBoard.getBoardContainer(this.raw);
@@ -433,9 +433,9 @@ export class Board {
     }
   }
 
-  setMindmapMarkers(markers: Record<string, any>) {
+  setMindmapMarkers(markers: Record<string, any>, targetNodeId?: string) {
     if (Board.setMindmapMarkersHandler) {
-      Board.setMindmapMarkersHandler(this, markers);
+      Board.setMindmapMarkersHandler(this, markers, targetNodeId);
     }
   }
 

@@ -17,6 +17,17 @@
       @toggle-settings="showSettingsPanel = !showSettingsPanel"
     />
 
+    <!-- 脑图标记快捷选择弹层 (点击节点上的优先级/进度/旗帜时就地弹出切换) -->
+    <MindmapMarkerQuickPicker
+      :board="boardInstance"
+      :visible="showMarkerPicker"
+      :target-el="markerPickerTargetEl"
+      :node-id="markerPickerNodeId"
+      :category="markerPickerCategory"
+      :value="markerPickerValue"
+      @close="showMarkerPicker = false"
+    />
+
     <!-- 思维导图专属属性深度设置抽屉 -->
     <MindmapSettingsPanel
       v-model:visible="showSettingsPanel"
@@ -43,6 +54,7 @@ import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
 import MindmapFloatingToolbarHost from './floatingToolbar/MindmapFloatingToolbarHost.vue';
 import MindmapSettingsPanel from './MindmapSettingsPanel.vue';
+import MindmapMarkerQuickPicker from './MindmapMarkerQuickPicker.vue';
 import { useAntdCssVars } from 'speed-components-ui/hooks';
 import '../style/index.less';
 
@@ -72,6 +84,12 @@ const boardInstance = shallowRef<Board | null>(null);
 const canvasWrapperRef = ref<HTMLDivElement | null>(null);
 const showSettingsPanel = ref(false);
 
+const showMarkerPicker = ref(false);
+const markerPickerTargetEl = ref<HTMLElement | SVGElement | null>(null);
+const markerPickerNodeId = ref<string | null>(null);
+const markerPickerCategory = ref<string>('priority');
+const markerPickerValue = ref<any>(null);
+
 const mergedOptions = computed(() => {
   const initialData =
     props.data ||
@@ -94,6 +112,15 @@ const mergedOptions = computed(() => {
 
 const onBoardCreated = (board: Board) => {
   boardInstance.value = board;
+
+  const wrapper = (board as any).boardWrapper;
+  wrapper?.on?.('mindmap:marker:click', (payload: any) => {
+    markerPickerTargetEl.value = payload.targetEl;
+    markerPickerNodeId.value = payload.nodeId;
+    markerPickerCategory.value = payload.category;
+    markerPickerValue.value = payload.value;
+    showMarkerPicker.value = true;
+  });
 
   // 默认选中思维导图根节点
   if (board.raw.children && board.raw.children.length > 0) {

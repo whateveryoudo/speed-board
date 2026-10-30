@@ -59,6 +59,7 @@ import {
   PRIORITY_MARKERS,
   PROGRESS_MARKERS,
   FLAG_MARKERS,
+  ensureMarkerSprite,
   type MarkerDef,
 } from '@speed-board/shared'
 
@@ -112,6 +113,7 @@ const updatePosition = async () => {
 
   const { x, y } = await computePosition(referenceEl, pickerRef.value, {
     placement: 'bottom-start',
+    strategy: 'fixed',
     middleware: [
       offset(6),
       flip({ fallbackPlacements: ['top-start', 'bottom', 'top'] }),
@@ -120,6 +122,7 @@ const updatePosition = async () => {
   })
 
   pickerStyle.value = {
+    position: 'fixed',
     left: `${Math.round(x)}px`,
     top: `${Math.round(y)}px`,
   }
@@ -129,6 +132,7 @@ watch(
   () => props.visible,
   (val) => {
     if (val) {
+      ensureMarkerSprite()
       nextTick(() => {
         updatePosition()
       })
@@ -150,7 +154,10 @@ watch(
 const handleSelect = (item: MarkerDef) => {
   if (!props.board) return
   if (typeof (props.board as any).setMindmapMarkers === 'function') {
-    (props.board as any).setMindmapMarkers({ [props.category]: item.value })
+    (props.board as any).setMindmapMarkers(
+      { [props.category]: item.value },
+      props.nodeId || undefined
+    )
   }
   emit('close')
 }
@@ -158,10 +165,30 @@ const handleSelect = (item: MarkerDef) => {
 const handleDelete = () => {
   if (!props.board) return
   if (typeof (props.board as any).setMindmapMarkers === 'function') {
-    (props.board as any).setMindmapMarkers({ [props.category]: null })
+    (props.board as any).setMindmapMarkers(
+      { [props.category]: null },
+      props.nodeId || undefined
+    )
   }
   emit('close')
 }
+
+const handleClose = () => {
+  emit('close')
+}
+
+watch(
+  () => props.board,
+  (b, oldB) => {
+    if (oldB) {
+      oldB.off('viewport:scroll', handleClose)
+    }
+    if (b) {
+      b.on('viewport:scroll', handleClose)
+    }
+  },
+  { immediate: true }
+)
 
 const onGlobalPointerDown = (e: MouseEvent | PointerEvent) => {
   if (!props.visible) return

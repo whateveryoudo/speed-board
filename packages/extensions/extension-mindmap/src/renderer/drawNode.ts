@@ -133,6 +133,7 @@ export function renderNodeMarkersSvg(
 
     const use = document.createElementNS(SVG_NS, 'use');
     use.setAttribute('href', `#${item.sym}`);
+    use.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `#${item.sym}`);
     iconG.appendChild(use);
     markersG.appendChild(iconG);
   });

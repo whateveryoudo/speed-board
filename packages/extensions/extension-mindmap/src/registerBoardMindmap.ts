@@ -7,7 +7,7 @@ import {
 } from '@speed-board/core';
 import type { SpeedMindElement } from './types';
 import { createEmptyMindmap } from './model/createMindmap';
-import { cloneTree, findNodeById, addSummaryNode } from './model/treeOps';
+import { cloneTree, findNodeById, addSummaryNode, findMindRootAndPath } from './model/treeOps';
 import { getSelectedMindNodeId, setSelectedMindNodeId } from './component/SpeedMindComponent';
 
 export function registerBoardMindmap(): void {
@@ -194,17 +194,38 @@ export function registerBoardMindmap(): void {
     }
   };
 
-  Board.setMindmapMarkersHandler = (board: Board, markers: Record<string, any>) => {
-    const selected = (board.selectedElements || []).filter(
-      (el) => (el as any).type === 'mind'
-    ) as SpeedMindElement[];
-    if (selected.length === 0) return;
+  Board.setMindmapMarkersHandler = (
+    board: Board,
+    markers: Record<string, any>,
+    targetNodeId?: string
+  ) => {
+    let root: SpeedMindElement | null = null;
+    let path: any = null;
+    let selectedNodeId: string | null = targetNodeId || null;
 
-    const root = selected[0];
-    const selectedNodeId = getSelectedMindNodeId(board.raw) || root.id;
+    if (targetNodeId) {
+      const info = findMindRootAndPath(board.raw, targetNodeId);
+      if (info) {
+        root = info.root;
+        path = info.path;
+      }
+    }
+
+    if (!root) {
+      const selected = (board.selectedElements || []).filter(
+        (el) => (el as any).type === 'mind'
+      ) as SpeedMindElement[];
+      if (selected.length === 0) return;
+
+      root = selected[0];
+      selectedNodeId = getSelectedMindNodeId(board.raw) || root.id;
+      path = board.getElementPath(root);
+    }
+
+    if (!root) return;
 
     const clonedRoot = cloneTree(root);
-    const node = findNodeById(clonedRoot, selectedNodeId);
+    const node = findNodeById(clonedRoot, selectedNodeId || root.id);
     if (!node) return;
 
     if (!node.data) node.data = { topic: { children: [{ text: '' }] } };
@@ -219,7 +240,6 @@ export function registerBoardMindmap(): void {
     node.data.markers = Object.keys(updatedMarkers).length > 0 ? updatedMarkers : undefined;
 
     board.syncNodeIndices();
-    const path = board.getElementPath(root);
     if (path) {
       Transforms.setNode(
         board.raw,
