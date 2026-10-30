@@ -113,8 +113,8 @@ const mergedOptions = computed(() => {
 const onBoardCreated = (board: Board) => {
   boardInstance.value = board;
 
-  const wrapper = (board as any).boardWrapper;
-  wrapper?.on?.('mindmap:marker:click', (payload: any) => {
+  const eventEmitter = (board as any).boardWrapper || board;
+  eventEmitter.on('mindmap:marker:click', (payload: any) => {
     markerPickerTargetEl.value = payload.targetEl;
     markerPickerNodeId.value = payload.nodeId;
     markerPickerCategory.value = payload.category;

@@ -211,7 +211,10 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     const target = event.target as HTMLElement | SVGElement | null;
 
     // 4.1.5 点击节点上的标记 (Marker) -> 广播 marker 点击事件以弹出快捷选择器
-    const markerEl = target?.closest?.('.speed-mind-marker-item') as HTMLElement | SVGElement | null;
+    const compPath = event.composedPath ? (event.composedPath() as Element[]) : [];
+    const markerEl =
+      (compPath.find((el) => el instanceof Element && el.classList?.contains('speed-mind-marker-item')) as HTMLElement | SVGElement | null) ||
+      (target?.closest?.('.speed-mind-marker-item') as HTMLElement | SVGElement | null);
     if (markerEl) {
       const category = markerEl.getAttribute('data-category');
       const value = markerEl.getAttribute('data-value');

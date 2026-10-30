@@ -130,10 +130,14 @@ export function renderNodeMarkersSvg(
     iconG.setAttribute('data-value', String(item.value));
     iconG.setAttribute('data-node-id', box.id);
     iconG.style.cursor = 'pointer';
+    iconG.style.pointerEvents = 'auto';
+    iconG.setAttribute('pointer-events', 'auto');
 
     const use = document.createElementNS(SVG_NS, 'use');
     use.setAttribute('href', `#${item.sym}`);
     use.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `#${item.sym}`);
+    use.setAttribute('pointer-events', 'none');
+    use.style.pointerEvents = 'none';
     iconG.appendChild(use);
     markersG.appendChild(iconG);
   });

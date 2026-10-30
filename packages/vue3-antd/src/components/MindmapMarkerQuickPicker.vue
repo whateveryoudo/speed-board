@@ -128,10 +128,16 @@ const updatePosition = async () => {
   }
 }
 
+let justOpened = false
+
 watch(
   () => props.visible,
   (val) => {
     if (val) {
+      justOpened = true
+      setTimeout(() => {
+        justOpened = false
+      }, 80)
       ensureMarkerSprite()
       nextTick(() => {
         updatePosition()
@@ -191,12 +197,13 @@ watch(
 )
 
 const onGlobalPointerDown = (e: MouseEvent | PointerEvent) => {
-  if (!props.visible) return
+  if (!props.visible || justOpened) return
   const target = e.target as HTMLElement | null
   if (!target) return
 
-  if (pickerRef.value?.contains(target)) return
-  if (props.targetEl?.contains(target)) return
+  const path = e.composedPath ? (e.composedPath() as Element[]) : []
+  if (pickerRef.value && (pickerRef.value === target || pickerRef.value.contains(target) || path.includes(pickerRef.value))) return
+  if (props.targetEl && (props.targetEl === target || props.targetEl.contains(target) || path.includes(props.targetEl))) return
 
   emit('close')
 }
