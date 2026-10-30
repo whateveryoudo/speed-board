@@ -24,12 +24,13 @@
         <!-- 菜单条目 -->
         <div
           v-else
+          :ref="(el) => setItemRef(item.key, el)"
           class="context-menu-item"
           :class="{
             'is-disabled': item.disabled,
             'has-submenu': Boolean(item.children?.length),
           }"
-          @mouseenter="onItemMouseEnter(item.key)"
+          @mouseenter="onItemMouseEnter(item.key, Boolean(item.children?.length))"
           @mouseleave="onItemMouseLeave(item.key)"
           @click="onItemClick(item)"
         >
@@ -56,8 +57,9 @@
           <!-- 子菜单 (Submenu) -->
           <div
             v-if="item.children?.length && activeSubmenu === item.key && !item.disabled"
+            ref="submenuRef"
             class="context-submenu"
-            :class="{ 'flyout-left': shouldFlyoutLeft }"
+            :style="submenuStyle"
           >
             <template v-for="(subItem, subIdx) in item.children" :key="subItem.key || subIdx">
               <div v-if="subItem.type === 'divider'" class="context-menu-divider" />
@@ -128,8 +130,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { message } from 'ant-design-vue';
+import {
+  computePosition,
+  offset as floatingOffset,
+  flip as floatingFlip,
+  shift as floatingShift,
+  type VirtualElement,
+} from '@floating-ui/dom';
 import {
   type Board,
   Transforms,
@@ -193,33 +202,160 @@ const linkInputUrl = ref('');
 const noteModalVisible = ref(false);
 const noteInputText = ref('');
 
-// 判断当前屏幕宽度，决定子菜单向右还是向左展开
-const shouldFlyoutLeft = computed(() => {
-  return props.position.x > window.innerWidth - 320;
+// 主菜单位置状态与样式（基于 @floating-ui/dom 精准计算与防溢出保护）
+const menuPosition = ref<{ x: number; y: number }>({
+  x: props.position.x,
+  y: props.position.y,
 });
 
-// 计算主菜单位置，做视口边界防溢出保护
-const menuStyle = computed(() => {
-  const menuWidth = 175;
-  const menuHeight = props.targetType === 'mindmap' ? 360 : 250;
-  const x = Math.min(props.position.x, window.innerWidth - menuWidth - 10);
-  const y = Math.min(props.position.y, window.innerHeight - menuHeight - 10);
+const menuStyle = computed(() => ({
+  left: `${menuPosition.value.x}px`,
+  top: `${menuPosition.value.y}px`,
+}));
 
-  return {
-    left: `${Math.max(10, x)}px`,
-    top: `${Math.max(10, y)}px`,
-  };
+// 二级子菜单定位元素与样式管理
+const itemRefs = new Map<string, HTMLElement>();
+const submenuRef = ref<HTMLDivElement | null>(null);
+const submenuStyle = ref<Record<string, string>>({
+  position: 'fixed',
+  visibility: 'hidden',
 });
 
-// 监听菜单关闭时重置活跃状态
-watch(
-  () => props.visible,
-  (val) => {
-    if (!val) {
-      activeSubmenu.value = null;
-    }
+const setItemRef = (key: string | undefined, el: any) => {
+  if (key && el) {
+    itemRefs.set(key, el as HTMLElement);
+  } else if (key) {
+    itemRefs.delete(key);
   }
+};
+
+const updateMainMenuPosition = async () => {
+  if (!props.visible) return;
+  await nextTick();
+  if (!menuRef.value) return;
+
+  const virtualEl: VirtualElement = {
+    getBoundingClientRect() {
+      return {
+        x: props.position.x,
+        y: props.position.y,
+        top: props.position.y,
+        left: props.position.x,
+        bottom: props.position.y,
+        right: props.position.x,
+        width: 0,
+        height: 0,
+      };
+    },
+  };
+
+  try {
+    const { x, y } = await computePosition(virtualEl, menuRef.value, {
+      placement: 'bottom-start',
+      strategy: 'fixed',
+      middleware: [
+        floatingFlip({
+          fallbackPlacements: ['top-start', 'bottom-end', 'top-end'],
+        }),
+        floatingShift({
+          padding: 8,
+        }),
+      ],
+    });
+
+    menuPosition.value = { x: Math.round(x), y: Math.round(y) };
+  } catch (err) {
+    console.error('Failed to compute context menu position', err);
+  }
+};
+
+const updateSubmenuPosition = async (key: string) => {
+  const parentItemEl = itemRefs.get(key);
+  if (!parentItemEl) return;
+  await nextTick();
+  if (!submenuRef.value) return;
+
+  try {
+    const { x, y } = await computePosition(parentItemEl, submenuRef.value, {
+      placement: 'right-start',
+      strategy: 'fixed',
+      middleware: [
+        floatingOffset({ mainAxis: 2, crossAxis: -4 }),
+        floatingFlip({
+          fallbackPlacements: ['left-start', 'right-end', 'left-end'],
+        }),
+        floatingShift({
+          padding: 8,
+        }),
+      ],
+    });
+
+    submenuStyle.value = {
+      position: 'fixed',
+      left: `${Math.round(x)}px`,
+      top: `${Math.round(y)}px`,
+      margin: '0',
+      visibility: 'visible',
+    };
+  } catch (err) {
+    console.error('Failed to compute submenu position', err);
+  }
+};
+
+// 监听菜单打开或坐标变化，动态计算自适应位置
+watch(
+  () => [props.visible, props.position.x, props.position.y],
+  ([vis]) => {
+    if (vis) {
+      // 快速初始定位，防止第一帧跳变闪烁
+      const menuWidth = 175;
+      const menuHeight = props.targetType === 'mindmap' ? 360 : 250;
+      const initialX = Math.min(props.position.x, window.innerWidth - menuWidth - 8);
+      const initialY = Math.min(props.position.y, window.innerHeight - menuHeight - 8);
+      menuPosition.value = {
+        x: Math.max(8, initialX),
+        y: Math.max(8, initialY),
+      };
+      updateMainMenuPosition();
+    } else {
+      activeSubmenu.value = null;
+      submenuStyle.value = {
+        position: 'fixed',
+        visibility: 'hidden',
+      };
+    }
+  },
+  { immediate: true }
 );
+
+// 画布滚动、窗口缩放时立即收起右键菜单（对标语雀标准）
+const handleClose = () => {
+  emit('close');
+};
+
+watch(
+  () => props.board,
+  (b, oldB) => {
+    if (oldB) {
+      oldB.off('viewport:scroll', handleClose);
+    }
+    if (b) {
+      b.on('viewport:scroll', handleClose);
+    }
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  window.addEventListener('resize', handleClose);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleClose);
+  if (props.board) {
+    props.board.off('viewport:scroll', handleClose);
+  }
+});
 
 // 获取当前选中节点/元素相关信息
 const selectedMindNode = computed<SpeedMindElement | null>(() => {
@@ -440,9 +576,16 @@ const onMaskMouseDown = () => {
   emit('close');
 };
 
-const onItemMouseEnter = (key?: string) => {
+const onItemMouseEnter = (key?: string, hasChildren?: boolean) => {
   if (key) {
     activeSubmenu.value = key;
+    if (hasChildren) {
+      submenuStyle.value = {
+        position: 'fixed',
+        visibility: 'hidden',
+      };
+      updateSubmenuPosition(key);
+    }
   }
 };
 
@@ -836,12 +979,8 @@ function handleDelete() {
   color: #9ca3af;
 }
 
-/* 子菜单样式 */
+/* 子菜单样式 (定位通过 @floating-ui/dom 动态控制) */
 .context-submenu {
-  position: absolute;
-  top: -4px;
-  left: 100%;
-  margin-left: 2px;
   min-width: 150px;
   background: #ffffff;
   border-radius: 8px;
@@ -849,13 +988,7 @@ function handleDelete() {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.06);
   padding: 4px 0;
   z-index: 1060;
+  user-select: none;
   animation: contextMenuFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.context-submenu.flyout-left {
-  left: auto;
-  right: 100%;
-  margin-left: 0;
-  margin-right: 2px;
 }
 </style>
