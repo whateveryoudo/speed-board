@@ -147,7 +147,8 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
         }
       }
 
-      return true;
+      // 未点中卡片本体，不视为命中（避免点击空白或连线间隙时误中导图根元素）
+      return false;
     }
     return isHit(element, point);
   };
@@ -337,8 +338,11 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     } else if (
       !target?.closest?.('.speed-mind-add-handle, .speed-mind-collapse-badge, .speed-mind-collapse-btn')
     ) {
-      // 点击在思维导图卡片和手柄以外的空白处，清理当前子节点高亮
+      // 点击在思维导图卡片和手柄以外的空白处，清理当前子节点高亮并同步取消选区
       setSelectedMindNodeId(board, null);
+      clearSelectedElement(board);
+      const wrapper = (board as any).boardWrapper;
+      wrapper?.emit?.('selection:change', { selected: [] });
     }
 
     // 尝试启动子节点拖拽检测

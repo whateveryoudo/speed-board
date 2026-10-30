@@ -56,7 +56,26 @@ const props = defineProps<{
 const { isOpen, getPopupContainer } = useToolbarPopover('mindmap-branch')
 
 const selectedCell = computed(() => {
-  return (props.board?.selectedElements?.[0] || null) as any
+  const root = (props.board?.selectedElements?.[0] || null) as any
+  if (!root) return null
+  const rawBoard = (props.board as any)?.raw || props.board
+  const selectedNodeId =
+    (props.board as any)?.getSelectedMindNodeId?.() ||
+    (rawBoard as any)?.selectedMindNodeId ||
+    root.id
+
+  const findNode = (n: any, id: string): any => {
+    if (n.id === id) return n
+    if (n.children) {
+      for (const c of n.children) {
+        const found = findNode(c, id)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  return findNode(root, selectedNodeId) || root
 })
 
 const currentBranchType = computed<'curve' | 'straight'>(() => {

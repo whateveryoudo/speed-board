@@ -59,11 +59,33 @@ export function registerBoardMindmap(): void {
     if (selected.length === 0) return;
 
     const branchShape = shape === 'polyline' || shape === 'straight' ? 'polyline' : 'curve';
+    const selectedNodeId = getSelectedMindNodeId(board.raw);
+
     board.syncNodeIndices();
     selected.forEach((el) => {
+      const clonedRoot = cloneTree(el);
+      // 如果选中了具体子节点，支持针对子节点及其后代递归切换，或直接更新根节点
+      if (selectedNodeId && selectedNodeId !== clonedRoot.id) {
+        const targetNode = findNodeById(clonedRoot, selectedNodeId);
+        if (targetNode) {
+          const updateSubtree = (n: SpeedMindElement) => {
+            n.branchShape = branchShape;
+            n.children?.forEach(updateSubtree);
+          };
+          updateSubtree(targetNode);
+        }
+      } else {
+        // 选中根节点：更新整棵树所有分支的连线类型
+        const updateAll = (n: SpeedMindElement) => {
+          n.branchShape = branchShape;
+          n.children?.forEach(updateAll);
+        };
+        updateAll(clonedRoot);
+      }
+
       const path = board.getElementPath(el);
       if (path) {
-        Transforms.setNode(board.raw, { branchShape }, path);
+        Transforms.setNode(board.raw, clonedRoot, path);
       }
     });
     board.syncNodeIndices();

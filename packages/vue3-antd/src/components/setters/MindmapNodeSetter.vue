@@ -12,7 +12,7 @@
       >
         <a-select-option value="roundRectangle">矩形</a-select-option>
         <a-select-option value="capsule">胶囊</a-select-option>
-        <a-select-option value="underline">纯文本/下划线</a-select-option>
+        <a-select-option value="none">纯文本</a-select-option>
       </a-select>
     </div>
 
@@ -105,9 +105,28 @@ const fillPopoverOpen = ref(false);
 const strokePopoverOpen = ref(false);
 
 const selectedMind = computed(() => {
-  return (props.board?.selectedElements || []).find(
+  const root = (props.board?.selectedElements || []).find(
     (el: any) => el.type === 'mind' || el.isRoot
   ) as any;
+  if (!root) return null;
+  const rawBoard = (props.board as any)?.raw || props.board;
+  const selectedNodeId =
+    (props.board as any)?.getSelectedMindNodeId?.() ||
+    (rawBoard as any)?.selectedMindNodeId ||
+    root.id;
+
+  const findNode = (n: any, id: string): any => {
+    if (n.id === id) return n;
+    if (n.children) {
+      for (const c of n.children) {
+        const found = findNode(c, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  return findNode(root, selectedNodeId) || root;
 });
 
 const currentShapeStyle = computed(() => {

@@ -95,8 +95,9 @@ export function buildStraightBranchPath(
   }
   const factor = tx >= sx ? 1 : -1;
   const signY = dy > 0 ? 1 : -1;
-  const midX = sx + Math.min(24, Math.abs(tx - sx) * 0.5) * factor;
-  const r = Math.min(6, Math.abs(dy) * 0.5, Math.abs(tx - sx) * 0.5);
+  // 折点位置：取两点中间位置
+  const midX = (sx + tx) / 2;
+  const r = Math.min(4, Math.abs(dy) * 0.4, Math.abs(tx - sx) * 0.3);
 
   return [
     `M ${sx} ${sy}`,

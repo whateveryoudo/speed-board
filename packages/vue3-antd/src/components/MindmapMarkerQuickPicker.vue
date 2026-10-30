@@ -1,54 +1,56 @@
 <template>
-  <div
-    v-show="visible"
-    ref="pickerRef"
-    class="mindmap-marker-quick-picker"
-    :style="pickerStyle"
-    @pointerdown.stop
-    @mousedown.stop
-    @click.stop
-  >
-    <!-- 对应分类下的全部标记项 -->
-    <button
-      v-for="item in currentMarkersList"
-      :key="item.key"
-      class="quick-picker-item-btn"
-      :class="{ 'is-active': isItemActive(item) }"
-      :title="item.label"
-      @click="handleSelect(item)"
+  <teleport to="body">
+    <div
+      v-show="visible"
+      ref="pickerRef"
+      class="mindmap-marker-quick-picker"
+      :style="pickerStyle"
+      @pointerdown.stop
+      @mousedown.stop
+      @click.stop
     >
-      <svg class="quick-picker-marker-svg">
-        <use :xlink:href="'#' + item.symbolId" :href="'#' + item.symbolId" />
-      </svg>
-    </button>
-
-    <!-- 分隔线 -->
-    <div class="quick-picker-divider" />
-
-    <!-- 清除当前标记的垃圾桶按钮 -->
-    <button
-      class="quick-picker-delete-btn"
-      title="清除此标记"
-      @click="handleDelete"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        width="16"
-        height="16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.8"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        style="pointer-events: none;"
+      <!-- 对应分类下的全部标记项 -->
+      <button
+        v-for="item in currentMarkersList"
+        :key="item.key"
+        class="quick-picker-item-btn"
+        :class="{ 'is-active': isItemActive(item) }"
+        :title="item.label"
+        @click="handleSelect(item)"
       >
-        <polyline points="3 6 5 6 21 6" />
-        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-        <line x1="10" y1="11" x2="10" y2="17" />
-        <line x1="14" y1="11" x2="14" y2="17" />
-      </svg>
-    </button>
-  </div>
+        <svg class="quick-picker-marker-svg">
+          <use :xlink:href="'#' + item.symbolId" :href="'#' + item.symbolId" />
+        </svg>
+      </button>
+
+      <!-- 分隔线 -->
+      <div class="quick-picker-divider" />
+
+      <!-- 清除当前标记的垃圾桶按钮 -->
+      <button
+        class="quick-picker-delete-btn"
+        title="清除此标记"
+        @click="handleDelete"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          style="pointer-events: none;"
+        >
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <line x1="10" y1="11" x2="10" y2="17" />
+          <line x1="14" y1="11" x2="14" y2="17" />
+        </svg>
+      </button>
+    </div>
+  </teleport>
 </template>
 
 <script setup lang="ts">
@@ -228,7 +230,7 @@ onUnmounted(() => {
 <style scoped lang="less">
 .mindmap-marker-quick-picker {
   position: fixed;
-  z-index: 1000;
+  z-index: 1060;
   display: inline-flex;
   align-items: center;
   background-color: #ffffff;

@@ -13,7 +13,7 @@
       <div class="setting-section">
         <div class="section-title">结构布局</div>
         <a-radio-group
-          v-model:value="currentLayout"
+          :value="currentLayout"
           size="small"
           class="layout-radio-group"
           @change="onLayoutChange"
@@ -30,7 +30,7 @@
         <div class="setting-row">
           <span class="row-label">线形</span>
           <a-select
-            v-model:value="currentBranchShape"
+            :value="currentBranchShape"
             size="small"
             style="width: 130px"
             @change="onBranchShapeChange"
@@ -41,16 +41,17 @@
         </div>
       </div>
 
-      <!-- 3. 卡片形状 -->
+      <!-- 3. 卡片外形 -->
       <div class="setting-section">
         <div class="section-title">卡片外形</div>
         <a-radio-group
-          v-model:value="currentShape"
+          :value="currentShape"
           size="small"
           @change="onShapeChange"
         >
           <a-radio-button value="roundRectangle">圆角卡片</a-radio-button>
-          <a-radio-button value="underline">优雅下划线</a-radio-button>
+          <a-radio-button value="capsule">胶囊卡片</a-radio-button>
+          <a-radio-button value="none">纯文本</a-radio-button>
         </a-radio-group>
       </div>
 
@@ -88,23 +89,42 @@ const onVisibleChange = (val: boolean) => {
 };
 
 const selectedElement = computed(() => {
-  return props.board?.selectedElements?.[0] as any;
+  const root = props.board?.selectedElements?.[0] as any;
+  if (!root) return null;
+  const rawBoard = (props.board as any)?.raw || props.board;
+  const selectedNodeId =
+    (props.board as any)?.getSelectedMindNodeId?.() ||
+    (rawBoard as any)?.selectedMindNodeId ||
+    root.id;
+
+  const findNode = (n: any, id: string): any => {
+    if (n.id === id) return n;
+    if (n.children) {
+      for (const c of n.children) {
+        const found = findNode(c, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  return findNode(root, selectedNodeId) || root;
 });
 
-const currentLayout = ref('standard');
-const currentBranchShape = ref('curve');
-const currentShape = ref('roundRectangle');
+const currentLayout = computed(() => selectedElement.value?.layout || 'standard');
+const currentBranchShape = computed(() => selectedElement.value?.branchShape || 'curve');
+const currentShape = computed(() => selectedElement.value?.shape || 'roundRectangle');
 
-const onLayoutChange = () => {
-  props.board?.setMindmapLayout(currentLayout.value);
+const onLayoutChange = (e: any) => {
+  props.board?.setMindmapLayout(e.target.value);
 };
 
-const onBranchShapeChange = () => {
-  props.board?.setMindmapBranchShape(currentBranchShape.value);
+const onBranchShapeChange = (val: string) => {
+  props.board?.setMindmapBranchShape(val);
 };
 
-const onShapeChange = () => {
-  props.board?.setMindmapShape(currentShape.value);
+const onShapeChange = (e: any) => {
+  props.board?.setMindmapShape(e.target.value);
 };
 </script>
 
