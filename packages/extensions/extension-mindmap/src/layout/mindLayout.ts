@@ -101,7 +101,7 @@ export function buildStraightBranchPath(
 }
 
 /**
- * 生成概要大括号路径 (对标 X6 mindmap-summary-bracket)
+ * 生成概要方括号路径 (直角方括弧风格，对标语雀思维导图)
  */
 export function buildSummaryBracketPath(
   topY: number,
@@ -113,30 +113,49 @@ export function buildSummaryBracketPath(
 ): string {
   const midY = (topY + bottomY) / 2;
   const h = Math.abs(bottomY - topY);
-  const r = Math.min(8, Math.max(3, h / 4));
+  const r = Math.min(2, h / 4);
 
   if (isLeft) {
+    if (r <= 0) {
+      return [
+        `M ${bracketX} ${topY}`,
+        `L ${tipX} ${topY}`,
+        `L ${tipX} ${bottomY}`,
+        `L ${bracketX} ${bottomY}`,
+        `M ${tipX} ${midY}`,
+        `L ${targetPoint[0]} ${targetPoint[1]}`,
+      ].join(' ');
+    }
     return [
       `M ${bracketX} ${topY}`,
-      `Q ${bracketX - r} ${topY} ${bracketX - r} ${topY + r}`,
-      `L ${bracketX - r} ${midY - r}`,
-      `Q ${bracketX - r} ${midY} ${tipX} ${midY}`,
-      `Q ${bracketX - r} ${midY} ${bracketX - r} ${midY + r}`,
-      `L ${bracketX - r} ${bottomY - r}`,
-      `Q ${bracketX - r} ${bottomY} ${bracketX} ${bottomY}`,
+      `L ${tipX + r} ${topY}`,
+      `Q ${tipX} ${topY} ${tipX} ${topY + r}`,
+      `L ${tipX} ${bottomY - r}`,
+      `Q ${tipX} ${bottomY} ${tipX + r} ${bottomY}`,
+      `L ${bracketX} ${bottomY}`,
       `M ${tipX} ${midY}`,
       `L ${targetPoint[0]} ${targetPoint[1]}`,
     ].join(' ');
   }
 
+  // 右侧布局 (语雀直角方括弧风格)
+  if (r <= 0) {
+    return [
+      `M ${bracketX} ${topY}`,
+      `L ${tipX} ${topY}`,
+      `L ${tipX} ${bottomY}`,
+      `L ${bracketX} ${bottomY}`,
+      `M ${tipX} ${midY}`,
+      `L ${targetPoint[0]} ${targetPoint[1]}`,
+    ].join(' ');
+  }
   return [
     `M ${bracketX} ${topY}`,
-    `Q ${bracketX + r} ${topY} ${bracketX + r} ${topY + r}`,
-    `L ${bracketX + r} ${midY - r}`,
-    `Q ${bracketX + r} ${midY} ${tipX} ${midY}`,
-    `Q ${bracketX + r} ${midY} ${bracketX + r} ${midY + r}`,
-    `L ${bracketX + r} ${bottomY - r}`,
-    `Q ${bracketX + r} ${bottomY} ${bracketX} ${bottomY}`,
+    `L ${tipX - r} ${topY}`,
+    `Q ${tipX} ${topY} ${tipX} ${topY + r}`,
+    `L ${tipX} ${bottomY - r}`,
+    `Q ${tipX} ${bottomY} ${tipX - r} ${bottomY}`,
+    `L ${bracketX} ${bottomY}`,
     `M ${tipX} ${midY}`,
     `L ${targetPoint[0]} ${targetPoint[1]}`,
   ].join(' ');

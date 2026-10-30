@@ -287,7 +287,7 @@ export function addSummaryNode(
 
   const { parent } = parentInfo;
   const summaryNode = createChildNode(summaryText, {
-    branchColor: '#6366f1',
+    branchColor: '#94a3b8',
     shape: 'roundRectangle',
     isSummary: true,
     summaryFor: nodeIds,

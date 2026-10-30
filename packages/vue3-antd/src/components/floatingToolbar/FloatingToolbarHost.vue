@@ -320,10 +320,6 @@ const activeToolbarItems = computed(() => {
 
   return schema.quickToolbar.filter((item) => {
     if (currentType.value.startsWith('mindmap')) {
-      // 概要 (mindmap-summary)：支持分支主题及其子集概要
-      if (item === 'mindmap-summary') {
-        return Boolean(selectedMindNodeCanSummary.value)
-      }
       // 思维导图节点：当为纯文本 (none) 时，隐藏填充 (fill) 和描边 (stroke)
       if (item === 'fill' || item === 'stroke') {
         const style = mindmapShapeStyle.value || 'rect'

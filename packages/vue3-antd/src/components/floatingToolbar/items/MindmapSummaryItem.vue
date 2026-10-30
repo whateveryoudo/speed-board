@@ -12,12 +12,14 @@
         height="17"
         fill="none"
         stroke="currentColor"
-        stroke-width="2"
+        stroke-width="1.8"
         stroke-linecap="round"
         stroke-linejoin="round"
       >
-        <path d="M7 4h3a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2H7" />
-        <line x1="16" y1="12" x2="20" y2="12" />
+        <!-- 语雀/标准脑图方括号与概要分支图标 -->
+        <path d="M6 5h4a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 10 19H6" />
+        <line x1="11.5" y1="12" x2="16" y2="12" />
+        <rect x="16" y="9.5" width="5" height="5" rx="1" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="1.2" />
       </svg>
     </button>
   </a-tooltip>

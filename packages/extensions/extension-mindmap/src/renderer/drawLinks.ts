@@ -47,8 +47,8 @@ export function renderSummaryBracketsSvg(
     const pathEl = document.createElementNS(SVG_NS, 'path');
     pathEl.setAttribute('d', summary.bracketPath);
     pathEl.setAttribute('fill', 'none');
-    pathEl.setAttribute('stroke', summary.element.branchColor || '#6366f1');
-    pathEl.setAttribute('stroke-width', '2');
+    pathEl.setAttribute('stroke', summary.element.branchColor || '#94a3b8');
+    pathEl.setAttribute('stroke-width', '1.8');
     pathEl.setAttribute('stroke-linecap', 'round');
     pathEl.setAttribute('stroke-linejoin', 'round');
     pathEl.setAttribute('class', 'speed-mind-summary-bracket');
