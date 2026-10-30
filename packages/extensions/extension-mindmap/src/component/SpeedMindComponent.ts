@@ -47,6 +47,14 @@ export function setHoverMindNodeId(board: PlaitBoard, nodeId: string | null): vo
   MIND_HOVER_NODE_ID.set(board, nodeId);
 }
 
+export function notifyMindHandlesUpdate(board: PlaitBoard, hoverNodeId: string | null): void {
+  for (const comp of SpeedMindComponent.instances) {
+    if (comp.board === board) {
+      comp.updateHandles(hoverNodeId);
+    }
+  }
+}
+
 /**
  * 纯 SVG 自研脑图组件 (继承 Plait ElementFlavour)
  * 内置原生 TextManage + Slate 富文本渲染，与画板 Text/Shape 共享统一文本基础设施
@@ -71,12 +79,15 @@ export class SpeedMindComponent
   private nodeGMap = new Map<string, SVGGElement>();
   private textManageMap = new Map<string, TextManage>();
 
+  static instances = new Set<SpeedMindComponent>();
+
   constructor() {
     super(new PlaitCommonElementRef());
   }
 
   initialize(): void {
     super.initialize();
+    SpeedMindComponent.instances.add(this);
     const containerG = this.getElementG();
     containerG.classList.add('speed-mind-root-container');
 
@@ -212,19 +223,34 @@ export class SpeedMindComponent
     }
 
     // 6. 渲染悬浮/激活操作手柄
-    this.handlesG.innerHTML = '';
-    const activeBox =
-      (selectedNodeId && layout.nodeMap.get(selectedNodeId)) ||
-      (hoverNodeId && layout.nodeMap.get(hoverNodeId));
+    this.updateHandles();
+  }
 
-    if (activeBox) {
-      const isHovered = hoverNodeId === activeBox.id;
-      const isSelected = selectedNodeId === activeBox.id;
-      renderNodeHandlesSvg(this.handlesG, activeBox, isHovered, isSelected);
+  updateHandles(targetHoverNodeId?: string | null): void {
+    if (!this.handlesG) return;
+    const board = this.board;
+    const selectedNodeId = getSelectedMindNodeId(board);
+    const hoverNodeId =
+      targetHoverNodeId !== undefined ? targetHoverNodeId : getHoverMindNodeId(board);
+    const layout = MIND_LAYOUT_CACHE.get(this.element);
+    if (!layout) return;
+
+    // 优先显示当前鼠标悬浮的节点，无悬浮时如果本导图被选中则显示当前选中的节点
+    const activeNodeId = hoverNodeId || (this.selected ? selectedNodeId : null);
+
+    this.handlesG.innerHTML = '';
+    if (activeNodeId) {
+      const activeBox = layout.nodeMap.get(activeNodeId);
+      if (activeBox) {
+        const isHovered = hoverNodeId === activeBox.id;
+        const isSelected = selectedNodeId === activeBox.id;
+        renderNodeHandlesSvg(this.handlesG, activeBox, isHovered, isSelected);
+      }
     }
   }
 
   destroy(): void {
+    SpeedMindComponent.instances.delete(this);
     if (this.element) {
       MIND_LAYOUT_CACHE.delete(this.element);
     }

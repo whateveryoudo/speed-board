@@ -32,7 +32,9 @@ import {
   MIND_LAYOUT_CACHE,
   getSelectedMindNodeId,
   setSelectedMindNodeId,
+  getHoverMindNodeId,
   setHoverMindNodeId,
+  notifyMindHandlesUpdate,
 } from './component/SpeedMindComponent';
 import {
   editMindNodeTopic,
@@ -345,20 +347,44 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     pointerDown(event);
   };
 
-  // 5. 悬浮监听与子节点拖拽联动
+  // 5. 悬浮监听与子节点拖拽联动 (支持 hover 悬浮即显示 + 和 < 操作手柄)
   board.pointerMove = (event: PointerEvent) => {
     if (dndController.onPointerMove(event)) {
       return;
     }
 
     const target = event.target as HTMLElement | SVGElement | null;
-    const nodeEl = target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null;
+    const compPath = event.composedPath ? (event.composedPath() as Element[]) : [];
+
+    // 检查是否悬浮在操作手柄区（+、<、延伸线）
+    const isOverHandle = compPath.some(
+      (el) =>
+        el instanceof Element &&
+        (el.classList?.contains('speed-mind-handles-layer') ||
+          el.classList?.contains('speed-mind-add-handle') ||
+          el.classList?.contains('speed-mind-collapse-handle'))
+    );
+
+    // 检查是否悬浮在某个脑图节点卡片上
+    const nodeEl =
+      (compPath.find((el) => el instanceof Element && el.classList?.contains('speed-mind-node-g')) as HTMLElement | SVGElement | null) ||
+      (target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null);
+
     if (nodeEl) {
       const nodeId = nodeEl.getAttribute('data-node-id');
-      setHoverMindNodeId(board, nodeId);
-    } else {
-      setHoverMindNodeId(board, null);
+      const currentHover = getHoverMindNodeId(board);
+      if (nodeId && nodeId !== currentHover) {
+        setHoverMindNodeId(board, nodeId);
+        notifyMindHandlesUpdate(board, nodeId);
+      }
+    } else if (!isOverHandle) {
+      const currentHover = getHoverMindNodeId(board);
+      if (currentHover !== null) {
+        setHoverMindNodeId(board, null);
+        notifyMindHandlesUpdate(board, null);
+      }
     }
+
     pointerMove(event);
   };
 
