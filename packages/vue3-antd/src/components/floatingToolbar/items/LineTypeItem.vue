@@ -4,6 +4,7 @@
     trigger="click"
     placement="top"
     :arrow="false"
+    :get-popup-container="getPopupContainer"
     overlay-class-name="quick-bubble-popover plait-board-attached"
     :overlay-inner-style="{ padding: '4px', borderRadius: '8px' }"
   >
@@ -69,7 +70,7 @@ const props = defineProps<{
   board: Board | null
 }>()
 
-const { isOpen } = useToolbarPopover('line-type')
+const { isOpen, getPopupContainer } = useToolbarPopover('line-type')
 const { getLineType, setLineType } = useLineOperations(() => props.board)
 
 const currentType = computed(() => getLineType())

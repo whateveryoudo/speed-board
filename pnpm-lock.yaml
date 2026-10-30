@@ -162,6 +162,9 @@ importers:
 
   packages/vue3:
     dependencies:
+      '@floating-ui/dom':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@plait/common':
         specifier: ^0.94.1
         version: 0.94.1

@@ -13,6 +13,7 @@
     "./styles": "./src/styles/plait-board.css"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.8.0",
     "@plait/common": "^0.94.1",
     "@plait/core": "^0.94.1",
     "@plait/text-plugins": "^0.94.1",

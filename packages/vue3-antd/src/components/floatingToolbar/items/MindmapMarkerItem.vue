@@ -4,6 +4,7 @@
     trigger="click"
     placement="top"
     :arrow="false"
+    :get-popup-container="getPopupContainer"
     overlay-class-name="quick-bubble-popover plait-board-attached"
     :overlay-inner-style="{ padding: '10px 12px', borderRadius: '8px' }"
   >
@@ -99,7 +100,7 @@ const props = defineProps<{
   board: Board | null
 }>()
 
-const { isOpen } = useToolbarPopover('mindmap-marker')
+const { isOpen, getPopupContainer } = useToolbarPopover('mindmap-marker')
 
 onMounted(() => {
   ensureMarkerSprite()

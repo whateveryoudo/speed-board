@@ -4,6 +4,7 @@
     trigger="click"
     placement="top"
     :arrow="false"
+    :get-popup-container="getPopupContainer"
     overlay-class-name="quick-bubble-popover plait-board-attached"
     :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
   >
@@ -46,7 +47,7 @@ const props = defineProps<{
   board: Board | null
 }>()
 
-const { isOpen } = useToolbarPopover('mindmap-shape')
+const { isOpen, getPopupContainer } = useToolbarPopover('mindmap-shape')
 
 const SHAPE_OPTIONS: { key: MindmapShapeStyle; icon: string; label: string }[] = [
   { key: 'rect', icon: 'icon-kl-board-shape-triangle', label: '矩形' },

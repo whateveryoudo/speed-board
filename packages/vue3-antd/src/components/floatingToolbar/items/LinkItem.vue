@@ -4,6 +4,7 @@
     trigger="click"
     placement="top"
     :arrow="false"
+    :get-popup-container="getPopupContainer"
     overlay-class-name="link-bubble-popover plait-board-attached"
     :overlay-inner-style="{ padding: '12px 14px 10px', borderRadius: '10px' }"
     @open-change="onOpenChange"
@@ -102,7 +103,7 @@ const props = defineProps<{
   board: Board | null
 }>()
 
-const { isOpen } = useToolbarPopover('link')
+const { isOpen, getPopupContainer } = useToolbarPopover('link')
 const { textState, updateTextStyle } = useNodeStyle(() => props.board)
 
 const formText = ref('')

@@ -4,6 +4,7 @@
     trigger="click"
     placement="top"
     :arrow="false"
+    :get-popup-container="getPopupContainer"
     overlay-class-name="quick-bubble-popover plait-board-attached"
     :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
   >
@@ -44,7 +45,7 @@ const props = defineProps<{
   board: Board | null
 }>()
 
-const { isOpen } = useToolbarPopover('mindmap-layout')
+const { isOpen, getPopupContainer } = useToolbarPopover('mindmap-layout')
 
 const LAYOUT_OPTIONS = [
   { key: 'balanced', icon: 'icon-kl-jiegou1', label: '思维导图 (向两侧)' },

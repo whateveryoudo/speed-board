@@ -4,6 +4,7 @@
     trigger="click"
     placement="bottom"
     :arrow="false"
+    :get-popup-container="getPopupContainer"
     overlay-class-name="quick-bubble-popover arrange-bubble-popover plait-board-attached"
     :overlay-inner-style="{ padding: '8px', borderRadius: '8px' }"
   >
@@ -116,7 +117,7 @@ const props = defineProps<{
   board: Board | null
 }>()
 
-const { isOpen } = useToolbarPopover('arrange')
+const { isOpen, getPopupContainer } = useToolbarPopover('arrange')
 
 const handleAction = (action: string) => {
   if (!props.board) return

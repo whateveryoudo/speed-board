@@ -241,7 +241,11 @@ onMounted(() => {
   const host = hostRef.value;
   const viewportEl = viewportContainerRef.value;
 
-  const onPointerDown = (e: PointerEvent) => board.pointerDown(e);
+  const onPointerDown = (e: PointerEvent) => {
+    const wrapper = (board as any).boardWrapper;
+    wrapper?.emit?.('board:pointerdown', e);
+    board.pointerDown(e);
+  };
   const onPointerMove = (e: PointerEvent) => {
     BOARD_TO_MOVING_POINT_IN_BOARD.set(board, [e.x, e.y]);
     board.pointerMove(e);
@@ -293,6 +297,8 @@ onMounted(() => {
       const { scrollLeft, scrollTop } = e.target as HTMLElement;
       updateViewportByScrolling(board, scrollLeft, scrollTop);
     }
+    const wrapper = (board as any).boardWrapper;
+    wrapper?.emit?.('viewport:scroll', e);
   };
 
   const onContextMenu = (e: MouseEvent) => {
@@ -301,6 +307,9 @@ onMounted(() => {
   };
 
   const onWheel = (e: WheelEvent) => {
+    const wrapper = (board as any).boardWrapper;
+    wrapper?.emit?.('viewport:scroll', e);
+
     if (e.metaKey || e.ctrlKey) {
       e.preventDefault();
       const { deltaY } = e;

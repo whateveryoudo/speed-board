@@ -4,6 +4,7 @@
     trigger="click"
     placement="top"
     :arrow="false"
+    :get-popup-container="getPopupContainer"
     overlay-class-name="quick-bubble-popover plait-board-attached"
     :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
     @open-change="onOpenChange"
@@ -46,7 +47,7 @@ const props = defineProps<{
   board: Board | null
 }>()
 
-const { isOpen } = useToolbarPopover('line-text')
+const { isOpen, getPopupContainer } = useToolbarPopover('line-text')
 const inputValue = ref('')
 const inputRef = ref()
 

@@ -212,16 +212,39 @@ const emit = defineEmits<{
   (e: 'open-link-overlay'): void
 }>()
 
+const toolbarRef = ref<HTMLDivElement | null>(null)
 const { activePopoverKey, closePopover } = useToolbarPopoverHost()
 
 const {
   state,
   toolbarStyle,
-} = useFloatingToolbar(() => props.board)
+} = useFloatingToolbar(() => props.board, { toolbarRef })
 
 const visible = computed(() => state.value.visible)
 const currentType = computed(() => state.value.selectedType)
 const selectedCells = computed(() => (props.board?.selectedElements || []) as any[])
+
+function onBoardPointerDown(e: any) {
+  if (toolbarRef.value && e?.target && !toolbarRef.value.contains(e.target as Node)) {
+    closePopover()
+  }
+}
+
+// 滚动画布、平移、缩放、点击画布空白时，立即自动收起二级气泡（对标语雀）
+watch(
+  () => props.board,
+  (b, oldB) => {
+    if (oldB) {
+      oldB.off('viewport:scroll', closePopover)
+      oldB.off('board:pointerdown', onBoardPointerDown)
+    }
+    if (b) {
+      b.on('viewport:scroll', closePopover)
+      b.on('board:pointerdown', onBoardPointerDown)
+    }
+  },
+  { immediate: true }
+)
 
 // 当工具栏隐藏或选中节点集合真实发生变化时，关闭所有二级气泡
 watch(visible, (v) => {

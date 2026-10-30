@@ -4,6 +4,7 @@
     trigger="click"
     placement="top"
     :arrow="false"
+    :get-popup-container="getPopupContainer"
     overlay-class-name="quick-bubble-popover plait-board-attached"
     :overlay-inner-style="{ padding: '8px 10px', borderRadius: '8px' }"
   >
@@ -69,6 +70,7 @@
             trigger="click"
             placement="top"
             :arrow="false"
+            :get-popup-container="getPopupContainer"
             overlay-class-name="quick-bubble-popover plait-board-attached"
             :overlay-inner-style="{ padding: '12px 14px', borderRadius: '10px' }"
           >
@@ -91,6 +93,7 @@
             trigger="click"
             placement="top"
             :arrow="false"
+            :get-popup-container="getPopupContainer"
             overlay-class-name="quick-bubble-popover plait-board-attached"
             :overlay-inner-style="{ padding: '4px', borderRadius: '8px' }"
           >
@@ -176,6 +179,7 @@
             trigger="click"
             placement="top"
             :arrow="false"
+            :get-popup-container="getPopupContainer"
             overlay-class-name="quick-bubble-popover plait-board-attached"
             :overlay-inner-style="{ padding: '4px', borderRadius: '8px' }"
           >
@@ -247,7 +251,7 @@ const props = defineProps<{
   board: Board | null
 }>()
 
-const { isOpen } = useToolbarPopover('text')
+const { isOpen, getPopupContainer } = useToolbarPopover('text')
 const colorOpen = ref(false)
 const alignOpen = ref(false)
 const valignOpen = ref(false)

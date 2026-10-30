@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import type { Board } from '@speed-board/core';
 import { useFloatingToolbar } from '@speed-board/vue3';
 import MindmapLayoutItem from './items/MindmapLayoutItem.vue';
@@ -57,14 +57,42 @@ const emit = defineEmits<{
   (e: 'toggleSettings'): void;
 }>();
 
-useToolbarPopoverHost();
+const { closePopover } = useToolbarPopoverHost();
 
 const floatingToolbarRef = ref<HTMLDivElement | null>(null);
 
 const { visible, floatingStyle } = useFloatingToolbar({
   board: () => props.board,
   containerRef: floatingToolbarRef,
+  toolbarRef: floatingToolbarRef,
   offset: 28,
+});
+
+function onBoardPointerDown(e: any) {
+  if (floatingToolbarRef.value && e?.target && !floatingToolbarRef.value.contains(e.target as Node)) {
+    closePopover();
+  }
+}
+
+watch(
+  () => props.board,
+  (b, oldB) => {
+    if (oldB) {
+      oldB.off('viewport:scroll', closePopover);
+      oldB.off('board:pointerdown', onBoardPointerDown);
+    }
+    if (b) {
+      b.on('viewport:scroll', closePopover);
+      b.on('board:pointerdown', onBoardPointerDown);
+    }
+  },
+  { immediate: true }
+);
+
+watch(visible, (v) => {
+  if (!v) {
+    closePopover();
+  }
 });
 </script>
 

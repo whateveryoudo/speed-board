@@ -4,6 +4,7 @@
     trigger="click"
     placement="top"
     :arrow="false"
+    :get-popup-container="getPopupContainer"
     overlay-class-name="quick-bubble-popover plait-board-attached"
     :overlay-inner-style="{ padding: '12px 14px', borderRadius: '10px' }"
   >
@@ -44,7 +45,7 @@ const props = defineProps<{
   board: Board | null
 }>()
 
-const { isOpen } = useToolbarPopover('fill')
+const { isOpen, getPopupContainer } = useToolbarPopover('fill')
 const { styleState, updateStyle } = useNodeStyle(() => props.board)
 
 const currentColor = computed(() => {
