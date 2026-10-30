@@ -548,9 +548,12 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
 
         const wrapper = (newBoard as any).boardWrapper;
         const isTyping = Boolean(wrapper?.isTyping);
+        const isTextEqual =
+          updatedProps.text &&
+          JSON.stringify(updatedProps.text) === JSON.stringify(currentText);
 
-        // 仅在只读状态变化，或者只读模式下文本更新，或者非输入状态下的富文本格式变更时，重绘 DOM
-        if (readonlyChanged || isReadonly || (!isTyping && updatedProps.text)) {
+        // 仅在只读状态变化，或者文本内容真实变动时才重绘 DOM，防止无谓 innerHTML 替换导致浏览器双击(dblclick)事件丢失
+        if (readonlyChanged || (!isTextEqual && (isReadonly || (!isTyping && updatedProps.text)))) {
           renderDOM();
         }
       },

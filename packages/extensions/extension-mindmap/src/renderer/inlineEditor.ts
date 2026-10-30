@@ -62,6 +62,7 @@ export function editMindNodeTopic(board: PlaitBoard, nodeId: string): void {
   requestAnimationFrame(performSelectAll);
   setTimeout(performSelectAll, 0);
   setTimeout(performSelectAll, 40);
+  setTimeout(performSelectAll, 100);
 }
 
 export interface InlineEditorOptions {

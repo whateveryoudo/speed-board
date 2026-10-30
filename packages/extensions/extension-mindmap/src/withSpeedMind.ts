@@ -60,6 +60,9 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
   const dndController = new MindNodeDnDController(board);
 
+  let lastPointerDownTime = 0;
+  let lastPointerDownNodeId: string | null = null;
+
   // 1. 允许思维导图整树在画布上直接拖拽平移 (子节点拖拽由 dndController 接管)
   board.isMovable = (element: any): boolean => {
     if (element.type === 'mind') {
@@ -294,7 +297,9 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     let clickedNodeId: string | null = null;
     let clickedRoot: SpeedMindElement | null = null;
 
-    const nodeEl = target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null;
+    const nodeEl =
+      (compPath.find((el) => el instanceof Element && el.classList?.contains('speed-mind-node-g')) as HTMLElement | SVGElement | null) ||
+      (target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null);
     if (nodeEl) {
       clickedNodeId = nodeEl.getAttribute('data-node-id');
       if (clickedNodeId) {
@@ -307,7 +312,9 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
     // 几何兜底：防止 SVG foreignObject / 边界未匹配到 DOM class
     if (!clickedNodeId) {
-      const point = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
+      const clientX = event.clientX ?? (event as any).x;
+      const clientY = event.clientY ?? (event as any).y;
+      const point = toViewBoxPoint(board, toHostPoint(board, clientX, clientY));
       const mindElements = board.children.filter((el) => (el as any).type === 'mind') as SpeedMindElement[];
       for (const mindEl of mindElements) {
         const layout = MIND_LAYOUT_CACHE.get(mindEl) || computeMindLayout(mindEl);
@@ -328,14 +335,31 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     }
 
     if (clickedNodeId && clickedRoot) {
+      const now = Date.now();
+      const isDblClick =
+        clickedNodeId === lastPointerDownNodeId && now - lastPointerDownTime < 400;
+      lastPointerDownTime = now;
+      lastPointerDownNodeId = clickedNodeId;
+
       clearSelectedElement(board);
       addSelectedElement(board, clickedRoot);
       setSelectedMindNodeId(board, clickedNodeId);
 
       const wrapper = (board as any).boardWrapper;
       wrapper?.emit?.('selection:change', { selected: [clickedRoot] });
+
+      if (isDblClick) {
+        // 双击手势命中：立即启动就地编辑并全选文本
+        editMindNodeTopic(board, clickedNodeId);
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
       (board as any).apply({ type: 'set_selection' } as any);
     } else {
+      lastPointerDownNodeId = null;
+      lastPointerDownTime = 0;
       const isUIElement = Boolean(
         target?.closest?.(
           '.speed-floating-toolbar, .floating-bubble-toolbar, .speed-mindmap-settings-drawer, .speed-board-settings-panel, .style-settings-panel, .ant-drawer, .ant-popover, .ant-select-dropdown, .plait-board-attached, .speed-mind-add-handle, .speed-mind-collapse-badge, .speed-mind-collapse-btn, .mindmap-marker-quick-picker, .speed-mind-marker-item'
@@ -412,7 +436,9 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       return;
     }
 
-    const point = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
+    const clientX = event.clientX ?? (event as any).x;
+    const clientY = event.clientY ?? (event as any).y;
+    const point = toViewBoxPoint(board, toHostPoint(board, clientX, clientY));
     const mindElements = board.children.filter((el) => (el as any).type === 'mind') as SpeedMindElement[];
 
     for (const mindEl of mindElements) {
@@ -438,9 +464,12 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       }
     }
 
-    // 兜底：DOM target closest 判定
+    // 兜底：DOM target closest / composedPath 判定
+    const compPath = event.composedPath ? (event.composedPath() as Element[]) : [];
     const target = event.target as HTMLElement | SVGElement | null;
-    const nodeEl = target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null;
+    const nodeEl =
+      (compPath.find((el) => el instanceof Element && el.classList?.contains('speed-mind-node-g')) as HTMLElement | SVGElement | null) ||
+      (target?.closest?.('.speed-mind-node-g') as HTMLElement | SVGElement | null);
     if (nodeEl) {
       const nodeId = nodeEl.getAttribute('data-node-id');
       if (nodeId) {

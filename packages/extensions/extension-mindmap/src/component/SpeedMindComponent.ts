@@ -6,8 +6,10 @@ import {
 import {
   createG,
   Transforms,
+  PlaitBoard,
+  clearSelectedElement,
+  addSelectedElement,
   type OnContextChanged,
-  type PlaitBoard,
   type PlaitPluginElementContext,
 } from '@plait/core';
 import type { NodeLayoutBox, SpeedMindElement } from '../types';
@@ -20,7 +22,7 @@ import {
   getNodeTopicData,
 } from '../renderer/drawNode';
 import { renderNodeHandlesSvg } from '../renderer/drawHandles';
-import { MIND_NODE_TEXT_MANAGES } from '../renderer/inlineEditor';
+import { MIND_NODE_TEXT_MANAGES, editMindNodeTopic } from '../renderer/inlineEditor';
 import { findMindRootAndPath, setNodeTopic } from '../model/treeOps';
 
 export const MIND_LAYOUT_CACHE = new WeakMap<SpeedMindElement, ReturnType<typeof computeMindLayout>>();
@@ -78,6 +80,7 @@ export class SpeedMindComponent
 
   private nodeGMap = new Map<string, SVGGElement>();
   private textManageMap = new Map<string, TextManage>();
+  private lastTopicTextMap = new Map<string, string>();
 
   static instances = new Set<SpeedMindComponent>();
 
@@ -166,6 +169,20 @@ export class SpeedMindComponent
         nodeG.setAttribute('data-node-id', box.id);
         nodeG.style.cursor = 'pointer';
 
+        // 绑定节点卡片的原生双击就地编辑事件，直接捕获事件不丢帧
+        const handleNodeDblClick = (e: MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (PlaitBoard.isReadonly(board)) return;
+          clearSelectedElement(board);
+          addSelectedElement(board, this.element);
+          setSelectedMindNodeId(board, box.id);
+          const wrapper = (board as any).boardWrapper;
+          wrapper?.emit?.('selection:change', { selected: [this.element] });
+          editMindNodeTopic(board, box.id);
+        };
+        nodeG.addEventListener('dblclick', handleNodeDblClick);
+
         renderNodeCardShape(nodeG, box, isSelected);
 
         textManage = new TextManage(board, {
@@ -190,7 +207,9 @@ export class SpeedMindComponent
         });
 
         const isRoot = Boolean(box.element.isRoot || box.depth === 0);
-        textManage.draw(getNodeTopicData(box.element, isRoot));
+        const topicData = getNodeTopicData(box.element, isRoot);
+        this.lastTopicTextMap.set(box.id, JSON.stringify(topicData));
+        textManage.draw(topicData);
 
         this.textManageMap.set(box.id, textManage);
         this.nodeGMap.set(box.id, nodeG);
@@ -208,7 +227,12 @@ export class SpeedMindComponent
         updateNodeCardShape(nodeG, box, isSelected);
         if (!textManage.isEditing) {
           const isRoot = Boolean(box.element.isRoot || box.depth === 0);
-          textManage.updateText(getNodeTopicData(box.element, isRoot));
+          const topicData = getNodeTopicData(box.element, isRoot);
+          const serialized = JSON.stringify(topicData);
+          if (this.lastTopicTextMap.get(box.id) !== serialized) {
+            this.lastTopicTextMap.set(box.id, serialized);
+            textManage.updateText(topicData);
+          }
         }
         textManage.updateRectangle();
 
@@ -277,6 +301,7 @@ export class SpeedMindComponent
     }
     this.textManageMap.clear();
     this.nodeGMap.clear();
+    this.lastTopicTextMap.clear();
     MIND_NODE_TEXT_MANAGES.delete(this.board);
 
     this.linksG?.remove();
