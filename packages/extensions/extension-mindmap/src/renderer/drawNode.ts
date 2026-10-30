@@ -139,6 +139,34 @@ export function renderNodeMarkersSvg(
     use.setAttribute('pointer-events', 'none');
     use.style.pointerEvents = 'none';
     iconG.appendChild(use);
+
+    // 关键修复：SVG <use> 设置 pointer-events:none 后，由于 <svg> 自身无背景矩形会导致点击穿透到节点卡片底层。
+    // 添加透明 hitRect 保证点击范围 100% 精准拦截，避免事件穿透
+    const hitRect = document.createElementNS(SVG_NS, 'rect');
+    hitRect.setAttribute('x', '0');
+    hitRect.setAttribute('y', '0');
+    hitRect.setAttribute('width', '22');
+    hitRect.setAttribute('height', '22');
+    hitRect.setAttribute('fill', 'transparent');
+    hitRect.setAttribute('pointer-events', 'all');
+    hitRect.style.cursor = 'pointer';
+    iconG.appendChild(hitRect);
+
+    // 直接在 iconG 元素上绑定原生事件，确保事件百分之百可靠触发快捷同类标记弹出框
+    const triggerMarkerEvent = (e: Event) => {
+      e.stopPropagation();
+      const board = (window as any).__board__;
+      const emitter = board?.boardWrapper || board;
+      emitter?.emit?.('mindmap:marker:click', {
+        nodeId: box.id,
+        category: item.category,
+        value: item.value,
+        targetEl: iconG,
+      });
+    };
+    iconG.addEventListener('pointerdown', triggerMarkerEvent);
+    iconG.addEventListener('click', triggerMarkerEvent);
+
     markersG.appendChild(iconG);
   });
 

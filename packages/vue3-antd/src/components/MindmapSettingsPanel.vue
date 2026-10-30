@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { Board } from '@speed-board/core';
 
 defineOptions({
@@ -87,6 +87,10 @@ const emit = defineEmits<{
 const onVisibleChange = (val: boolean) => {
   emit('update:visible', val);
 };
+
+const localLayout = ref<string | null>(null);
+const localBranchShape = ref<string | null>(null);
+const localShape = ref<string | null>(null);
 
 const selectedElement = computed(() => {
   const root = props.board?.selectedElements?.[0] as any;
@@ -111,19 +115,31 @@ const selectedElement = computed(() => {
   return findNode(root, selectedNodeId) || root;
 });
 
-const currentLayout = computed(() => selectedElement.value?.layout || 'standard');
-const currentBranchShape = computed(() => selectedElement.value?.branchShape || 'curve');
-const currentShape = computed(() => selectedElement.value?.shape || 'roundRectangle');
+watch(
+  () => selectedElement.value?.id,
+  () => {
+    localLayout.value = null;
+    localBranchShape.value = null;
+    localShape.value = null;
+  }
+);
+
+const currentLayout = computed(() => localLayout.value || selectedElement.value?.layout || 'standard');
+const currentBranchShape = computed(() => localBranchShape.value || selectedElement.value?.branchShape || 'curve');
+const currentShape = computed(() => localShape.value || selectedElement.value?.shape || 'roundRectangle');
 
 const onLayoutChange = (e: any) => {
+  localLayout.value = e.target.value;
   props.board?.setMindmapLayout(e.target.value);
 };
 
 const onBranchShapeChange = (val: string) => {
+  localBranchShape.value = val;
   props.board?.setMindmapBranchShape(val);
 };
 
 const onShapeChange = (e: any) => {
+  localShape.value = e.target.value;
   props.board?.setMindmapShape(e.target.value);
 };
 </script>

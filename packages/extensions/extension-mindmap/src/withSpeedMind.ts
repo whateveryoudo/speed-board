@@ -335,14 +335,19 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       const wrapper = (board as any).boardWrapper;
       wrapper?.emit?.('selection:change', { selected: [clickedRoot] });
       (board as any).apply({ type: 'set_selection' } as any);
-    } else if (
-      !target?.closest?.('.speed-mind-add-handle, .speed-mind-collapse-badge, .speed-mind-collapse-btn')
-    ) {
-      // 点击在思维导图卡片和手柄以外的空白处，清理当前子节点高亮并同步取消选区
-      setSelectedMindNodeId(board, null);
-      clearSelectedElement(board);
-      const wrapper = (board as any).boardWrapper;
-      wrapper?.emit?.('selection:change', { selected: [] });
+    } else {
+      const isUIElement = Boolean(
+        target?.closest?.(
+          '.speed-floating-toolbar, .floating-bubble-toolbar, .speed-mindmap-settings-drawer, .speed-board-settings-panel, .style-settings-panel, .ant-drawer, .ant-popover, .ant-select-dropdown, .plait-board-attached, .speed-mind-add-handle, .speed-mind-collapse-badge, .speed-mind-collapse-btn, .mindmap-marker-quick-picker, .speed-mind-marker-item'
+        )
+      );
+      if (!isUIElement) {
+        // 仅在真实点击画布空白背景时清理当前选中态
+        setSelectedMindNodeId(board, null);
+        clearSelectedElement(board);
+        const wrapper = (board as any).boardWrapper;
+        wrapper?.emit?.('selection:change', { selected: [] });
+      }
     }
 
     // 尝试启动子节点拖拽检测

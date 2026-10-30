@@ -26,7 +26,7 @@
       <div class="toolbar-divider" />
 
       <!-- 6. 展开深度样式面板 -->
-      <OpenPanelItem :board="props.board" @open="emit('openPanel')" />
+      <OpenPanelItem :board="props.board" @open="emit('openPanel')" @click="emit('openPanel')" />
     </div>
   </div>
 </template>

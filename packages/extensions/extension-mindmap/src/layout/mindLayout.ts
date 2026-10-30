@@ -85,28 +85,19 @@ export function buildBezierBranchPath(
  */
 export function buildStraightBranchPath(
   source: [number, number],
-  target: [number, number]
+  target: [number, number],
+  trunkX?: number
 ): string {
   const [sx, sy] = source;
   const [tx, ty] = target;
   const dy = ty - sy;
-  if (Math.abs(dy) < 4) {
+  if (Math.abs(dy) < 2) {
     return `M ${sx} ${sy} L ${tx} ${ty}`;
   }
-  const factor = tx >= sx ? 1 : -1;
-  const signY = dy > 0 ? 1 : -1;
-  // 折点位置：取两点中间位置
-  const midX = (sx + tx) / 2;
-  const r = Math.min(4, Math.abs(dy) * 0.4, Math.abs(tx - sx) * 0.3);
+  // 折点位置：支持指定同级共享干线 trunkX，保证所有子分支在同一直线上直角转折 (对标主流思维导图直角结构)
+  const midX = trunkX !== undefined ? trunkX : (sx + tx) / 2;
 
-  return [
-    `M ${sx} ${sy}`,
-    `L ${midX - r * factor} ${sy}`,
-    `Q ${midX} ${sy} ${midX} ${sy + r * signY}`,
-    `L ${midX} ${ty - r * signY}`,
-    `Q ${midX} ${ty} ${midX + r * factor} ${ty}`,
-    `L ${tx} ${ty}`,
-  ].join(' ');
+  return `M ${sx} ${sy} L ${midX} ${sy} L ${midX} ${ty} L ${tx} ${ty}`;
 }
 
 /**
@@ -250,6 +241,25 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
     // 如果节点被折叠，不为其子节点生成连线
     if (box.element.isCollapsed) return;
 
+    // 分离出同侧常规子节点，计算共享垂直干线 trunkX
+    const regularChildren = box.children.filter(
+      (c) => !(c.element.data?.isSummary && c.element.data?.summaryFor)
+    );
+    const rightChildren = regularChildren.filter((c) => !c.left);
+    const leftChildren = regularChildren.filter((c) => c.left);
+
+    let rightTrunkX: number | undefined;
+    if (rightChildren.length > 0) {
+      const minChildX = Math.min(...rightChildren.map((c) => c.x));
+      rightTrunkX = (box.x + box.width + minChildX) / 2;
+    }
+
+    let leftTrunkX: number | undefined;
+    if (leftChildren.length > 0) {
+      const maxChildX = Math.max(...leftChildren.map((c) => c.x + c.width));
+      leftTrunkX = (box.x + maxChildX) / 2;
+    }
+
     box.children.forEach((childBox) => {
       // 区分概要节点
       if (childBox.element.data?.isSummary && childBox.element.data?.summaryFor) {
@@ -309,6 +319,8 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
         'curve';
       const branchShape = (rawShape === 'polyline' || rawShape === 'straight' ? 'polyline' : 'curve') as 'curve' | 'polyline';
 
+      const trunkX = isLeft ? leftTrunkX : rightTrunkX;
+
       links.push({
         from,
         to,
@@ -317,6 +329,7 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
         shape: branchShape,
         sourceBox: box,
         targetBox: childBox,
+        trunkX,
       });
     });
   });

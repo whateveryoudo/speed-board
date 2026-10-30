@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
 import type { Board } from '@speed-board/core'
@@ -54,6 +54,7 @@ const props = defineProps<{
 }>()
 
 const { isOpen, getPopupContainer } = useToolbarPopover('mindmap-branch')
+const localBranchType = ref<'curve' | 'straight' | null>(null)
 
 const selectedCell = computed(() => {
   const root = (props.board?.selectedElements?.[0] || null) as any
@@ -78,7 +79,15 @@ const selectedCell = computed(() => {
   return findNode(root, selectedNodeId) || root
 })
 
+watch(
+  () => selectedCell.value?.id,
+  () => {
+    localBranchType.value = null
+  }
+)
+
 const currentBranchType = computed<'curve' | 'straight'>(() => {
+  if (localBranchType.value) return localBranchType.value
   if (!selectedCell.value || !props.board) return 'curve'
   const cell = selectedCell.value
   const shape = cell.branchShape || cell.data?.branch?.type || cell.branchType
@@ -93,6 +102,7 @@ const currentBranchIcon = computed(() => {
 })
 
 const selectBranchType = (type: 'curve' | 'straight') => {
+  localBranchType.value = type
   if (!props.board) return
   const branchShape = type === 'straight' ? 'polyline' : 'curve'
   if (typeof (props.board as any).setMindmapBranchShape === 'function') {

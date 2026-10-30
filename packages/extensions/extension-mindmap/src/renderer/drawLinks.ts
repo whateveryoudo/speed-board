@@ -17,15 +17,15 @@ export function renderBranchLinksSvg(
     const pathEl = document.createElementNS(SVG_NS, 'path');
     const pathD =
       link.shape === 'polyline'
-        ? buildStraightBranchPath(link.from, link.to)
+        ? buildStraightBranchPath(link.from, link.to, link.trunkX)
         : buildBezierBranchPath(link.from, link.to);
 
     pathEl.setAttribute('d', pathD);
     pathEl.setAttribute('fill', 'none');
     pathEl.setAttribute('stroke', link.color);
     pathEl.setAttribute('stroke-width', String(link.width));
-    pathEl.setAttribute('stroke-linecap', 'round');
-    pathEl.setAttribute('stroke-linejoin', 'round');
+    pathEl.setAttribute('stroke-linecap', link.shape === 'polyline' ? 'square' : 'round');
+    pathEl.setAttribute('stroke-linejoin', link.shape === 'polyline' ? 'miter' : 'round');
     pathEl.setAttribute('class', 'speed-mind-branch-link');
     pathEl.style.pointerEvents = 'none';
 

@@ -12,9 +12,11 @@ import { Tooltip as ATooltip } from 'ant-design-vue'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
 const emit = defineEmits<{
   (e: 'click'): void
+  (e: 'open'): void
 }>()
 
 const onClick = () => {
   emit('click')
+  emit('open')
 }
 </script>

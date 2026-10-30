@@ -85,6 +85,7 @@ export interface BranchLinkInfo {
   shape: 'curve' | 'polyline';
   sourceBox: NodeLayoutBox;
   targetBox: NodeLayoutBox;
+  trunkX?: number;
 }
 
 export interface SummaryLayoutInfo {

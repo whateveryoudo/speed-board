@@ -87,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import {
   Select as ASelect,
   SelectOption as ASelectOption,
@@ -103,6 +103,7 @@ const props = defineProps<{
 
 const fillPopoverOpen = ref(false);
 const strokePopoverOpen = ref(false);
+const localShape = ref<string | null>(null);
 
 const selectedMind = computed(() => {
   const root = (props.board?.selectedElements || []).find(
@@ -129,7 +130,15 @@ const selectedMind = computed(() => {
   return findNode(root, selectedNodeId) || root;
 });
 
+watch(
+  () => selectedMind.value?.id,
+  () => {
+    localShape.value = null;
+  }
+);
+
 const currentShapeStyle = computed(() => {
+  if (localShape.value) return localShape.value;
   return selectedMind.value?.shape || 'roundRectangle';
 });
 
@@ -162,6 +171,7 @@ const strokePreviewStyle = computed<Record<string, string>>(() => {
 });
 
 const onShapeStyleChange = (shape: string) => {
+  localShape.value = shape;
   if (!props.board) return;
   props.board.setMindmapShape(shape);
 };

@@ -46,6 +46,13 @@ export function registerBoardMindmap(): void {
       const path = board.getElementPath(el);
       if (path) {
         Transforms.setNode(board.raw, { layout }, path);
+        board.syncNodeIndices();
+        const updatedRoot = board.raw.children[path[0]] as SpeedMindElement;
+        if (updatedRoot) {
+          clearSelectedElement(board.raw);
+          addSelectedElement(board.raw, updatedRoot);
+          board.emit('selection:change', { selected: [updatedRoot] });
+        }
       }
     });
     board.syncNodeIndices();
@@ -64,6 +71,9 @@ export function registerBoardMindmap(): void {
     board.syncNodeIndices();
     selected.forEach((el) => {
       const clonedRoot = cloneTree(el);
+      // 同时设置根节点自身的 branchShape，保证根节点状态与整树默认值一致
+      clonedRoot.branchShape = branchShape;
+
       // 如果选中了具体子节点，支持针对子节点及其后代递归切换，或直接更新根节点
       if (selectedNodeId && selectedNodeId !== clonedRoot.id) {
         const targetNode = findNodeById(clonedRoot, selectedNodeId);
@@ -86,6 +96,16 @@ export function registerBoardMindmap(): void {
       const path = board.getElementPath(el);
       if (path) {
         Transforms.setNode(board.raw, clonedRoot, path);
+        board.syncNodeIndices();
+        const updatedRoot = board.raw.children[path[0]] as SpeedMindElement;
+        if (updatedRoot) {
+          clearSelectedElement(board.raw);
+          addSelectedElement(board.raw, updatedRoot);
+          if (selectedNodeId) {
+            setSelectedMindNodeId(board.raw, selectedNodeId);
+          }
+          board.emit('selection:change', { selected: [updatedRoot] });
+        }
       }
     });
     board.syncNodeIndices();
@@ -125,6 +145,15 @@ export function registerBoardMindmap(): void {
     if (path) {
       Transforms.setNode(board.raw, clonedRoot, path);
       board.syncNodeIndices();
+      const updatedRoot = board.raw.children[path[0]] as SpeedMindElement;
+      if (updatedRoot) {
+        clearSelectedElement(board.raw);
+        addSelectedElement(board.raw, updatedRoot);
+        if (selectedNodeId) {
+          setSelectedMindNodeId(board.raw, selectedNodeId);
+        }
+        board.emit('selection:change', { selected: [updatedRoot] });
+      }
       board.emit('change', {});
     }
   };
@@ -153,6 +182,15 @@ export function registerBoardMindmap(): void {
     if (path) {
       Transforms.setNode(board.raw, clonedRoot, path);
       board.syncNodeIndices();
+      const updatedRoot = board.raw.children[path[0]] as SpeedMindElement;
+      if (updatedRoot) {
+        clearSelectedElement(board.raw);
+        addSelectedElement(board.raw, updatedRoot);
+        if (selectedNodeId) {
+          setSelectedMindNodeId(board.raw, selectedNodeId);
+        }
+        board.emit('selection:change', { selected: [updatedRoot] });
+      }
       board.emit('change', {});
     }
   };
@@ -181,6 +219,15 @@ export function registerBoardMindmap(): void {
     if (path) {
       Transforms.setNode(board.raw, clonedRoot, path);
       board.syncNodeIndices();
+      const updatedRoot = board.raw.children[path[0]] as SpeedMindElement;
+      if (updatedRoot) {
+        clearSelectedElement(board.raw);
+        addSelectedElement(board.raw, updatedRoot);
+        if (selectedNodeId) {
+          setSelectedMindNodeId(board.raw, selectedNodeId);
+        }
+        board.emit('selection:change', { selected: [updatedRoot] });
+      }
       board.emit('change', {});
     }
   };
@@ -209,8 +256,14 @@ export function registerBoardMindmap(): void {
       const path = board.getElementPath(root);
       if (path) {
         Transforms.setNode(board.raw, { children: res.clonedRoot.children }, path);
-        setSelectedMindNodeId(board.raw, res.summaryNode.id);
         board.syncNodeIndices();
+        const updatedRoot = board.raw.children[path[0]] as SpeedMindElement;
+        if (updatedRoot) {
+          clearSelectedElement(board.raw);
+          addSelectedElement(board.raw, updatedRoot);
+          setSelectedMindNodeId(board.raw, res.summaryNode.id);
+          board.emit('selection:change', { selected: [updatedRoot] });
+        }
         board.emit('change', {});
       }
     }
@@ -269,6 +322,15 @@ export function registerBoardMindmap(): void {
         path
       );
       board.syncNodeIndices();
+      const updatedRoot = board.raw.children[path[0]] as SpeedMindElement;
+      if (updatedRoot) {
+        clearSelectedElement(board.raw);
+        addSelectedElement(board.raw, updatedRoot);
+        if (selectedNodeId) {
+          setSelectedMindNodeId(board.raw, selectedNodeId);
+        }
+        board.emit('selection:change', { selected: [updatedRoot] });
+      }
       board.emit('change', {});
     }
   };

@@ -196,6 +196,13 @@ export class SpeedMindComponent
         this.nodeGMap.set(box.id, nodeG);
 
         nodeG.appendChild(textManage.g);
+
+        // 确保 markers 图层永远置顶于 textManage 之上，保障点击事件不被文本区域遮挡
+        const existingMarkers = nodeG.querySelector('.speed-mind-node-markers');
+        if (existingMarkers) {
+          nodeG.appendChild(existingMarkers);
+        }
+
         this.nodesG!.appendChild(nodeG);
       } else {
         updateNodeCardShape(nodeG, box, isSelected);
@@ -204,6 +211,12 @@ export class SpeedMindComponent
           textManage.updateText(getNodeTopicData(box.element, isRoot));
         }
         textManage.updateRectangle();
+
+        // 确保 markers 图层永远置顶于 textManage 之上
+        const existingMarkers = nodeG.querySelector('.speed-mind-node-markers');
+        if (existingMarkers) {
+          nodeG.appendChild(existingMarkers);
+        }
 
         if (nodeG.parentElement !== this.nodesG) {
           this.nodesG!.appendChild(nodeG);
