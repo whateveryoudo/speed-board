@@ -85,6 +85,38 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     return drawElement(context);
   };
 
+  // 外部通用几何探测协议 (供白板自由连线等扩展无硬依赖调用)
+  (board as any).getMindHitNode = (
+    point: Point,
+    buffer = 15
+  ): { root: SpeedMindElement; box: NodeLayoutBox } | null => {
+    const mindElements = board.children.filter((el) => (el as any).type === 'mind') as SpeedMindElement[];
+    for (const mindEl of mindElements) {
+      const layout = MIND_LAYOUT_CACHE.get(mindEl) || computeMindLayout(mindEl);
+      for (const box of layout.nodeMap.values()) {
+        if (
+          point[0] >= box.x - buffer &&
+          point[0] <= box.x + box.width + buffer &&
+          point[1] >= box.y - buffer &&
+          point[1] <= box.y + box.height + buffer
+        ) {
+          return { root: mindEl, box };
+        }
+      }
+    }
+    return null;
+  };
+
+  (board as any).getMindNodeBox = (
+    rootId: string,
+    nodeId: string
+  ): NodeLayoutBox | null => {
+    const root = board.children.find((el: any) => el.id === rootId && el.type === 'mind') as SpeedMindElement | undefined;
+    if (!root) return null;
+    const layout = MIND_LAYOUT_CACHE.get(root) || computeMindLayout(root);
+    return layout.nodeMap.get(nodeId) || null;
+  };
+
   // 辅助函数：根据 nodeId 定位其所属的脑图根元素及索引 Path
   const findMindRootAndPath = (
     nodeId: string
