@@ -158,7 +158,7 @@ export const groupSchema: NodeSchema = {
   },
 }
 
-/** 8. 思维导图中心主题根节点 (Mindmap Root) —— 支持结构布局，当有子分支时支持概要 */
+/** 8. 思维导图中心主题根节点 (Mindmap Root) —— 支持结构布局，中心主题无需概要 */
 export const mindmapRootSchema: NodeSchema = {
   type: 'mindmap-root',
   label: '思维导图 (中心主题)',
@@ -167,7 +167,6 @@ export const mindmapRootSchema: NodeSchema = {
     'mindmap-branch',
     'mindmap-shape',
     'mindmap-marker',
-    'mindmap-summary',
     'fill',
     'stroke',
     'text',

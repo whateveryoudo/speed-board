@@ -275,45 +275,6 @@ const mindmapShapeStyle = useCellAttributes<string>(
   'rect'
 )
 
-const selectedMindNodeCanSummary = computed(() => {
-  if (!props.board) return false
-  const selectedElements = (props.board.selectedElements || []) as any[]
-  const mindElement = selectedElements.find((el) => el.type === 'mind')
-  if (!mindElement) return false
-
-  const rawBoard = (props.board as any).raw || props.board
-  const selectedNodeId =
-    (props.board as any).getSelectedMindNodeId?.() ||
-    (rawBoard as any).selectedMindNodeId ||
-    (rawBoard as any).__selectedMindNodeId ||
-    mindElement.data?.selectedMindNodeId ||
-    mindElement.id
-
-  const findNode = (node: any, id: string): any => {
-    if (node.id === id) return node
-    if (node.children) {
-      for (const c of node.children) {
-        const res = findNode(c, id)
-        if (res) return res
-      }
-    }
-    return null
-  }
-
-  const targetNode = findNode(mindElement, selectedNodeId)
-  if (!targetNode) return false
-  if (targetNode.isSummary || targetNode.data?.isSummary) return false
-
-  const isRoot = Boolean(targetNode.isRoot || targetNode.id === mindElement.id)
-  const hasChildren = Boolean(
-    targetNode.children &&
-    targetNode.children.some((c: any) => !c.data?.isSummary && !c.isSummary)
-  )
-
-  // 根节点仅在拥有子节点时允许添加子集概要；常规分支节点与叶子节点均可添加概要
-  return hasChildren || !isRoot
-})
-
 const activeToolbarItems = computed(() => {
   const schema = activeSchema.value
   if (!schema?.quickToolbar) return []

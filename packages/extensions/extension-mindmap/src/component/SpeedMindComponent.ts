@@ -9,6 +9,7 @@ import {
   PlaitBoard,
   clearSelectedElement,
   addSelectedElement,
+  getSelectedElements,
   type OnContextChanged,
   type PlaitPluginElementContext,
 } from '@plait/core';
@@ -167,10 +168,18 @@ export class SpeedMindComponent
     const selectedNodeId = getSelectedMindNodeId(board);
     const hoverNodeId = getHoverMindNodeId(board);
 
+    // 强韧化导图选中态判定：在拖拽过程中 Transforms.setNode 可能会产生新对象引用，通过多维校验确保拖拽平移期间选中态不丢失
+    const currentSelected = getSelectedElements(board);
+    const isMindSelected = Boolean(
+      this.selected ||
+      currentSelected.some((el: any) => el === element || el.id === element.id) ||
+      (selectedNodeId && layout.nodeMap.has(selectedNodeId))
+    );
+
     layout.nodeMap.forEach((box: NodeLayoutBox) => {
-      const isSelected =
-        this.selected &&
-        (selectedNodeId === box.id || (!selectedNodeId && box.id === element.id));
+      const isSelected: boolean =
+        isMindSelected &&
+        Boolean(selectedNodeId === box.id || (!selectedNodeId && (box.id === element.id || box.element?.isRoot)));
 
       let nodeG = this.nodeGMap.get(box.id);
       let textManage = this.textManageMap.get(box.id);
@@ -292,15 +301,25 @@ export class SpeedMindComponent
     const layout = MIND_LAYOUT_CACHE.get(this.element);
     if (!layout) return;
 
+    // 强韧化导图选中态判定
+    const currentSelected = getSelectedElements(board);
+    const isMindSelected = Boolean(
+      this.selected ||
+      currentSelected.some((el: any) => el === this.element || el.id === this.element.id) ||
+      (selectedNodeId && layout.nodeMap.has(selectedNodeId))
+    );
+
     // 优先显示当前鼠标悬浮的节点，无悬浮时如果本导图被选中则显示当前选中的节点
-    const activeNodeId = hoverNodeId || (this.selected ? selectedNodeId : null);
+    const activeNodeId = hoverNodeId || (isMindSelected ? selectedNodeId : null);
 
     this.handlesG.innerHTML = '';
     if (activeNodeId) {
       const activeBox = layout.nodeMap.get(activeNodeId);
       if (activeBox) {
         const isHovered = hoverNodeId === activeBox.id;
-        const isSelected = selectedNodeId === activeBox.id;
+        const isSelected: boolean =
+          isMindSelected &&
+          Boolean(selectedNodeId === activeBox.id || (!selectedNodeId && (activeBox.id === this.element.id || activeBox.element?.isRoot)));
         renderNodeHandlesSvg(this.handlesG, activeBox, isHovered, isSelected);
       }
     }

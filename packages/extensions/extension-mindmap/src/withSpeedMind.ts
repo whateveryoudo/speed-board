@@ -48,6 +48,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     drawElement,
     pointerDown,
     pointerMove,
+    pointerUp,
     globalPointerUp,
     dblClick,
     keyDown,
@@ -62,6 +63,8 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
   let lastPointerDownTime = 0;
   let lastPointerDownNodeId: string | null = null;
+  let activePointerDownRootId: string | null = null;
+  let activePointerDownNodeId: string | null = null;
 
   // 1. 允许思维导图整树在画布上直接拖拽平移 (子节点拖拽由 dndController 接管)
   board.isMovable = (element: any): boolean => {
@@ -335,6 +338,8 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     }
 
     if (clickedNodeId && clickedRoot) {
+      activePointerDownRootId = clickedRoot.id;
+      activePointerDownNodeId = clickedNodeId;
       const now = Date.now();
       const isDblClick =
         clickedNodeId === lastPointerDownNodeId && now - lastPointerDownTime < 400;
@@ -358,6 +363,8 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
       (board as any).apply({ type: 'set_selection' } as any);
     } else {
+      activePointerDownRootId = null;
+      activePointerDownNodeId = null;
       lastPointerDownNodeId = null;
       lastPointerDownTime = 0;
       const isUIElement = Boolean(
@@ -453,12 +460,43 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     pointerMove(event);
   };
 
-  // 5.1 全局抬起：子节点拖拽释放判定
+  // 5.1 释放判定：确保整树拖拽后选中状态不丢失
+  board.pointerUp = (event: PointerEvent) => {
+    const isMoving = PlaitBoard.getBoardContainer(board).classList.contains('element-moving');
+    pointerUp(event);
+
+    if (isMoving && activePointerDownRootId) {
+      const freshRoot = board.children.find((c: any) => c.id === activePointerDownRootId) as SpeedMindElement | undefined;
+      if (freshRoot) {
+        clearSelectedElement(board);
+        addSelectedElement(board, freshRoot);
+        setSelectedMindNodeId(board, activePointerDownNodeId || freshRoot.id);
+        const wrapper = (board as any).boardWrapper;
+        wrapper?.emit?.('selection:change', { selected: [freshRoot] });
+      }
+    }
+  };
+
+  // 5.2 全局抬起：子节点拖拽释放判定与整树拖拽完成兜底
   board.globalPointerUp = (event: PointerEvent) => {
+    const isMoving = PlaitBoard.getBoardContainer(board).classList.contains('element-moving');
     if (dndController.onGlobalPointerUp(event)) {
       return;
     }
     globalPointerUp(event);
+
+    if (isMoving && activePointerDownRootId) {
+      const freshRoot = board.children.find((c: any) => c.id === activePointerDownRootId) as SpeedMindElement | undefined;
+      if (freshRoot) {
+        clearSelectedElement(board);
+        addSelectedElement(board, freshRoot);
+        setSelectedMindNodeId(board, activePointerDownNodeId || freshRoot.id);
+        const wrapper = (board as any).boardWrapper;
+        wrapper?.emit?.('selection:change', { selected: [freshRoot] });
+      }
+    }
+    activePointerDownRootId = null;
+    activePointerDownNodeId = null;
   };
 
   // 6. 双击节点启动就地编辑 (优先坐标几何碰撞判定，对齐画板文本节点处理逻辑)

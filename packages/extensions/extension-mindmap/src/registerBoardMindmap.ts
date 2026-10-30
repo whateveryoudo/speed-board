@@ -253,6 +253,8 @@ export function registerBoardMindmap(): void {
     const targetNode = findNodeById(root, selectedNodeId);
     if (!targetNode) return;
     if (targetNode.isSummary || targetNode.data?.isSummary) return;
+    // 根节点 (中心主题) 无需概要，仅常规分支主题与叶子节点支持概要
+    if (targetNode.isRoot || targetNode.id === root.id) return;
 
     // 确定被包裹的节点 ID 集合
     let childIds: string[] = [];
@@ -265,22 +267,8 @@ export function registerBoardMindmap(): void {
       const normalChildren = targetNode.children.filter(
         (c: any) => !c.data?.isSummary && !c.isSummary
       );
-      // 若为平衡双侧布局的根节点，根据布局侧向挑选同侧子集
-      if (targetNode.isRoot || targetNode.id === root.id) {
-        const rootLayout = root.layout || 'right';
-        if (rootLayout === 'standard' || rootLayout === 'balanced') {
-          const rightCount =
-            typeof root.rightNodeCount === 'number'
-              ? root.rightNodeCount
-              : Math.ceil(normalChildren.length / 2);
-          childIds = normalChildren.slice(0, rightCount).map((c: any) => c.id);
-        } else {
-          childIds = normalChildren.map((c: any) => c.id);
-        }
-      } else {
-        childIds = normalChildren.map((c: any) => c.id);
-      }
-    } else if (!targetNode.isRoot && targetNode.id !== root.id) {
+      childIds = normalChildren.map((c: any) => c.id);
+    } else {
       // 叶子节点：对自身生成概要
       childIds = [targetNode.id];
     }
