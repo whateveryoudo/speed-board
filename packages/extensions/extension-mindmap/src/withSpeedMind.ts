@@ -399,17 +399,10 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       activePointerDownNodeId = null;
       lastPointerDownNodeId = null;
       lastPointerDownTime = 0;
-      const isUIElement = Boolean(
-        target?.closest?.(
-          '.speed-floating-toolbar, .floating-bubble-toolbar, .speed-mindmap-settings-drawer, .speed-board-settings-panel, .style-settings-panel, .ant-drawer, .ant-popover, .ant-select-dropdown, .plait-board-attached, .speed-mind-add-handle, .speed-mind-collapse-badge, .speed-mind-collapse-btn, .mindmap-marker-quick-picker, .speed-mind-marker-item'
-        )
-      );
-      if (!isUIElement) {
-        // 仅在真实点击画布空白背景时清理当前选中态
+      // 点击了非脑图节点卡片区域：
+      // 仅重置脑图内部选中节点 ID，画板图元（连线、几何图形等）的选中态交给 Plait 原生 selection 机制处理
+      if (getSelectedMindNodeId(board)) {
         setSelectedMindNodeId(board, null);
-        clearSelectedElement(board);
-        const wrapper = (board as any).boardWrapper;
-        wrapper?.emit?.('selection:change', { selected: [] });
       }
     }
 
