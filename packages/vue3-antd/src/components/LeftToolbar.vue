@@ -332,7 +332,7 @@ const emit = defineEmits<{
 // 基础模式状态
 const currentTool = ref<'select' | 'brush' | 'vector' | 'line' | 'text' | 'shape' | 'mindmap'>('select')
 const currentBrush = ref<'pencil' | 'marker' | 'eraser'>('pencil')
-const currentLineType = ref<'elbow' | 'straight' | 'curve'>('straight')
+const currentLineType = ref<'elbow' | 'straight' | 'curve'>('elbow')
 
 // 弹窗状态受控管理（互斥切换，且点击外部自动收起）
 const brushPopoverOpen = ref(false)

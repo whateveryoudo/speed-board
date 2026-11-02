@@ -18,7 +18,7 @@ import {
   PlaitDrawElement,
   DrawTransforms
 } from '@plait/draw';
-import { isDrawingMode, isResizing } from '@plait/common';
+import { isResizing } from '@plait/common';
 
 // 1. 全局挂载 KEY_TO_ELEMENT_MAP Proxy，确保 Plait 底层 getElementById 随时能解析出 mind 虚拟图形节点
 let isProxyInstalled = false;
@@ -63,9 +63,9 @@ installMindElementMapProxy();
 
 /**
  * 拦截 DrawTransforms.resizeArrowLine:
- * 1. 优先完全保留 Plait 原生对几何图形的磁吸、连接桩对齐与边界判定逻辑，绝不干涉或影响通用图形；
- * 2. 仅当 Plait 原生未命中任何普通图形时，检测是否靠近脑图节点落点 (12px 范围)，完成脑图吸附与端点对齐；
- * 3. 绝不让连线穿透到图形或脑图卡片内部。
+ * 1. 彻底不干涉通用几何图形（保留 Plait 原生 100% 图形吸附与连接计算）；
+ * 2. 精准支持脑图节点吸附 (12px 范围或卡片内部)，端点严格定位于卡片 4 边落点，绝不穿透内部；
+ * 3. 拖离脑图节点移到空白区域时干净解除 boundId 绑定。
  */
 let isTransformsPatched = false;
 export function patchDrawTransformsResizeArrowLine() {
@@ -98,7 +98,14 @@ export function patchDrawTransformsResizeArrowLine() {
             nearest = c;
           }
         }
-        if (minDist <= 12) {
+
+        const isInside =
+          pt[0] >= box.x &&
+          pt[0] <= box.x + box.width &&
+          pt[1] >= box.y &&
+          pt[1] <= box.y + box.height;
+
+        if (minDist <= 12 || isInside) {
           return {
             boundId: `${root.id}:${box.id}`,
             connection: nearest.connection,
@@ -108,21 +115,25 @@ export function patchDrawTransformsResizeArrowLine() {
         return null;
       };
 
-      // 仅在 Plait 原生未吸附到普通图形时（boundId 为空），才检测是否吸附到脑图节点
-      if (options.target && !options.target.boundId) {
+      // 仅在目标不是通用图形时（即 boundId 为空或为 mind 节点），处理脑图节点的吸附与解绑
+      if (options.target && (!options.target.boundId || options.target.boundId.includes(':'))) {
         const lastIdx = options.points.length - 1;
         const snap = getMindSnap(options.points[lastIdx]);
         if (snap) {
           options.target = { ...options.target, boundId: snap.boundId, connection: snap.connection };
           options.points[lastIdx] = snap.point;
+        } else if (options.target.boundId?.includes(':')) {
+          options.target = { ...options.target, boundId: undefined, connection: undefined };
         }
       }
 
-      if (options.source && !options.source.boundId) {
+      if (options.source && (!options.source.boundId || options.source.boundId.includes(':'))) {
         const snap = getMindSnap(options.points[0]);
         if (snap) {
           options.source = { ...options.source, boundId: snap.boundId, connection: snap.connection };
           options.points[0] = snap.point;
+        } else if (options.source.boundId?.includes(':')) {
+          options.source = { ...options.source, boundId: undefined, connection: undefined };
         }
       }
     }
@@ -135,7 +146,7 @@ patchDrawTransformsResizeArrowLine();
 
 /**
  * 绘制 100% 贴合脑图节点形状的磁吸反馈与 4 个落点桩子:
- * 1. 严格契合脑图当前形状 (圆角矩形、胶囊、下划线、无边框等)，0px 缝隙，与节点卡片完全重合贴合。
+ * 1. 严格契合脑图当前形状 (圆角矩形、直角矩形、胶囊、下划线、无边框等)，0px 缝隙，与节点卡片完全重合贴合。
  * 2. 4 个落点桩子直接坐落于卡片上、右、下、左四边边沿。
  */
 function drawMindNodeReaction(
@@ -153,6 +164,7 @@ function drawMindNodeReaction(
   const isNone = shape === 'none';
   const isUnderline = shape === 'underline';
   const isCapsule = shape === 'capsule';
+  const isRectangle = shape === 'rectangle';
 
   // 1. 贴合节点形状的高亮边框 (0px 缝隙，与节点卡片完全重合贴合)
   const strokeG = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -168,7 +180,14 @@ function drawMindNodeReaction(
     strokeG.setAttribute('y', String(box.y));
     strokeG.setAttribute('width', String(box.width));
     strokeG.setAttribute('height', String(box.height));
-    const rx = isCapsule ? box.height / 2 : (isNone ? 4 : (isRoot ? 8 : 6));
+    let rx = isRoot ? 8 : 6;
+    if (isRectangle) {
+      rx = 0;
+    } else if (isCapsule) {
+      rx = box.height / 2;
+    } else if (isNone) {
+      rx = 4;
+    }
     strokeG.setAttribute('rx', String(rx));
     strokeG.setAttribute('ry', String(rx));
   }
@@ -211,9 +230,9 @@ function drawMindNodeReaction(
 
 /**
  * 脑图连线磁吸与反馈增强插件:
- * 1. 彻底不干预通用图形，Plait 原生图形磁吸、边框、4 个连接桩完全原生运行；
- * 2. 精确为脑图提供 12px 适度磁吸半径，并动态贴合脑图节点形状；
- * 3. 绝不让连线穿透到图形或脑图卡片内部。
+ * 1. 彻底不干涉通用几何图形（Plait 原生图形磁吸、边框、4 个连接桩完全原生运行，无双重边框与穿透）；
+ * 2. 脑图 12px 适度磁吸半径，动态贴合脑图节点形状，绝不让连线穿透到内部；
+ * 3. 拖离脑图时干净解绑。
  */
 export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
   installMindElementMapProxy();
@@ -221,7 +240,7 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
 
   const { pointerMove, pointerUp, globalPointerUp } = board;
 
-  let boundShapeG: SVGGElement | null = null;
+  let mindBoundG: SVGGElement | null = null;
   let activeMindSnapRef: {
     boundId: string;
     connection: [number, number];
@@ -231,8 +250,8 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
   const linePointerKeys = ['straight', 'curve', 'elbow', ...Object.keys(ArrowLineShape)];
 
   board.pointerMove = (event: PointerEvent) => {
-    boundShapeG?.remove();
-    boundShapeG = null;
+    mindBoundG?.remove();
+    mindBoundG = null;
 
     if (PlaitBoard.isReadonly(board)) {
       pointerMove(event);
@@ -244,7 +263,7 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
     const isLineResizing = isResizing(board);
 
     if (isLinePointer || isLineResizing) {
-      // 适度磁吸范围 (12px)
+      // 仅检测脑图节点 (12px 适度磁吸范围或卡片内部)
       const hit = (board as any).getMindHitNode?.(movingPoint, 12);
       if (hit) {
         const { box } = hit;
@@ -265,11 +284,16 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
           }
         }
 
-        const isSnapped = minDist <= 12;
+        const isInside =
+          movingPoint[0] >= box.x &&
+          movingPoint[0] <= box.x + box.width &&
+          movingPoint[1] >= box.y &&
+          movingPoint[1] <= box.y + box.height;
 
-        // 100% 贴合节点实际形状进行渲染
-        boundShapeG = drawMindNodeReaction(board, box, isSnapped, nearest.point);
-        PlaitBoard.getElementTopHost(board).append(boundShapeG);
+        const isSnapped = minDist <= 12 || isInside;
+
+        mindBoundG = drawMindNodeReaction(board, box, isSnapped, nearest.point);
+        PlaitBoard.getElementTopHost(board).append(mindBoundG);
 
         if (isSnapped) {
           activeMindSnapRef = {
@@ -292,14 +316,14 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
   };
 
   board.pointerUp = (event: PointerEvent) => {
-    boundShapeG?.remove();
-    boundShapeG = null;
+    mindBoundG?.remove();
+    mindBoundG = null;
     pointerUp(event);
   };
 
   board.globalPointerUp = (event: PointerEvent) => {
-    boundShapeG?.remove();
-    boundShapeG = null;
+    mindBoundG?.remove();
+    mindBoundG = null;
 
     const snapRef = activeMindSnapRef;
     activeMindSnapRef = null;

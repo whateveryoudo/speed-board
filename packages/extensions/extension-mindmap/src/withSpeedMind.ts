@@ -329,7 +329,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       }
     }
 
-    // 4.25 如果当前已选中连线且点击落在端点手柄 14px 范围内：放行给连线手柄拉伸，绝不误切选中脑图节点！
+    // 4.25 如果当前已选中连线且点击落在端点手柄 16px 范围内：放行给连线手柄拉伸，绝不误切选中脑图节点！
     const currentSelected = getSelectedElements(board);
     if (currentSelected.length > 0) {
       const selectedLine = currentSelected.find((el: any) => el.type === 'line' || (el.points && el.source && el.target));
@@ -338,12 +338,33 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
         const clientX = event.clientX ?? (event as any).x;
         const clientY = event.clientY ?? (event as any).y;
         const point = toViewBoxPoint(board, toHostPoint(board, clientX, clientY));
-        const sourcePt = linePts[0];
-        const targetPt = linePts[linePts.length - 1];
-        if (
-          distanceBetweenPointAndPoint(...point, ...sourcePt) <= 14 ||
-          distanceBetweenPointAndPoint(...point, ...targetPt) <= 14
-        ) {
+        const checkPoints: Point[] = [linePts[0], linePts[linePts.length - 1]];
+
+        const targetBound = (selectedLine as any).target?.boundId;
+        const targetConn = (selectedLine as any).target?.connection;
+        if (targetBound && targetConn && typeof targetBound === 'string' && targetBound.includes(':')) {
+          const colonIdx = targetBound.indexOf(':');
+          const rootId = targetBound.substring(0, colonIdx);
+          const nodeId = targetBound.substring(colonIdx + 1);
+          const box = (board as any).getMindNodeBox?.(rootId, nodeId);
+          if (box) {
+            checkPoints.push([box.x + box.width * targetConn[0], box.y + box.height * targetConn[1]]);
+          }
+        }
+
+        const sourceBound = (selectedLine as any).source?.boundId;
+        const sourceConn = (selectedLine as any).source?.connection;
+        if (sourceBound && sourceConn && typeof sourceBound === 'string' && sourceBound.includes(':')) {
+          const colonIdx = sourceBound.indexOf(':');
+          const rootId = sourceBound.substring(0, colonIdx);
+          const nodeId = sourceBound.substring(colonIdx + 1);
+          const box = (board as any).getMindNodeBox?.(rootId, nodeId);
+          if (box) {
+            checkPoints.push([box.x + box.width * sourceConn[0], box.y + box.height * sourceConn[1]]);
+          }
+        }
+
+        if (checkPoints.some((pt) => distanceBetweenPointAndPoint(...point, ...pt) <= 16)) {
           pointerDown(event);
           return;
         }
