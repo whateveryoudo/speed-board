@@ -14,7 +14,8 @@
     "@plait/mind": "^0.94.1",
     "@speed-board/core": "workspace:*",
     "@speed-board/shared": "workspace:*",
-    "is-hotkey": "^0.2.0"
+    "is-hotkey": "^0.2.0",
+    "slate": "^0.103.0"
   },
   "devDependencies": {
     "@types/is-hotkey": "^0.1.10",

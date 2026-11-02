@@ -610,7 +610,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
         const { root, path } = info;
         const isRootNode = Boolean(root.id === selectedMindNodeId);
 
-        // 7.0 用户直接键入字符：立即就地启动编辑 (1:1 对标 Text/Shape 图形节点输入体验)
+        // 7.0 用户直接键入字符：立即就地清空旧内容并写入字符 (光标跟随其后)
         const isPrintableKey =
           !event.ctrlKey &&
           !event.metaKey &&
@@ -619,10 +619,17 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
           event.key !== ' ' &&
           event.code !== 'Space';
 
+        const isImeStart = event.key === 'Process' || event.keyCode === 229;
+
         if (isPrintableKey) {
           event.preventDefault();
           event.stopPropagation();
-          editMindNodeTopic(board, selectedMindNodeId);
+          editMindNodeTopic(board, selectedMindNodeId, { clearAndInput: event.key });
+          return;
+        }
+
+        if (isImeStart) {
+          editMindNodeTopic(board, selectedMindNodeId, { clearAndInput: true });
           return;
         }
 

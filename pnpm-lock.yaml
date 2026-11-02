@@ -143,6 +143,9 @@ importers:
       is-hotkey:
         specifier: ^0.2.0
         version: 0.2.1
+      slate:
+        specifier: ^0.103.0
+        version: 0.103.0
     devDependencies:
       '@types/is-hotkey':
         specifier: ^0.1.10

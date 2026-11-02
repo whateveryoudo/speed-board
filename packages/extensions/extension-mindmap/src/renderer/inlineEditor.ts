@@ -1,5 +1,6 @@
 import { PlaitBoard, Transforms } from '@plait/core';
 import type { TextManage } from '@plait/common';
+import { Editor, Transforms as SlateTransforms } from 'slate';
 import type { NodeLayoutBox } from '../types';
 import { findMindRootAndPath } from '../model/treeOps';
 
@@ -14,15 +15,26 @@ export function getMindNodeTextManage(board: PlaitBoard, nodeId: string): TextMa
   return map?.get(nodeId) || null;
 }
 
+export interface EditMindNodeTopicOptions {
+  /**
+   * 直接键入时清空旧文本并写入输入字符；若为 true 则清空旧文本（供中文输入法起步）
+   */
+  clearAndInput?: string | boolean;
+}
+
 /**
  * 启动节点富文本编辑 (基于 Plait 原生 TextManage + Slate.js + contenteditable)
  * 彻底杜绝任何外部覆盖层、双层边框或输入法吞字
  */
-export function editMindNodeTopic(board: PlaitBoard, nodeId: string): void {
+export function editMindNodeTopic(
+  board: PlaitBoard,
+  nodeId: string,
+  options?: EditMindNodeTopicOptions
+): void {
   const tm = getMindNodeTextManage(board, nodeId);
   if (!tm) return;
 
-  // 清除旧的选区偏移记录，确保全新进入编辑时全选文字
+  // 清除旧的选区偏移记录
   if (tm.editor) {
     delete (tm.editor as any).savedDomOffsets;
     delete (tm.editor as any).savedSelection;
@@ -44,25 +56,67 @@ export function editMindNodeTopic(board: PlaitBoard, nodeId: string): void {
     }
   );
 
-  // 立即并多周期执行全选内部文本，对标画板文本节点，彻底防止被浏览器原生双击折叠覆盖
-  const performSelectAll = () => {
-    const el = (tm.g?.querySelector?.('[contenteditable="true"]') ||
-      document.querySelector(`[data-node-id="${nodeId}"] [contenteditable="true"]`)) as HTMLElement | null;
-    if (el) {
-      el.focus();
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    }
-  };
+  const shouldClear = Boolean(options?.clearAndInput);
+  const initialChar = typeof options?.clearAndInput === 'string' ? options.clearAndInput : '';
 
-  performSelectAll();
-  requestAnimationFrame(performSelectAll);
-  setTimeout(performSelectAll, 0);
-  setTimeout(performSelectAll, 40);
-  setTimeout(performSelectAll, 100);
+  if (shouldClear && tm.editor) {
+    try {
+      // 选中全部并清空/替换为首字符
+      SlateTransforms.select(tm.editor, {
+        anchor: Editor.start(tm.editor, []),
+        focus: Editor.end(tm.editor, [])
+      });
+      if (initialChar) {
+        SlateTransforms.insertText(tm.editor, initialChar);
+      } else {
+        SlateTransforms.delete(tm.editor);
+      }
+    } catch (e) {
+      console.warn('[SpeedMind] failed to clear and input in Slate editor', e);
+    }
+  }
+
+  if (shouldClear) {
+    // 聚焦并将光标定位到末尾（跟随输入的字符）
+    const performFocusEnd = () => {
+      const el = (tm.g?.querySelector?.('[contenteditable="true"]') ||
+        document.querySelector(`[data-node-id="${nodeId}"] [contenteditable="true"]`)) as HTMLElement | null;
+      if (el) {
+        el.focus();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    };
+
+    performFocusEnd();
+    requestAnimationFrame(performFocusEnd);
+    setTimeout(performFocusEnd, 0);
+    setTimeout(performFocusEnd, 40);
+  } else {
+    // 立即并多周期执行全选内部文本（双击或快捷键编辑模式）
+    const performSelectAll = () => {
+      const el = (tm.g?.querySelector?.('[contenteditable="true"]') ||
+        document.querySelector(`[data-node-id="${nodeId}"] [contenteditable="true"]`)) as HTMLElement | null;
+      if (el) {
+        el.focus();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    };
+
+    performSelectAll();
+    requestAnimationFrame(performSelectAll);
+    setTimeout(performSelectAll, 0);
+    setTimeout(performSelectAll, 40);
+    setTimeout(performSelectAll, 100);
+  }
 }
 
 export interface InlineEditorOptions {

@@ -3,6 +3,7 @@ export * from './registerBoardDraw';
 export * from './with-draw-enhance';
 export * from './with-vector-enhance';
 export * from './with-hit-enhance';
+export * from './with-mind-connect-enhance';
 export * from './freehand/type';
 export * from './freehand/with-freehand';
 
