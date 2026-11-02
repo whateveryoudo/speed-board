@@ -1,11 +1,16 @@
-import type { Path, PlaitPlugin, Point } from '@plait/core';
+import type { Path, PlaitPlugin, Point, PlaitPluginElementContext } from '@plait/core';
 import {
   PlaitBoard,
   SELECTION_BORDER_COLOR,
   SNAPPING_STROKE_WIDTH,
+  SELECTION_RECTANGLE_CLASS_NAME,
   drawCircle,
+  drawRectangle,
   toHostPoint,
   toViewBoxPoint,
+  toActivePointFromViewBoxPoint,
+  toActiveRectangleFromViewBoxRectangle,
+  getSelectedElements,
   KEY_TO_ELEMENT_MAP,
   Transforms,
   distanceBetweenPointAndPoint,
@@ -16,9 +21,26 @@ import {
   BasicShapes,
   PlaitArrowLine,
   PlaitDrawElement,
-  DrawTransforms
+  DrawTransforms,
+  LineActiveGenerator,
+  ArrowLineComponent,
+  DefaultDrawActiveStyle,
+  getMiddlePoints,
+  getNextRenderPoints,
+  isUpdatedHandleIndex
 } from '@plait/draw';
-import { isResizing } from '@plait/common';
+import {
+  isResizing,
+  PRIMARY_COLOR,
+  drawFillPrimaryHandle,
+  drawPrimaryHandle
+} from '@plait/common';
+
+type PlaitLine = PlaitArrowLine | any;
+
+function getHitPointIndex(points: Point[], movingPoint: Point): number {
+  return points.findIndex((point) => distanceBetweenPointAndPoint(...point, ...movingPoint) <= 5);
+}
 
 // 1. 全局挂载 KEY_TO_ELEMENT_MAP Proxy，确保 Plait 底层 getElementById 随时能解析出 mind 虚拟图形节点
 let isProxyInstalled = false;
@@ -60,6 +82,91 @@ export function installMindElementMapProxy() {
 }
 
 installMindElementMapProxy();
+
+/**
+ * 连线选中手柄生成器:
+ * 严格保留交互规范：端点吸附/对齐到图形或脑图时（boundId 存在）渲染为实心圆点 (drawFillPrimaryHandle)；
+ * 未对齐到任何元素时显示空心圆点 (drawPrimaryHandle)。
+ */
+export class SpeedLineActiveGenerator extends LineActiveGenerator {
+  draw(element: PlaitLine, data: any): SVGGElement {
+    const activeG = createG();
+    const selectedElements = getSelectedElements(this.board);
+    this.onlySelectedCurrentLine = selectedElements.length === 1;
+    if (this.onlySelectedCurrentLine) {
+      activeG.classList.add(SELECTION_RECTANGLE_CLASS_NAME);
+      const points = PlaitDrawElement.isArrowLine(element) ? PlaitArrowLine.getPoints(this.board, element) : element.points;
+      let updatePoints = [...points];
+      let elbowNextRenderPoints: Point[] = [];
+      if (element.shape === ArrowLineShape.elbow) {
+        updatePoints = points.slice(0, 1).concat(points.slice(-1));
+        elbowNextRenderPoints = getNextRenderPoints(this.board, element, data.linePoints);
+      }
+      const activePoints = updatePoints.map((point) => toActivePointFromViewBoxPoint(this.board, point));
+      activePoints.forEach((point, index) => {
+        const isArrow = PlaitDrawElement.isArrowLine(element);
+        const isSource = index === 0;
+        const isTarget = index === activePoints.length - 1;
+        // 关键交互：端点对齐/绑定到图形或脑图节点时为实心圆点，未绑定时为空心圆点
+        const isBound = isArrow && ((isSource && Boolean(element.source?.boundId)) || (isTarget && Boolean(element.target?.boundId)));
+        const updateHandle = isBound
+          ? drawFillPrimaryHandle(this.board, point)
+          : drawPrimaryHandle(this.board, point);
+        activeG.appendChild(updateHandle);
+      });
+      const middlePoints = getMiddlePoints(this.board, element);
+      const activeMiddlePoints = middlePoints.map((point) => toActivePointFromViewBoxPoint(this.board, point));
+      if (!PlaitBoard.hasBeenTextEditing(this.board)) {
+        for (let i = 0; i < activeMiddlePoints.length; i++) {
+          const point = activeMiddlePoints[i];
+          if (element.shape === ArrowLineShape.elbow && elbowNextRenderPoints.length) {
+            const handleIndex = getHitPointIndex(activeMiddlePoints, point);
+            const isUpdateHandleIndex = isUpdatedHandleIndex(
+              this.board,
+              element,
+              [...points],
+              elbowNextRenderPoints,
+              handleIndex
+            );
+            if (isUpdateHandleIndex) {
+              const updateHandle = drawPrimaryHandle(this.board, point);
+              activeG.appendChild(updateHandle);
+              continue;
+            }
+          }
+          const circle = drawFillPrimaryHandle(this.board, point);
+          activeG.appendChild(circle);
+        }
+      }
+    } else {
+      const rectangle = this.board.getRectangle(element);
+      if (rectangle) {
+        const activeRectangle = toActiveRectangleFromViewBoxRectangle(this.board, rectangle);
+        let opacity = '0.5';
+        if (activeRectangle.height === 0 || activeRectangle.width === 0) {
+          opacity = '0.8';
+        }
+        const strokeG = drawRectangle(this.board, activeRectangle, {
+          stroke: PRIMARY_COLOR,
+          strokeWidth: DefaultDrawActiveStyle.selectionStrokeWidth
+        });
+        strokeG.style.opacity = opacity;
+        activeG.appendChild(strokeG);
+      }
+    }
+    return activeG;
+  }
+}
+
+/**
+ * 连线组件扩展：搭载 SpeedLineActiveGenerator 确保吸附状态下端点始终呈现标准实心样式
+ */
+export class SpeedArrowLineComponent extends ArrowLineComponent {
+  initializeGenerator() {
+    super.initializeGenerator();
+    this.activeGenerator = new SpeedLineActiveGenerator(this.board);
+  }
+}
 
 /**
  * 拦截 DrawTransforms.resizeArrowLine:
@@ -230,15 +337,23 @@ function drawMindNodeReaction(
 
 /**
  * 脑图连线磁吸与反馈增强插件:
- * 1. 彻底不干涉通用几何图形（Plait 原生图形磁吸、边框、4 个连接桩完全原生运行，无双重边框与穿透）；
- * 2. 脑图 12px 适度磁吸半径，动态贴合脑图节点形状，绝不让连线穿透到内部；
- * 3. 拖离脑图时干净解绑。
+ * 1. 搭载 SpeedArrowLineComponent，实现对齐后端点呈现标准实心样式；
+ * 2. 彻底不干涉通用几何图形（Plait 原生图形磁吸、边框、4 个连接桩完全原生运行，无双重边框与穿透）；
+ * 3. 脑图 12px 适度磁吸半径，动态贴合脑图节点形状，绝不让连线穿透到内部；
+ * 4. 拖离脑图时干净解绑。
  */
 export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
   installMindElementMapProxy();
   patchDrawTransformsResizeArrowLine();
 
-  const { pointerMove, pointerUp, globalPointerUp } = board;
+  const { drawElement, pointerMove, pointerUp, globalPointerUp } = board;
+
+  board.drawElement = (context: PlaitPluginElementContext) => {
+    if (PlaitDrawElement.isArrowLine(context.element)) {
+      return SpeedArrowLineComponent;
+    }
+    return drawElement(context);
+  };
 
   let mindBoundG: SVGGElement | null = null;
   let activeMindSnapRef: {
