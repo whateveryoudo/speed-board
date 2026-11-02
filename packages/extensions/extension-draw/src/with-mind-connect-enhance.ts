@@ -10,6 +10,9 @@ import {
   toViewBoxPoint,
   toActivePointFromViewBoxPoint,
   toActiveRectangleFromViewBoxRectangle,
+  toHostPointFromViewBoxPoint,
+  toScreenPointFromHostPoint,
+  rotatePointsByElement,
   getSelectedElements,
   KEY_TO_ELEMENT_MAP,
   Transforms,
@@ -21,15 +24,20 @@ import {
   BasicShapes,
   PlaitArrowLine,
   PlaitDrawElement,
+  PlaitShapeElement,
   DrawTransforms,
   LineActiveGenerator,
   ArrowLineComponent,
   DefaultDrawActiveStyle,
   getMiddlePoints,
   getNextRenderPoints,
-  isUpdatedHandleIndex
+  isUpdatedHandleIndex,
+  getHitShape,
+  getHitConnection,
+  getConnectionPoint
 } from '@plait/draw';
 import {
+  isDrawingMode,
   isResizing,
   PRIMARY_COLOR,
   drawFillPrimaryHandle,
@@ -170,9 +178,9 @@ export class SpeedArrowLineComponent extends ArrowLineComponent {
 
 /**
  * 拦截 DrawTransforms.resizeArrowLine:
- * 1. 彻底不干涉通用几何图形（保留 Plait 原生 100% 图形吸附与连接计算）；
- * 2. 精准支持脑图节点吸附 (12px 范围或卡片内部)，端点严格定位于卡片 4 边落点，绝不穿透内部；
- * 3. 拖离脑图节点移到空白区域时干净解除 boundId 绑定。
+ * 1. 通用几何图形：光标落在图形内部或边缘时，端点严格锁定于图形边框（通过 getConnectionPoint 与 rotatePointsByElement），绝不穿透内部！
+ * 2. 脑图节点：光标落在脑图节点内部或 12px 范围时，端点严格定位于卡片 4 边落点，绝不穿透内部！
+ * 3. 拖离到空白区域时干净解除 boundId 绑定。
  */
 let isTransformsPatched = false;
 export function patchDrawTransformsResizeArrowLine() {
@@ -186,60 +194,75 @@ export function patchDrawTransformsResizeArrowLine() {
     path: Path
   ) => {
     if (options.points && options.points.length >= 2) {
-      const getMindSnap = (pt: Point) => {
+      const snapToTarget = (pt: Point) => {
+        // 1. 通用几何图形：光标落入图形内部或边缘，端点严格定位于边框，绝不穿透到内部！
+        const hitShape = getHitShape(board, pt);
+        if (hitShape) {
+          const conn = getHitConnection(board, pt, hitShape);
+          const connPt = getConnectionPoint(hitShape, conn);
+          const rotatedPt = rotatePointsByElement(connPt, hitShape) || connPt;
+          return {
+            point: rotatedPt,
+            boundId: hitShape.id,
+            connection: conn
+          };
+        }
+
+        // 2. 脑图节点：光标落入脑图内部或 12px 范围，端点严格定位于卡片 4 边边沿，绝不穿透内部！
         const hit = (board as any).getMindHitNode?.(pt, 12);
-        if (!hit) return null;
-        const { box, root } = hit;
-        const connectors: { point: Point; connection: [number, number] }[] = [
-          { point: [box.x + box.width / 2, box.y], connection: [0.5, 0] },
-          { point: [box.x + box.width, box.y + box.height / 2], connection: [1, 0.5] },
-          { point: [box.x + box.width / 2, box.y + box.height], connection: [0.5, 1] },
-          { point: [box.x, box.y + box.height / 2], connection: [0, 0.5] }
-        ];
-        let nearest = connectors[0];
-        let minDist = Infinity;
-        for (const c of connectors) {
-          const dist = distanceBetweenPointAndPoint(...pt, ...c.point);
-          if (dist < minDist) {
-            minDist = dist;
-            nearest = c;
+        if (hit) {
+          const { box, root } = hit;
+          const connectors: { point: Point; connection: [number, number] }[] = [
+            { point: [box.x + box.width / 2, box.y], connection: [0.5, 0] },
+            { point: [box.x + box.width, box.y + box.height / 2], connection: [1, 0.5] },
+            { point: [box.x + box.width / 2, box.y + box.height], connection: [0.5, 1] },
+            { point: [box.x, box.y + box.height / 2], connection: [0, 0.5] }
+          ];
+          let nearest = connectors[0];
+          let minDist = Infinity;
+          for (const c of connectors) {
+            const dist = distanceBetweenPointAndPoint(...pt, ...c.point);
+            if (dist < minDist) {
+              minDist = dist;
+              nearest = c;
+            }
+          }
+
+          const isInside =
+            pt[0] >= box.x &&
+            pt[0] <= box.x + box.width &&
+            pt[1] >= box.y &&
+            pt[1] <= box.y + box.height;
+
+          if (minDist <= 12 || isInside) {
+            return {
+              boundId: `${root.id}:${box.id}`,
+              connection: nearest.connection,
+              point: nearest.point
+            };
           }
         }
 
-        const isInside =
-          pt[0] >= box.x &&
-          pt[0] <= box.x + box.width &&
-          pt[1] >= box.y &&
-          pt[1] <= box.y + box.height;
-
-        if (minDist <= 12 || isInside) {
-          return {
-            boundId: `${root.id}:${box.id}`,
-            connection: nearest.connection,
-            point: nearest.point
-          };
-        }
         return null;
       };
 
-      // 仅在目标不是通用图形时（即 boundId 为空或为 mind 节点），处理脑图节点的吸附与解绑
-      if (options.target && (!options.target.boundId || options.target.boundId.includes(':'))) {
+      if (options.target) {
         const lastIdx = options.points.length - 1;
-        const snap = getMindSnap(options.points[lastIdx]);
+        const snap = snapToTarget(options.points[lastIdx]);
         if (snap) {
           options.target = { ...options.target, boundId: snap.boundId, connection: snap.connection };
           options.points[lastIdx] = snap.point;
-        } else if (options.target.boundId?.includes(':')) {
+        } else {
           options.target = { ...options.target, boundId: undefined, connection: undefined };
         }
       }
 
-      if (options.source && (!options.source.boundId || options.source.boundId.includes(':'))) {
-        const snap = getMindSnap(options.points[0]);
+      if (options.source) {
+        const snap = snapToTarget(options.points[0]);
         if (snap) {
           options.source = { ...options.source, boundId: snap.boundId, connection: snap.connection };
           options.points[0] = snap.point;
-        } else if (options.source.boundId?.includes(':')) {
+        } else {
           options.source = { ...options.source, boundId: undefined, connection: undefined };
         }
       }
@@ -338,9 +361,8 @@ function drawMindNodeReaction(
 /**
  * 脑图连线磁吸与反馈增强插件:
  * 1. 搭载 SpeedArrowLineComponent，实现对齐后端点呈现标准实心样式；
- * 2. 彻底不干涉通用几何图形（Plait 原生图形磁吸、边框、4 个连接桩完全原生运行，无双重边框与穿透）；
- * 3. 脑图 12px 适度磁吸半径，动态贴合脑图节点形状，绝不让连线穿透到内部；
- * 4. 拖离脑图时干净解绑。
+ * 2. 严防穿透：连线绘制与拖拽吸附时，光标落入图形或脑图内部时，端点强制锁定于边框，绝对不穿透到内部；
+ * 3. 拖离时干净解绑并恢复为空白区域自由端点。
  */
 export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
   installMindElementMapProxy();
@@ -376,6 +398,35 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
     const isLinePointer = PlaitBoard.isInPointer(board, linePointerKeys);
     const movingPoint = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
     const isLineResizing = isResizing(board);
+    const isLineDrawing = isDrawingMode(board) && isLinePointer;
+
+    let effectiveEvent = event;
+
+    // 当正在画线拖拽时，若光标落入通用图形内部，将事件坐标投射至边框落点，防止预览线和绘制结果穿透到图形内部
+    if (isLineDrawing) {
+      const hitShape = getHitShape(board, movingPoint);
+      if (hitShape) {
+        const conn = getHitConnection(board, movingPoint, hitShape);
+        const connPt = getConnectionPoint(hitShape, conn);
+        const borderPt = rotatePointsByElement(connPt, hitShape) || connPt;
+        const hostPt = toHostPointFromViewBoxPoint(board, borderPt);
+        const screenPt = toScreenPointFromHostPoint(board, hostPt);
+        effectiveEvent = new PointerEvent(event.type, {
+          bubbles: event.bubbles,
+          cancelable: event.cancelable,
+          composed: event.composed,
+          clientX: screenPt[0],
+          clientY: screenPt[1],
+          pointerId: event.pointerId,
+          pointerType: event.pointerType,
+          isPrimary: event.isPrimary,
+          button: event.button,
+          buttons: event.buttons
+        });
+        Object.defineProperty(effectiveEvent, 'x', { get: () => screenPt[0], configurable: true });
+        Object.defineProperty(effectiveEvent, 'y', { get: () => screenPt[1], configurable: true });
+      }
+    }
 
     if (isLinePointer || isLineResizing) {
       // 仅检测脑图节点 (12px 适度磁吸范围或卡片内部)
@@ -426,8 +477,7 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
       activeMindSnapRef = null;
     }
 
-    // 关键：放行给 Plait 原生 withArrowLineBoundReaction，通用图形原生显示其边框和连接桩！
-    pointerMove(event);
+    pointerMove(effectiveEvent);
   };
 
   board.pointerUp = (event: PointerEvent) => {
@@ -446,26 +496,50 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
     const beforeLen = board.children.length;
     globalPointerUp(event);
 
-    // 如果刚画好一条连线且终点吸附到了脑图节点落点
     const afterLen = board.children.length;
-    if (afterLen > beforeLen && snapRef) {
+    if (afterLen > beforeLen) {
       const createdLine = board.children[afterLen - 1];
       if (PlaitDrawElement.isArrowLine(createdLine)) {
         const path = [afterLen - 1];
         const points = [...createdLine.points];
-        points[points.length - 1] = snapRef.point;
-        Transforms.setNode(
-          board,
-          {
-            target: {
-              ...createdLine.target,
-              boundId: snapRef.boundId,
-              connection: snapRef.connection
-            },
-            points
-          } as any,
-          path
-        );
+        const lastIdx = points.length - 1;
+        const targetPt = points[lastIdx];
+
+        // 1. 如果终点落入通用图形内部或边缘，强制吸附定位于边框，严防穿透内部
+        const hitShape = getHitShape(board, targetPt);
+        if (hitShape) {
+          const conn = getHitConnection(board, targetPt, hitShape);
+          const connPt = getConnectionPoint(hitShape, conn);
+          const rotatedPt = rotatePointsByElement(connPt, hitShape) || connPt;
+          points[lastIdx] = rotatedPt;
+          Transforms.setNode(
+            board,
+            {
+              target: {
+                ...createdLine.target,
+                boundId: hitShape.id,
+                connection: conn
+              },
+              points
+            } as any,
+            path
+          );
+        } else if (snapRef) {
+          // 2. 如果终点落入脑图节点
+          points[lastIdx] = snapRef.point;
+          Transforms.setNode(
+            board,
+            {
+              target: {
+                ...createdLine.target,
+                boundId: snapRef.boundId,
+                connection: snapRef.connection
+              },
+              points
+            } as any,
+            path
+          );
+        }
       }
     }
   };
