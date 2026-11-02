@@ -2,7 +2,7 @@ import { PlaitBoard, Transforms } from '@plait/core';
 import type { TextManage } from '@plait/common';
 import { Editor, Transforms as SlateTransforms } from 'slate';
 import type { NodeLayoutBox } from '../types';
-import { findMindRootAndPath } from '../model/treeOps';
+import { findMindRootAndPath, setNodeTopic } from '../model/treeOps';
 
 export const MIND_NODE_TEXT_MANAGES = new WeakMap<PlaitBoard, Map<string, TextManage>>();
 
@@ -40,6 +40,32 @@ export function editMindNodeTopic(
     delete (tm.editor as any).savedSelection;
   }
 
+  const shouldClear = Boolean(options?.clearAndInput);
+  const initialChar = typeof options?.clearAndInput === 'string' ? options.clearAndInput : '';
+
+  // 1. 如果用户是直接键入字符触发的编辑，直接清空旧文本数据并初始化为输入字符
+  if (shouldClear) {
+    const cur = findMindRootAndPath(board, nodeId);
+    if (cur) {
+      setNodeTopic(cur.root, nodeId, initialChar);
+    }
+    const isRoot = Boolean(cur && cur.root.id === nodeId);
+    const newTopicData = {
+      children: [
+        {
+          text: initialChar,
+          color: '#1f2937',
+          fontSize: isRoot ? 16 : 14,
+          fontWeight: isRoot ? 'bold' : 'normal',
+        },
+      ],
+      align: 'center',
+    };
+    try {
+      tm.updateText(newTopicData as any);
+    } catch {}
+  }
+
   tm.edit(
     () => {
       // 退出编辑后的回调：触发变更并广播更新
@@ -56,12 +82,8 @@ export function editMindNodeTopic(
     }
   );
 
-  const shouldClear = Boolean(options?.clearAndInput);
-  const initialChar = typeof options?.clearAndInput === 'string' ? options.clearAndInput : '';
-
   if (shouldClear && tm.editor) {
     try {
-      // 选中全部并清空/替换为首字符
       SlateTransforms.select(tm.editor, {
         anchor: Editor.start(tm.editor, []),
         focus: Editor.end(tm.editor, [])
@@ -77,12 +99,17 @@ export function editMindNodeTopic(
   }
 
   if (shouldClear) {
-    // 聚焦并将光标定位到末尾（跟随输入的字符）
+    // 聚焦并将光标定位到末尾（跟随输入的字符，DOM 层面确保只显示新输入字符）
     const performFocusEnd = () => {
       const el = (tm.g?.querySelector?.('[contenteditable="true"]') ||
         document.querySelector(`[data-node-id="${nodeId}"] [contenteditable="true"]`)) as HTMLElement | null;
       if (el) {
         el.focus();
+        if (initialChar && el.textContent !== initialChar) {
+          el.textContent = initialChar;
+        } else if (!initialChar && el.textContent) {
+          el.textContent = '';
+        }
         const range = document.createRange();
         range.selectNodeContents(el);
         range.collapse(false);
