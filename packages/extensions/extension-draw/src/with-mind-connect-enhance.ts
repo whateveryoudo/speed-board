@@ -14,6 +14,10 @@ import {
   toScreenPointFromHostPoint,
   rotatePointsByElement,
   getSelectedElements,
+  addSelectedElement,
+  clearSelectedElement,
+  isMovingElements,
+  isDragging,
   KEY_TO_ELEMENT_MAP,
   Transforms,
   PlaitNode,
@@ -29,6 +33,7 @@ import {
   DrawTransforms,
   LineActiveGenerator,
   ArrowLineComponent,
+  ArrowLineAutoCompleteGenerator,
   GeometryComponent,
   DefaultDrawActiveStyle,
   getMiddlePoints,
@@ -180,9 +185,30 @@ export class SpeedArrowLineComponent extends ArrowLineComponent {
 }
 
 /**
- * 几何图形组件扩展：
  * 修复 @plait/draw 官方底层 bug（官方在 initialize() 中错误将 lineAutoCompleteGenerator 挂载到了 getElementTopHost(board)，
- * 导致初次创建图形或首次选中时 4 个引导点位在非 1:1 坐标系下错位“飘到右下角”）；此处强制重定向至 getActiveHost(board)
+ * 导致初次创建图形或首次选中时 4 个引导点位在非 1:1 坐标系下错位“飘到右下角”）：
+ * 此处对 ArrowLineAutoCompleteGenerator 原型方法进行拦截，强制所有渲染统一定向至 getActiveHost(board)
+ */
+let isAutoCompletePatched = false;
+export function patchArrowLineAutoCompleteGenerator() {
+  if (isAutoCompletePatched) return;
+  isAutoCompletePatched = true;
+
+  const originalProcessDrawing = ArrowLineAutoCompleteGenerator.prototype.processDrawing;
+  ArrowLineAutoCompleteGenerator.prototype.processDrawing = function (
+    element: any,
+    parentG: SVGGElement,
+    data?: any
+  ) {
+    const activeHost = PlaitBoard.getActiveHost(this.board);
+    return originalProcessDrawing.call(this, element, activeHost, data);
+  };
+}
+patchArrowLineAutoCompleteGenerator();
+
+/**
+ * 几何图形组件扩展：
+ * 配合 ArrowLineAutoCompleteGenerator 原型拦截，确保初次初始化与选区变更均定向于 getActiveHost(board)
  */
 export class SpeedGeometryComponent extends GeometryComponent {
   initialize(): void {
@@ -197,45 +223,13 @@ export class SpeedGeometryComponent extends GeometryComponent {
 
 /**
  * 计算几何图形的最优吸附落点与连接比率：
- * 1. 优先吸附到图形的 4 个标准连接桩子 (20px 磁吸距离)：用户只要在桩子附近释放，精准锁定到标准连接点，绝不产生偏移偏差点（如 Image 2 中的偏移）；
- * 2. 否则精确锁定到最近的边框点。
+ * 精确计算边框最近点（保持原生行为，不强行吸附到 4 个中心桩子，支持边缘任意落点如 [0.3, 1]）
  */
 export function getOptimalShapeConnection(
   board: PlaitBoard,
   point: Point,
   shape: PlaitShapeElement
 ): { connection: [number, number]; point: Point } {
-  const standardConnections: [number, number][] = [
-    [0.5, 0],
-    [1, 0.5],
-    [0.5, 1],
-    [0, 0.5]
-  ];
-
-  let nearestConnectorPoint: Point = point;
-  let nearestConnection: [number, number] = [0.5, 0];
-  let minDistance = Infinity;
-
-  for (const conn of standardConnections) {
-    const connPt = getConnectionPoint(shape, conn);
-    const borderPt = rotatePointsByElement(connPt, shape) || connPt;
-    const dist = distanceBetweenPointAndPoint(...point, ...borderPt);
-    if (dist < minDistance) {
-      minDistance = dist;
-      nearestConnectorPoint = borderPt;
-      nearestConnection = conn;
-    }
-  }
-
-  // 若在标准桩子 20px 范围内，强制锁定到该标准桩子
-  if (minDistance <= 20) {
-    return {
-      connection: nearestConnection,
-      point: nearestConnectorPoint
-    };
-  }
-
-  // 否则使用精确边缘落点
   const conn = getHitConnection(board, point, shape) as [number, number];
   const connPt = getConnectionPoint(shape, conn);
   const borderPt = rotatePointsByElement(connPt, shape) || connPt;
@@ -319,7 +313,7 @@ export function patchDrawTransformsResizeArrowLine() {
         if (snap) {
           options.target = { ...options.target, boundId: snap.boundId, connection: snap.connection };
           options.points[lastIdx] = snap.point;
-        } else {
+        } else if (!options.target.boundId) {
           options.target = { ...options.target, boundId: undefined, connection: undefined };
         }
       }
@@ -329,7 +323,7 @@ export function patchDrawTransformsResizeArrowLine() {
         if (snap) {
           options.source = { ...options.source, boundId: snap.boundId, connection: snap.connection };
           options.points[0] = snap.point;
-        } else {
+        } else if (!options.source.boundId) {
           options.source = { ...options.source, boundId: undefined, connection: undefined };
         }
       }
@@ -435,7 +429,7 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
   installMindElementMapProxy();
   patchDrawTransformsResizeArrowLine();
 
-  const { drawElement, pointerMove, pointerUp, globalPointerUp } = board;
+  const { drawElement, pointerDown, pointerMove, pointerUp, globalPointerUp } = board;
 
   board.drawElement = (context: PlaitPluginElementContext) => {
     if (PlaitDrawElement.isArrowLine(context.element)) {
@@ -456,6 +450,17 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
 
   const linePointerKeys = ['straight', 'curve', 'elbow', ...Object.keys(ArrowLineShape)];
 
+  board.pointerDown = (event: PointerEvent) => {
+    const isLinePointer = PlaitBoard.isInPointer(board, linePointerKeys);
+    if (!PlaitBoard.isReadonly(board) && isLinePointer && isDrawingMode(board)) {
+      if (getSelectedElements(board).length > 0) {
+        clearSelectedElement(board);
+        Transforms.setSelection(board, null);
+      }
+    }
+    pointerDown(event);
+  };
+
   board.pointerMove = (event: PointerEvent) => {
     mindBoundG?.remove();
     mindBoundG = null;
@@ -463,6 +468,16 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
     if (PlaitBoard.isReadonly(board)) {
       pointerMove(event);
       return;
+    }
+
+    const wrapper = (board as any).boardWrapper;
+    const isInteracting =
+      isResizing(board) ||
+      isMovingElements(board) ||
+      isDragging(board);
+    if (isInteracting && wrapper && !wrapper.isDragging) {
+      wrapper.isDragging = true;
+      wrapper.emit?.('drag', true);
     }
 
     const isLinePointer = PlaitBoard.isInPointer(board, linePointerKeys);
@@ -561,8 +576,31 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
     const snapRef = activeMindSnapRef;
     activeMindSnapRef = null;
 
+    let effectiveUpEvent = event;
+    const movingPoint = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
+    const hitShape = getHitShape(board, movingPoint);
+    if (hitShape) {
+      const opt = getOptimalShapeConnection(board, movingPoint, hitShape);
+      const hostPt = toHostPointFromViewBoxPoint(board, opt.point);
+      const screenPt = toScreenPointFromHostPoint(board, hostPt);
+      effectiveUpEvent = new PointerEvent(event.type, {
+        bubbles: event.bubbles,
+        cancelable: event.cancelable,
+        composed: event.composed,
+        clientX: screenPt[0],
+        clientY: screenPt[1],
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        isPrimary: event.isPrimary,
+        button: event.button,
+        buttons: event.buttons
+      });
+      Object.defineProperty(effectiveUpEvent, 'x', { get: () => screenPt[0], configurable: true });
+      Object.defineProperty(effectiveUpEvent, 'y', { get: () => screenPt[1], configurable: true });
+    }
+
     const beforeLen = board.children.length;
-    globalPointerUp(event);
+    globalPointerUp(effectiveUpEvent);
 
     const afterLen = board.children.length;
     if (afterLen > beforeLen) {
@@ -637,18 +675,22 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
         // 3. 首次落点立即应用标准 pipeline，绑定 source/target 关系
         DrawTransforms.resizeArrowLine(board, { points, source, target }, path);
 
-        // 4. 校准端点点位：调用 getArrowLinePoints 提取经过 strokeWidth/connectionOffset 修正后的精确边框点位，消除初次落点的微小穿透偏差，使初次落点与后续再次接触时的点位 100% 绝对一致
-        const updatedLine = PlaitNode.get(board, path) as PlaitArrowLine;
+        const updatedLine = board.children[path[0]];
         if (updatedLine) {
-          const drawPoints = getArrowLinePoints(board, updatedLine);
-          if (drawPoints && drawPoints.length >= 2) {
-            const finalPoints = [...updatedLine.points];
-            finalPoints[0] = drawPoints[0];
-            finalPoints[finalPoints.length - 1] = drawPoints[drawPoints.length - 1];
-            DrawTransforms.resizeArrowLine(board, { points: finalPoints }, path);
-          }
+          addSelectedElement(board, updatedLine);
         }
       }
+    }
+
+    const wrapper = (board as any).boardWrapper;
+    if (wrapper) {
+      if (wrapper.isDragging) {
+        wrapper.isDragging = false;
+        wrapper.emit?.('drag', false);
+      }
+      setTimeout(() => {
+        wrapper.emit?.('selection:change', { selected: wrapper.selectedElements });
+      }, 0);
     }
   };
 

@@ -41,9 +41,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, type CSSProperties } from 'vue';
 import rough from 'roughjs';
+import { isResizing } from '@plait/common';
 import {
   createSpeedPlaitBoard,
   PlaitBoard,
+  isSelectionMoving,
+  isMovingElements,
+  isDragging,
+  cacheSelectedElements,
+  Transforms,
+  BOARD_TO_MOVING_ELEMENT,
   type PlaitElement,
   type PlaitBoardOptions,
   type PlaitPlugin,
@@ -79,6 +86,10 @@ import {
   setIsFromViewportChange,
   BoardTransforms,
   PlaitCommonElementRef,
+  getHitElementByPoint,
+  PlaitPointerType,
+  toHostPoint,
+  toViewBoxPoint,
 } from '@speed-board/core';
 import { withVue } from '../plugins/withVue';
 import '../styles/plait-board.css';
@@ -247,6 +258,26 @@ onMounted(() => {
   const onPointerDown = (e: PointerEvent) => {
     const wrapper = (board as any).boardWrapper;
     wrapper?.emit?.('board:pointerdown', e);
+
+    // 在选择模式下，若点击了尚未选中的图元（图形或线条），在 pointerDown 时立即触发选中
+    // 使得拖拽平移时即刻呈现选中外观（手柄与控制框联动移动），松手后稳定保持选中状态
+    if (
+      !PlaitBoard.isReadonly(board) &&
+      PlaitBoard.isPointer(board, PlaitPointerType.selection) &&
+      e.button === 0 &&
+      !e.shiftKey
+    ) {
+      const pt = toViewBoxPoint(board, toHostPoint(board, e.x, e.y));
+      const hit = getHitElementByPoint(board, pt, (el) => board.isMovable(el));
+      if (hit) {
+        const selected = getSelectedElements(board);
+        if (!selected.includes(hit)) {
+          Transforms.addSelectionWithTemporaryElements(board, [hit]);
+          wrapper?.emit?.('selection:change', { selected: [hit] });
+        }
+      }
+    }
+
     board.pointerDown(e);
   };
   const onPointerMove = (e: PointerEvent) => {
@@ -267,8 +298,34 @@ onMounted(() => {
   const onGlobalPointerMove = (e: PointerEvent) => {
     BOARD_TO_MOVING_POINT.set(board, [e.x, e.y]);
     board.globalPointerMove(e);
+    const wrapper = (board as any).boardWrapper;
+    if (wrapper) {
+      const isDraggingNow =
+        isResizing(board) ||
+        isSelectionMoving(board) ||
+        isMovingElements(board) ||
+        isDragging(board);
+      if (isDraggingNow && !wrapper.isDragging) {
+        wrapper.isDragging = true;
+        wrapper.emit?.('drag', true);
+      }
+    }
   };
-  const onGlobalPointerUp = (e: PointerEvent) => board.globalPointerUp(e);
+  const onGlobalPointerUp = (e: PointerEvent) => {
+    board.globalPointerUp(e);
+
+    const wrapper = (board as any).boardWrapper;
+    if (wrapper) {
+      const wasDragging = wrapper.isDragging;
+      wrapper.isDragging = false;
+      if (wasDragging) {
+        wrapper.emit?.('drag', false);
+      }
+      setTimeout(() => {
+        wrapper.emit?.('selection:change', { selected: wrapper.selectedElements });
+      }, 0);
+    }
+  };
 
   const onGlobalKeyDown = (e: KeyboardEvent) => {
     board.globalKeyDown(e);

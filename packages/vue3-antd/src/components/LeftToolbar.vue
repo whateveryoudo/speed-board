@@ -6,13 +6,15 @@
         <!-- 图标 -->
         <a-popover :align="{ offset: [10, 0] }" :arrow="false" :open="iconPickerOpen" trigger="click"
           placement="rightTop" :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"
+          @openChange="onIconPickerOpenChange"
           @update:open="onIconPickerOpenChange">
           <template #content>
             <IconfontPopover :provider="props.iconProvider" @select="onSelectIcon" />
           </template>
           <a-tooltip title="图标" placement="right">
             <a-button type="text" class="shadow-btn-wrapper iconfont-entry-btn"
-              :class="{ 'is-active': iconPickerOpen }">
+              :class="{ 'is-active': iconPickerOpen }"
+              @click="props.board?.clearSelection()">
               <SIconFont type="icon-kl-a-iconfonticon" :size="19" />
             </a-button>
           </a-tooltip>
@@ -29,7 +31,9 @@
         <!-- 1.2 画笔/随手画 (Popover 二级面板) -->
         <a-popover :open="brushPopoverOpen" trigger="click" placement="rightTop" :align="{ offset: [10, 0] }"
           overlay-class-name="tool-sub-capsule-popover" :arrow="false"
-          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }" @update:open="onBrushOpenChange">
+          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
+          @openChange="onBrushOpenChange"
+          @update:open="onBrushOpenChange">
           <template #content>
             <div class="brush-sub-picker" @pointerdown.stop @click.stop>
               <!-- 2.1 普通铅笔 -->
@@ -132,7 +136,9 @@
         <!-- 1.5 全量图形库选择器 (1:1 语雀白板风格 Popover) -->
         <a-popover :open="shapePickerOpen" trigger="click" placement="rightTop"
           overlay-class-name="shape-picker-popover-overlay" :arrow="false" :align="{ offset: [10, 0] }"
-          :overlay-inner-style="{ padding: '0', borderRadius: '8px' }" @update:open="onShapeOpenChange">
+          :overlay-inner-style="{ padding: '0', borderRadius: '8px' }"
+          @openChange="onShapeOpenChange"
+          @update:open="onShapeOpenChange">
           <template #content>
             <ShapePickerPopover
               :active-shape-id="currentSelectedShapeId"
@@ -143,7 +149,8 @@
           <a-tooltip :title="shapePickerOpen ? '' : '图形库'" :open="shapePickerOpen ? false : undefined"
             placement="right">
             <a-button type="text" class="shadow-btn-wrapper"
-              :class="{ 'is-active': currentTool === 'shape' || shapePickerOpen }">
+              :class="{ 'is-active': currentTool === 'shape' || shapePickerOpen }"
+              @click="props.board?.clearSelection()">
               <SIconFont type="icon-kl-board-shape-circle" :size="20" />
             </a-button>
           </a-tooltip>
@@ -152,7 +159,9 @@
         <!-- 1.6 连线工具 (直线 / 曲线 / 折线) -->
         <a-popover :open="linePopoverOpen" trigger="click" placement="rightTop" :align="{ offset: [10, 0] }"
           overlay-class-name="tool-sub-capsule-popover" :arrow="false"
-          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }" @update:open="onLineOpenChange">
+          :overlay-inner-style="{ padding: '6px', borderRadius: '8px' }"
+          @openChange="onLineOpenChange"
+          @update:open="onLineOpenChange">
           <template #content>
             <div class="line-sub-picker">
               <a-tooltip title="直线" placement="right">
@@ -181,7 +190,8 @@
           <a-tooltip :title="linePopoverOpen ? '' : '连线工具'" :open="linePopoverOpen ? false : undefined"
             placement="right">
             <a-button type="text" class="shadow-btn-wrapper"
-              :class="{ 'is-active': currentTool === 'line' || linePopoverOpen }">
+              :class="{ 'is-active': currentTool === 'line' || linePopoverOpen }"
+              @click="props.board?.clearSelection()">
               <SIconFont v-if="currentLineType === 'straight'" type="icon-kl-line2" :size="20" />
               <SIconFont v-else-if="currentLineType === 'curve'" type="icon-kl-line21" :size="20" />
               <SIconFont v-else type="icon-kl-line11" :size="20" />
@@ -348,6 +358,7 @@ const onBrushOpenChange = (open: boolean) => {
   }
   brushPopoverOpen.value = open
   if (open) {
+    props.board?.clearSelection()
     linePopoverOpen.value = false
     shapePickerOpen.value = false
     iconPickerOpen.value = false
@@ -358,6 +369,7 @@ const onBrushOpenChange = (open: boolean) => {
 const onLineOpenChange = (open: boolean) => {
   linePopoverOpen.value = open
   if (open) {
+    props.board?.clearSelection()
     brushPopoverOpen.value = false
     shapePickerOpen.value = false
     iconPickerOpen.value = false
@@ -369,6 +381,7 @@ const onLineOpenChange = (open: boolean) => {
 const onShapeOpenChange = (open: boolean) => {
   shapePickerOpen.value = open
   if (open) {
+    props.board?.clearSelection()
     brushPopoverOpen.value = false
     linePopoverOpen.value = false
     iconPickerOpen.value = false
@@ -378,6 +391,7 @@ const onShapeOpenChange = (open: boolean) => {
 const onIconPickerOpenChange = (open: boolean) => {
   iconPickerOpen.value = open
   if (open) {
+    props.board?.clearSelection()
     brushPopoverOpen.value = false
     linePopoverOpen.value = false
     shapePickerOpen.value = false
@@ -629,6 +643,7 @@ const onShapeLibraryInsert = (shape: ShapeDefinition) => {
 
 // 激活连线模式
 const applyLineMode = (type = currentLineType.value) => {
+  props.board?.clearSelection()
   const shapeType =
     type === 'straight'
       ? ArrowLineShape.straight

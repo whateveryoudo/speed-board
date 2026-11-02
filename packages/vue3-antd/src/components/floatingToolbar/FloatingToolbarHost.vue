@@ -237,10 +237,12 @@ watch(
     if (oldB) {
       oldB.off('viewport:scroll', closePopover)
       oldB.off('board:pointerdown', onBoardPointerDown)
+      oldB.off('drag', closePopover)
     }
     if (b) {
       b.on('viewport:scroll', closePopover)
       b.on('board:pointerdown', onBoardPointerDown)
+      b.on('drag', closePopover)
     }
   },
   { immediate: true }

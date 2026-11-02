@@ -1,4 +1,6 @@
 import { ref, computed, watch, unref, type Ref } from 'vue';
+import { isSelectionMoving, isMovingElements, isDragging as isPlaitDragging } from '@plait/core';
+import { isResizing } from '@plait/common';
 import {
   type Board,
   type FloatingToolbarProperties,
@@ -229,8 +231,16 @@ export function computeFloatingToolbarProperties(
 
   if (!board) return defaultState;
 
-  // 绘制中、任意非选择模式、或正在键盘打字输入中时，气泡工具栏暂隐
-  if (board.raw.pointer !== PlaitPointerType.selection || (board as any).isTyping) {
+  // 绘制中、任意非选择模式、键盘打字、或正在拖拽/调整端点时，气泡工具栏暂隐（对标打字体验）
+  const isDragging =
+    Boolean((board as any).isTyping) ||
+    Boolean((board as any).isDragging) ||
+    Boolean(board.raw && isResizing(board.raw)) ||
+    Boolean(board.raw && isSelectionMoving(board.raw)) ||
+    Boolean(board.raw && isMovingElements(board.raw)) ||
+    Boolean(board.raw && isPlaitDragging(board.raw));
+
+  if (board.raw.pointer !== PlaitPointerType.selection || isDragging) {
     return defaultState;
   }
 
@@ -349,6 +359,7 @@ export function useFloatingToolbar(
         'viewport:scroll',
         'pointer:change',
         'text:editing',
+        'drag',
       ];
       if (oldBoard) {
         for (const ev of events) {

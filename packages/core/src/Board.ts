@@ -160,8 +160,10 @@ export class Board {
       BoardTransforms.updatePointerType(this.raw, PlaitPointerType.selection);
       setCreationMode(this.raw, BoardCreationMode.dnd);
     } else if (pointer === 'hand' || pointer === PlaitPointerType.hand) {
+      this.clearSelection();
       BoardTransforms.updatePointerType(this.raw, PlaitPointerType.hand);
     } else {
+      this.clearSelection();
       BoardTransforms.updatePointerType(this.raw, pointer as any);
       setCreationMode(this.raw, BoardCreationMode.drawing);
     }
@@ -556,9 +558,9 @@ export class Board {
 
   select(elements: PlaitElement | PlaitElement[]) {
     this.syncNodeIndices();
-    clearSelectedElement(this.raw);
-    addSelectedElement(this.raw, elements);
-    this.emit('selection:change', { selected: this.selectedElements });
+    const els = Array.isArray(elements) ? elements : [elements];
+    Transforms.addSelectionWithTemporaryElements(this.raw, els);
+    this.emit('selection:change', { selected: els });
   }
 
   selectElement(elements: PlaitElement | PlaitElement[]) {
@@ -567,6 +569,7 @@ export class Board {
 
   clearSelection() {
     clearSelectedElement(this.raw);
+    Transforms.setSelection(this.raw, null);
     this.emit('selection:change', { selected: [] });
   }
 

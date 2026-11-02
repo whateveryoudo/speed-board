@@ -4,6 +4,7 @@ import {
   PlaitPointerType,
   clearSelectedElement,
   getSelectedElements,
+  Transforms,
 } from '@plait/core';
 import { BoardCreationMode, setCreationMode } from '@plait/common';
 
@@ -42,6 +43,7 @@ export const withGlobalEsc = (board: PlaitBoard) => {
           event.preventDefault();
           event.stopPropagation();
           clearSelectedElement(board);
+          Transforms.setSelection(board, null);
           if (wrapper) {
             wrapper.emit('selection:change', { selected: [] });
           }
