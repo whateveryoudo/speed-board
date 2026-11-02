@@ -228,6 +228,9 @@ onMounted(() => {
   });
 
   BOARD_TO_AFTER_CHANGE.set(board, () => {
+    const wrapper = (board as any).boardWrapper;
+    wrapper?.emit?.('change', {});
+    wrapper?.emit?.('history:change', {});
     emit('change', {
       children: board.children,
       operations: board.operations,

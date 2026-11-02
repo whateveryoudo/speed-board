@@ -16,6 +16,7 @@ import {
   getSelectedElements,
   KEY_TO_ELEMENT_MAP,
   Transforms,
+  PlaitNode,
   distanceBetweenPointAndPoint,
   createG
 } from '@plait/core';
@@ -34,7 +35,8 @@ import {
   isUpdatedHandleIndex,
   getHitShape,
   getHitConnection,
-  getConnectionPoint
+  getConnectionPoint,
+  getArrowLinePoints
 } from '@plait/draw';
 import {
   isDrawingMode,
@@ -501,44 +503,88 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
       const createdLine = board.children[afterLen - 1];
       if (PlaitDrawElement.isArrowLine(createdLine)) {
         const path = [afterLen - 1];
-        const points = [...createdLine.points];
+        let points = [...createdLine.points];
+        let source = { ...createdLine.source };
+        let target = { ...createdLine.target };
         const lastIdx = points.length - 1;
         const targetPt = points[lastIdx];
+        const sourcePt = points[0];
+        const mousePt = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
 
-        // 1. 如果终点落入通用图形内部或边缘，强制吸附定位于边框，严防穿透内部
-        const hitShape = getHitShape(board, targetPt);
-        if (hitShape) {
-          const conn = getHitConnection(board, targetPt, hitShape);
-          const connPt = getConnectionPoint(hitShape, conn);
-          const rotatedPt = rotatePointsByElement(connPt, hitShape) || connPt;
+        // 1. 处理终点吸附 (通用图形或脑图)
+        const targetHitShape = getHitShape(board, targetPt) || getHitShape(board, mousePt);
+        if (targetHitShape) {
+          const conn = getHitConnection(board, targetPt, targetHitShape) || getHitConnection(board, mousePt, targetHitShape);
+          const connPt = getConnectionPoint(targetHitShape, conn);
+          const rotatedPt = rotatePointsByElement(connPt, targetHitShape) || connPt;
           points[lastIdx] = rotatedPt;
-          Transforms.setNode(
-            board,
-            {
-              target: {
-                ...createdLine.target,
-                boundId: hitShape.id,
-                connection: conn
-              },
-              points
-            } as any,
-            path
-          );
+          target = {
+            ...target,
+            boundId: targetHitShape.id,
+            connection: conn
+          };
         } else if (snapRef) {
-          // 2. 如果终点落入脑图节点
           points[lastIdx] = snapRef.point;
-          Transforms.setNode(
-            board,
-            {
-              target: {
-                ...createdLine.target,
-                boundId: snapRef.boundId,
-                connection: snapRef.connection
-              },
-              points
-            } as any,
-            path
-          );
+          target = {
+            ...target,
+            boundId: snapRef.boundId,
+            connection: snapRef.connection
+          };
+        }
+
+        // 2. 处理起点吸附 (如果起点也落入通用图形或脑图)
+        const sourceHitShape = getHitShape(board, sourcePt);
+        if (sourceHitShape) {
+          const conn = getHitConnection(board, sourcePt, sourceHitShape);
+          const connPt = getConnectionPoint(sourceHitShape, conn);
+          const rotatedPt = rotatePointsByElement(connPt, sourceHitShape) || connPt;
+          points[0] = rotatedPt;
+          source = {
+            ...source,
+            boundId: sourceHitShape.id,
+            connection: conn
+          };
+        } else {
+          const sourceMindHit = (board as any).getMindHitNode?.(sourcePt, 12);
+          if (sourceMindHit) {
+            const { box, root } = sourceMindHit;
+            const connectors: { point: Point; connection: [number, number] }[] = [
+              { point: [box.x + box.width / 2, box.y], connection: [0.5, 0] },
+              { point: [box.x + box.width, box.y + box.height / 2], connection: [1, 0.5] },
+              { point: [box.x + box.width / 2, box.y + box.height], connection: [0.5, 1] },
+              { point: [box.x, box.y + box.height / 2], connection: [0, 0.5] }
+            ];
+            let nearest = connectors[0];
+            let minDist = Infinity;
+            for (const c of connectors) {
+              const dist = distanceBetweenPointAndPoint(...sourcePt, ...c.point);
+              if (dist < minDist) {
+                minDist = dist;
+                nearest = c;
+              }
+            }
+            points[0] = nearest.point;
+            source = {
+              ...source,
+              boundId: `${root.id}:${box.id}`,
+              connection: nearest.connection
+            };
+          }
+        }
+
+        // 3. 首次落点立即应用标准 pipeline，绑定 source/target 关系
+        DrawTransforms.resizeArrowLine(board, { points, source, target }, path);
+
+        // 4. 校准端点点位：调用 getArrowLinePoints 提取经过 strokeWidth/connectionOffset 修正后的精确边框点位，消除初次落点的微小穿透偏差，使初次落点与后续再次接触时的点位 100% 绝对一致
+        const updatedLine = PlaitNode.get(board, path) as PlaitArrowLine;
+        if (updatedLine) {
+          const drawPoints = getArrowLinePoints(board, updatedLine);
+          if (drawPoints && drawPoints.length >= 2) {
+            const finalPoints = [...updatedLine.points];
+            finalPoints[0] = drawPoints[0];
+            finalPoints[finalPoints.length - 1] = drawPoints[drawPoints.length - 1];
+            DrawTransforms.resizeArrowLine(board, { points: finalPoints }, path);
+          }
         }
       }
     }
