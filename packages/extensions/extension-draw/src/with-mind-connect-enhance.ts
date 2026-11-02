@@ -16,24 +16,9 @@ import {
   BasicShapes,
   PlaitArrowLine,
   PlaitDrawElement,
-  getSelectedArrowLineElements,
-  getSnappingShape,
-  getHitConnection
+  DrawTransforms
 } from '@plait/draw';
-import {
-  isDrawingMode,
-  isResizing,
-  withResize,
-  type ResizeRef,
-  type ResizeState,
-  type WithResizeOptions
-} from '@plait/common';
-
-export enum LineResizeHandle {
-  source = 'source',
-  target = 'target',
-  addHandle = 'addHandle'
-}
+import { isDrawingMode, isResizing } from '@plait/common';
 
 // 1. 全局挂载 KEY_TO_ELEMENT_MAP Proxy，确保 Plait 底层 getElementById 随时能解析出 mind 虚拟图形节点
 let isProxyInstalled = false;
@@ -75,6 +60,78 @@ export function installMindElementMapProxy() {
 }
 
 installMindElementMapProxy();
+
+/**
+ * 拦截 DrawTransforms.resizeArrowLine:
+ * 1. 优先完全保留 Plait 原生对几何图形的磁吸、连接桩对齐与边界判定逻辑，绝不干涉或影响通用图形；
+ * 2. 仅当 Plait 原生未命中任何普通图形时，检测是否靠近脑图节点落点 (12px 范围)，完成脑图吸附与端点对齐；
+ * 3. 绝不让连线穿透到图形或脑图卡片内部。
+ */
+let isTransformsPatched = false;
+export function patchDrawTransformsResizeArrowLine() {
+  if (isTransformsPatched) return;
+  isTransformsPatched = true;
+
+  const originalResize = DrawTransforms.resizeArrowLine;
+  DrawTransforms.resizeArrowLine = (
+    board: PlaitBoard,
+    options: Partial<PlaitArrowLine>,
+    path: Path
+  ) => {
+    if (options.points && options.points.length >= 2) {
+      const getMindSnap = (pt: Point) => {
+        const hit = (board as any).getMindHitNode?.(pt, 12);
+        if (!hit) return null;
+        const { box, root } = hit;
+        const connectors: { point: Point; connection: [number, number] }[] = [
+          { point: [box.x + box.width / 2, box.y], connection: [0.5, 0] },
+          { point: [box.x + box.width, box.y + box.height / 2], connection: [1, 0.5] },
+          { point: [box.x + box.width / 2, box.y + box.height], connection: [0.5, 1] },
+          { point: [box.x, box.y + box.height / 2], connection: [0, 0.5] }
+        ];
+        let nearest = connectors[0];
+        let minDist = Infinity;
+        for (const c of connectors) {
+          const dist = distanceBetweenPointAndPoint(...pt, ...c.point);
+          if (dist < minDist) {
+            minDist = dist;
+            nearest = c;
+          }
+        }
+        if (minDist <= 12) {
+          return {
+            boundId: `${root.id}:${box.id}`,
+            connection: nearest.connection,
+            point: nearest.point
+          };
+        }
+        return null;
+      };
+
+      // 仅在 Plait 原生未吸附到普通图形时（boundId 为空），才检测是否吸附到脑图节点
+      if (options.target && !options.target.boundId) {
+        const lastIdx = options.points.length - 1;
+        const snap = getMindSnap(options.points[lastIdx]);
+        if (snap) {
+          options.target = { ...options.target, boundId: snap.boundId, connection: snap.connection };
+          options.points[lastIdx] = snap.point;
+        }
+      }
+
+      if (options.source && !options.source.boundId) {
+        const snap = getMindSnap(options.points[0]);
+        if (snap) {
+          options.source = { ...options.source, boundId: snap.boundId, connection: snap.connection };
+          options.points[0] = snap.point;
+        }
+      }
+    }
+
+    return originalResize(board, options, path);
+  };
+}
+
+patchDrawTransformsResizeArrowLine();
 
 /**
  * 绘制 100% 贴合脑图节点形状的磁吸反馈与 4 个落点桩子:
@@ -153,133 +210,14 @@ function drawMindNodeReaction(
 }
 
 /**
- * 连线端点拉伸手柄判定增强插件:
- * 接入 Plait 标准 withResize 系统，宽容度为 12px，点击线头/线尾 100% 触发旋转、拉伸与形状调整，绝不退化为整线平移
- */
-const withArrowLineResizeEnhance = (board: PlaitBoard) => {
-  const options: WithResizeOptions<PlaitArrowLine, LineResizeHandle> = {
-    key: 'mind-arrow-line-resize',
-    canResize: () => {
-      const selected = getSelectedArrowLineElements(board);
-      return selected.length === 1;
-    },
-    hitTest: (point: Point) => {
-      const selected = getSelectedArrowLineElements(board);
-      if (selected.length !== 1) return null;
-      const line = selected[0];
-      const points = PlaitArrowLine.getPoints(board, line);
-      const sourcePoint = points[0];
-      const targetPoint = points[points.length - 1];
-
-      const HANDLE_HIT_BUFFER = 12;
-      const distTarget = distanceBetweenPointAndPoint(...point, ...targetPoint);
-      if (distTarget <= HANDLE_HIT_BUFFER) {
-        return {
-          element: line,
-          handle: LineResizeHandle.target,
-          handleIndex: points.length - 1
-        };
-      }
-
-      const distSource = distanceBetweenPointAndPoint(...point, ...sourcePoint);
-      if (distSource <= HANDLE_HIT_BUFFER) {
-        return {
-          element: line,
-          handle: LineResizeHandle.source,
-          handleIndex: 0
-        };
-      }
-
-      return null;
-    },
-    onResize: (resizeRef: ResizeRef<PlaitArrowLine, LineResizeHandle>, resizeState: ResizeState) => {
-      const line = resizeRef.element;
-      const handle = resizeRef.handle;
-      const path = (resizeRef.path || PlaitBoard.findPath(board, line)) as Path;
-      if (!path) return;
-
-      const movingPoint = resizeState.endPoint;
-
-      // 1. 优先检测是否吸附在脑图节点上
-      const hit = (board as any).getMindHitNode?.(movingPoint, 25);
-      let snapTarget: { boundId: string; connection: [number, number]; point: Point } | null = null;
-      if (hit) {
-        const { box } = hit;
-        const connectors: { point: Point; connection: [number, number] }[] = [
-          { point: [box.x + box.width / 2, box.y], connection: [0.5, 0] },
-          { point: [box.x + box.width, box.y + box.height / 2], connection: [1, 0.5] },
-          { point: [box.x + box.width / 2, box.y + box.height], connection: [0.5, 1] },
-          { point: [box.x, box.y + box.height / 2], connection: [0, 0.5] }
-        ];
-        let nearest = connectors[0];
-        let minDist = Infinity;
-        for (const c of connectors) {
-          const dist = distanceBetweenPointAndPoint(...movingPoint, ...c.point);
-          if (dist < minDist) {
-            minDist = dist;
-            nearest = c;
-          }
-        }
-        if (minDist <= 25) {
-          snapTarget = {
-            boundId: `${hit.root.id}:${box.id}`,
-            connection: nearest.connection,
-            point: nearest.point
-          };
-        }
-      }
-
-      // 2. 检测是否吸附在普通图形图元上
-      const hitShape = !snapTarget ? getSnappingShape(board, movingPoint) : null;
-
-      const points = [...line.points];
-      const source = { ...line.source };
-      const target = { ...line.target };
-
-      if (handle === LineResizeHandle.source) {
-        if (snapTarget) {
-          source.boundId = snapTarget.boundId;
-          source.connection = snapTarget.connection;
-          points[0] = snapTarget.point;
-        } else if (hitShape) {
-          source.boundId = hitShape.id;
-          source.connection = getHitConnection(board, movingPoint, hitShape);
-          points[0] = movingPoint;
-        } else {
-          source.boundId = undefined;
-          source.connection = undefined;
-          points[0] = movingPoint;
-        }
-      } else if (handle === LineResizeHandle.target) {
-        if (snapTarget) {
-          target.boundId = snapTarget.boundId;
-          target.connection = snapTarget.connection;
-          points[points.length - 1] = snapTarget.point;
-        } else if (hitShape) {
-          target.boundId = hitShape.id;
-          target.connection = getHitConnection(board, movingPoint, hitShape);
-          points[points.length - 1] = movingPoint;
-        } else {
-          target.boundId = undefined;
-          target.connection = undefined;
-          points[points.length - 1] = movingPoint;
-        }
-      }
-
-      Transforms.setNode(board, { points, source, target } as any, path);
-    }
-  };
-
-  withResize<PlaitArrowLine, LineResizeHandle>(board, options);
-  return board;
-};
-
-/**
- * 脑图连线磁吸与端点拖拽拉伸增强插件
+ * 脑图连线磁吸与反馈增强插件:
+ * 1. 彻底不干预通用图形，Plait 原生图形磁吸、边框、4 个连接桩完全原生运行；
+ * 2. 精确为脑图提供 12px 适度磁吸半径，并动态贴合脑图节点形状；
+ * 3. 绝不让连线穿透到图形或脑图卡片内部。
  */
 export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
   installMindElementMapProxy();
-  board = withArrowLineResizeEnhance(board);
+  patchDrawTransformsResizeArrowLine();
 
   const { pointerMove, pointerUp, globalPointerUp } = board;
 
@@ -306,7 +244,8 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
     const isLineResizing = isResizing(board);
 
     if (isLinePointer || isLineResizing) {
-      const hit = (board as any).getMindHitNode?.(movingPoint, 25);
+      // 适度磁吸范围 (12px)
+      const hit = (board as any).getMindHitNode?.(movingPoint, 12);
       if (hit) {
         const { box } = hit;
         const connectors: { point: Point; connection: [number, number] }[] = [
@@ -326,12 +265,7 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
           }
         }
 
-        const isSnapped =
-          minDist <= 25 ||
-          (movingPoint[0] >= box.x &&
-            movingPoint[0] <= box.x + box.width &&
-            movingPoint[1] >= box.y &&
-            movingPoint[1] <= box.y + box.height);
+        const isSnapped = minDist <= 12;
 
         // 100% 贴合节点实际形状进行渲染
         boundShapeG = drawMindNodeReaction(board, box, isSnapped, nearest.point);
@@ -353,6 +287,7 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
       activeMindSnapRef = null;
     }
 
+    // 关键：放行给 Plait 原生 withArrowLineBoundReaction，通用图形原生显示其边框和连接桩！
     pointerMove(event);
   };
 
