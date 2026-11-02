@@ -29,6 +29,7 @@ import {
   DrawTransforms,
   LineActiveGenerator,
   ArrowLineComponent,
+  GeometryComponent,
   DefaultDrawActiveStyle,
   getMiddlePoints,
   getNextRenderPoints,
@@ -179,6 +180,72 @@ export class SpeedArrowLineComponent extends ArrowLineComponent {
 }
 
 /**
+ * 几何图形组件扩展：
+ * 修复 @plait/draw 官方底层 bug（官方在 initialize() 中错误将 lineAutoCompleteGenerator 挂载到了 getElementTopHost(board)，
+ * 导致初次创建图形或首次选中时 4 个引导点位在非 1:1 坐标系下错位“飘到右下角”）；此处强制重定向至 getActiveHost(board)
+ */
+export class SpeedGeometryComponent extends GeometryComponent {
+  initialize(): void {
+    super.initialize();
+    this.lineAutoCompleteGenerator.processDrawing(
+      this.element as any,
+      PlaitBoard.getActiveHost(this.board),
+      { selected: this.selected }
+    );
+  }
+}
+
+/**
+ * 计算几何图形的最优吸附落点与连接比率：
+ * 1. 优先吸附到图形的 4 个标准连接桩子 (20px 磁吸距离)：用户只要在桩子附近释放，精准锁定到标准连接点，绝不产生偏移偏差点（如 Image 2 中的偏移）；
+ * 2. 否则精确锁定到最近的边框点。
+ */
+export function getOptimalShapeConnection(
+  board: PlaitBoard,
+  point: Point,
+  shape: PlaitShapeElement
+): { connection: [number, number]; point: Point } {
+  const standardConnections: [number, number][] = [
+    [0.5, 0],
+    [1, 0.5],
+    [0.5, 1],
+    [0, 0.5]
+  ];
+
+  let nearestConnectorPoint: Point = point;
+  let nearestConnection: [number, number] = [0.5, 0];
+  let minDistance = Infinity;
+
+  for (const conn of standardConnections) {
+    const connPt = getConnectionPoint(shape, conn);
+    const borderPt = rotatePointsByElement(connPt, shape) || connPt;
+    const dist = distanceBetweenPointAndPoint(...point, ...borderPt);
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearestConnectorPoint = borderPt;
+      nearestConnection = conn;
+    }
+  }
+
+  // 若在标准桩子 20px 范围内，强制锁定到该标准桩子
+  if (minDistance <= 20) {
+    return {
+      connection: nearestConnection,
+      point: nearestConnectorPoint
+    };
+  }
+
+  // 否则使用精确边缘落点
+  const conn = getHitConnection(board, point, shape) as [number, number];
+  const connPt = getConnectionPoint(shape, conn);
+  const borderPt = rotatePointsByElement(connPt, shape) || connPt;
+  return {
+    connection: conn,
+    point: borderPt
+  };
+}
+
+/**
  * 拦截 DrawTransforms.resizeArrowLine:
  * 1. 通用几何图形：光标落在图形内部或边缘时，端点严格锁定于图形边框（通过 getConnectionPoint 与 rotatePointsByElement），绝不穿透内部！
  * 2. 脑图节点：光标落在脑图节点内部或 12px 范围时，端点严格定位于卡片 4 边落点，绝不穿透内部！
@@ -200,13 +267,11 @@ export function patchDrawTransformsResizeArrowLine() {
         // 1. 通用几何图形：光标落入图形内部或边缘，端点严格定位于边框，绝不穿透到内部！
         const hitShape = getHitShape(board, pt);
         if (hitShape) {
-          const conn = getHitConnection(board, pt, hitShape);
-          const connPt = getConnectionPoint(hitShape, conn);
-          const rotatedPt = rotatePointsByElement(connPt, hitShape) || connPt;
+          const opt = getOptimalShapeConnection(board, pt, hitShape);
           return {
-            point: rotatedPt,
+            point: opt.point,
             boundId: hitShape.id,
-            connection: conn
+            connection: opt.connection
           };
         }
 
@@ -376,6 +441,9 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
     if (PlaitDrawElement.isArrowLine(context.element)) {
       return SpeedArrowLineComponent;
     }
+    if (PlaitDrawElement.isGeometry(context.element)) {
+      return SpeedGeometryComponent;
+    }
     return drawElement(context);
   };
 
@@ -408,10 +476,8 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
     if (isLineDrawing) {
       const hitShape = getHitShape(board, movingPoint);
       if (hitShape) {
-        const conn = getHitConnection(board, movingPoint, hitShape);
-        const connPt = getConnectionPoint(hitShape, conn);
-        const borderPt = rotatePointsByElement(connPt, hitShape) || connPt;
-        const hostPt = toHostPointFromViewBoxPoint(board, borderPt);
+        const opt = getOptimalShapeConnection(board, movingPoint, hitShape);
+        const hostPt = toHostPointFromViewBoxPoint(board, opt.point);
         const screenPt = toScreenPointFromHostPoint(board, hostPt);
         effectiveEvent = new PointerEvent(event.type, {
           bubbles: event.bubbles,
@@ -514,14 +580,12 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
         // 1. 处理终点吸附 (通用图形或脑图)
         const targetHitShape = getHitShape(board, targetPt) || getHitShape(board, mousePt);
         if (targetHitShape) {
-          const conn = getHitConnection(board, targetPt, targetHitShape) || getHitConnection(board, mousePt, targetHitShape);
-          const connPt = getConnectionPoint(targetHitShape, conn);
-          const rotatedPt = rotatePointsByElement(connPt, targetHitShape) || connPt;
-          points[lastIdx] = rotatedPt;
+          const opt = getOptimalShapeConnection(board, targetPt, targetHitShape);
+          points[lastIdx] = opt.point;
           target = {
             ...target,
             boundId: targetHitShape.id,
-            connection: conn
+            connection: opt.connection
           };
         } else if (snapRef) {
           points[lastIdx] = snapRef.point;
@@ -535,14 +599,12 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
         // 2. 处理起点吸附 (如果起点也落入通用图形或脑图)
         const sourceHitShape = getHitShape(board, sourcePt);
         if (sourceHitShape) {
-          const conn = getHitConnection(board, sourcePt, sourceHitShape);
-          const connPt = getConnectionPoint(sourceHitShape, conn);
-          const rotatedPt = rotatePointsByElement(connPt, sourceHitShape) || connPt;
-          points[0] = rotatedPt;
+          const opt = getOptimalShapeConnection(board, sourcePt, sourceHitShape);
+          points[0] = opt.point;
           source = {
             ...source,
             boundId: sourceHitShape.id,
-            connection: conn
+            connection: opt.connection
           };
         } else {
           const sourceMindHit = (board as any).getMindHitNode?.(sourcePt, 12);
