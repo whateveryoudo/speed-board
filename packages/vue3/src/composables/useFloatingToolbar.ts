@@ -1,5 +1,5 @@
-import { ref, computed, watch, unref, type Ref } from 'vue';
-import { isSelectionMoving, isMovingElements, isDragging as isPlaitDragging } from '@plait/core';
+import { ref, computed, watch, unref, nextTick, onScopeDispose, type Ref } from 'vue';
+import { isSelectionMoving, isMovingElements, isDragging as isPlaitDragging, getSelectedElements } from '@plait/core';
 import { isResizing } from '@plait/common';
 import {
   type Board,
@@ -39,6 +39,29 @@ export function createSelectionVirtualElement(board: Board): VirtualElement | nu
   return {
     getBoundingClientRect() {
       try {
+        // 如果正在进行文本编辑，且当前焦点元素为 contenteditable，优先对齐当前焦点输入框
+        if (selected.length === 1 && typeof document !== 'undefined') {
+          const activeEl = document.activeElement as HTMLElement | null;
+          if (activeEl && activeEl.getAttribute('contenteditable') === 'true') {
+            const boardContainer = PlaitBoard.getBoardContainer(board.raw);
+            if (boardContainer && boardContainer.contains(activeEl)) {
+              const domRect = activeEl.getBoundingClientRect();
+              if (domRect && domRect.width > 0 && domRect.height > 0) {
+                return {
+                  x: domRect.left,
+                  y: domRect.top,
+                  top: domRect.top,
+                  left: domRect.left,
+                  bottom: domRect.bottom,
+                  right: domRect.right,
+                  width: domRect.width,
+                  height: domRect.height,
+                };
+              }
+            }
+          }
+        }
+
         let rect: any = null;
         try {
           rect = getRectangleByElements(board.raw, selected, false);
@@ -112,8 +135,24 @@ export function computeFloatingToolbarPosition(
   const offsetLeft = containerRect ? containerRect.left : 0;
   const offsetTop = containerRect ? containerRect.top : 0;
 
-  const floatingWidth = floatingElement?.offsetWidth || 360;
-  const floatingHeight = floatingElement?.offsetHeight || 40;
+  const type = (board.getSelectionInfo?.()?.selectedType || 'shape') as string;
+  // 根据图元类型精确配置预估宽度，保障首帧同步计算 100% 居中，杜绝任何位移动画
+  const defaultWidth =
+    type === 'text'
+      ? 110
+      : type.startsWith('mindmap')
+      ? 290
+      : type === 'image' || type === 'multiple'
+      ? 110
+      : 200;
+  const floatingWidth =
+    floatingElement && floatingElement.offsetWidth > 40
+      ? floatingElement.offsetWidth
+      : defaultWidth;
+  const floatingHeight =
+    floatingElement && floatingElement.offsetHeight > 20
+      ? floatingElement.offsetHeight
+      : 38;
 
   // 上方可用空间对比所需空间 (工具栏高度 + 偏移)
   const availableTop = rect.top - offsetTop;
@@ -163,20 +202,41 @@ export async function computeFloatingToolbarPositionAsync(
   const offsetTop = containerRect ? containerRect.top : 0;
   const boundary = containerEl || undefined;
 
-  const targetFloating = floatingElement || ({
-    offsetWidth: 360,
-    offsetHeight: 40,
-    getBoundingClientRect: () => ({
-      x: 0,
-      y: 0,
-      top: 0,
-      left: 0,
-      right: 360,
-      bottom: 40,
-      width: 360,
-      height: 40,
-    }),
-  } as any);
+  const type = (board.getSelectionInfo?.()?.selectedType || 'shape') as string;
+  // 根据图元类型精确配置预估宽度，保障首帧同步计算 100% 居中，杜绝任何位移动画
+  const defaultWidth =
+    type === 'text'
+      ? 110
+      : type.startsWith('mindmap')
+      ? 290
+      : type === 'image' || type === 'multiple'
+      ? 110
+      : 200;
+  const floatingWidth =
+    floatingElement && floatingElement.offsetWidth > 40
+      ? floatingElement.offsetWidth
+      : defaultWidth;
+  const floatingHeight =
+    floatingElement && floatingElement.offsetHeight > 20
+      ? floatingElement.offsetHeight
+      : 38;
+
+  const targetFloating = (floatingElement && floatingElement.offsetWidth > 40)
+    ? floatingElement
+    : ({
+        offsetWidth: floatingWidth,
+        offsetHeight: floatingHeight,
+        getBoundingClientRect: () => ({
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          right: floatingWidth,
+          bottom: floatingHeight,
+          width: floatingWidth,
+          height: floatingHeight,
+        }),
+      } as any);
 
   try {
     const { x, y, placement } = await computePosition(virtualElement, targetFloating, {
@@ -328,29 +388,86 @@ export function useFloatingToolbar(
   };
 
   const state = ref<FloatingToolbarProperties>(defaultState);
+  const isMovingOrDraggingRef = { current: false };
 
-  const sync = async () => {
+  let rafId: any = null;
+  const requestSync = () => {
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      sync();
+    });
+  };
+
+  const sync = () => {
     const board = resolveBoard(source);
     if (!board) {
-      state.value = defaultState;
+      state.value = { ...defaultState, position: state.value.position };
+      return;
+    }
+
+    if (isMovingOrDraggingRef.current) {
+      if (state.value.visible) {
+        state.value = { ...state.value, visible: false };
+      }
       return;
     }
 
     const toolbarEl = unref(toolbarRefOption) || null;
     const initialProps = computeFloatingToolbarProperties(board, customOffset, toolbarEl);
-    state.value = initialProps;
 
-    if (toolbarEl && initialProps.visible) {
-      const accuratePos = await computeFloatingToolbarPositionAsync(board, customOffset, toolbarEl);
-      if (accuratePos && state.value.visible) {
-        state.value.position = accuratePos;
-      }
+    if (!initialProps.visible) {
+      state.value = {
+        ...initialProps,
+        position: state.value.position,
+      };
+      return;
+    }
+
+    // 同步一步到位更新 state.value（坐标与可见性在同一次响应式更新中生效，彻底消除首帧进入位移动作）
+    if (!isMovingOrDraggingRef.current) {
+      state.value = initialProps;
     }
   };
+
+  // 监听浮动工具栏 DOM 尺寸变化 (对标 floating-ui autoUpdate 与 ResizeObserver，保障增减按钮时位置精准归中)
+  let resizeObserver: ResizeObserver | null = null;
+  watch(
+    () => unref(toolbarRefOption),
+    (el) => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
+      if (el && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => {
+          if (state.value.visible && !isMovingOrDraggingRef.current) {
+            requestSync();
+          }
+        });
+        resizeObserver.observe(el);
+      }
+    },
+    { immediate: true }
+  );
+
+  onScopeDispose(() => {
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
+  });
+
+  let cleanHooks: (() => void) | null = null;
 
   watch(
     () => resolveBoard(source),
     (board, oldBoard) => {
+      if (cleanHooks) {
+        cleanHooks();
+        cleanHooks = null;
+      }
+
       const events = [
         'selection:change',
         'change',
@@ -359,19 +476,62 @@ export function useFloatingToolbar(
         'viewport:scroll',
         'pointer:change',
         'text:editing',
-        'drag',
       ];
       if (oldBoard) {
         for (const ev of events) {
-          oldBoard.off(ev, sync);
+          oldBoard.off(ev, requestSync);
         }
       }
       if (board) {
         for (const ev of events) {
-          board.on(ev, sync);
+          board.on(ev, requestSync);
+        }
+
+        // 对标 Drawnix：直接接管 pointerMove / pointerUp 捕获拖拽/移动开始与释放
+        const rawBoard = board.raw;
+        if (rawBoard) {
+          const { pointerMove: origPointerMove, pointerUp: origPointerUp } = rawBoard;
+
+          rawBoard.pointerMove = (event: PointerEvent) => {
+            const isMovingNow = () =>
+              isMovingElements(rawBoard) ||
+              isPlaitDragging(rawBoard) ||
+              isResizing(rawBoard) ||
+              isSelectionMoving(rawBoard);
+
+            if (isMovingNow() && !isMovingOrDraggingRef.current) {
+              isMovingOrDraggingRef.current = true;
+              if (state.value.visible) {
+                state.value = { ...state.value, visible: false };
+              }
+            }
+
+            origPointerMove(event);
+
+            if (isMovingNow() && !isMovingOrDraggingRef.current) {
+              isMovingOrDraggingRef.current = true;
+              if (state.value.visible) {
+                state.value = { ...state.value, visible: false };
+              }
+            }
+          };
+
+          rawBoard.pointerUp = (event: PointerEvent) => {
+            const wasMoving = isMovingOrDraggingRef.current;
+            isMovingOrDraggingRef.current = false;
+            origPointerUp(event);
+            if (wasMoving || getSelectedElements(rawBoard).length > 0) {
+              requestSync();
+            }
+          };
+
+          cleanHooks = () => {
+            rawBoard.pointerMove = origPointerMove;
+            rawBoard.pointerUp = origPointerUp;
+          };
         }
       }
-      sync();
+      requestSync();
     },
     { immediate: true }
   );

@@ -1,6 +1,6 @@
 <template>
   <div
-    v-show="visible"
+    v-if="visible"
     ref="floatingToolbarRef"
     class="speed-floating-toolbar speed-mindmap-floating-toolbar"
     :style="floatingStyle"

@@ -5,7 +5,7 @@ import { withMark, PlaitMarkEditor, MarkTypes } from '@plait/text-plugins';
 import { renderSlateSpansHtml, escapeHtml } from '@speed-board/core';
 
 /**
- * 获取 DOM 选区在 contenteditable 元素内部的全局字符偏移量
+ * 获取 DOM 选区在 contenteditable 元素内部的全局字符偏移量（基于 DOM 文本节点字符遍历，精准对称）
  */
 export function getDomCharOffsets(root: HTMLElement): { start: number; end: number; isBackward: boolean } | null {
   const sel = window.getSelection();
@@ -14,12 +14,35 @@ export function getDomCharOffsets(root: HTMLElement): { start: number; end: numb
   if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) {
     return null;
   }
-  const preCaretRange = range.cloneRange();
-  preCaretRange.selectNodeContents(root);
-  preCaretRange.setEnd(range.startContainer, range.startOffset);
-  const start = preCaretRange.toString().length;
-  preCaretRange.setEnd(range.endContainer, range.endOffset);
-  const end = preCaretRange.toString().length;
+
+  function getCharOffset(targetNode: Node, targetOffset: number): number {
+    let total = 0;
+    function walk(node: Node): boolean {
+      if (node === targetNode) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          total += Math.min(targetOffset, (node.textContent || '').length);
+          return true;
+        }
+        for (let i = 0; i < targetOffset && i < node.childNodes.length; i++) {
+          total += (node.childNodes[i].textContent || '').length;
+        }
+        return true;
+      }
+      if (node.nodeType === Node.TEXT_NODE) {
+        total += (node.textContent || '').length;
+        return false;
+      }
+      for (let i = 0; i < node.childNodes.length; i++) {
+        if (walk(node.childNodes[i])) return true;
+      }
+      return false;
+    }
+    walk(root);
+    return total;
+  }
+
+  const s = getCharOffset(range.startContainer, range.startOffset);
+  const e = getCharOffset(range.endContainer, range.endOffset);
 
   let isBackward = false;
   if (sel.anchorNode && sel.focusNode) {
@@ -32,7 +55,11 @@ export function getDomCharOffsets(root: HTMLElement): { start: number; end: numb
     }
   }
 
-  return { start, end, isBackward };
+  return {
+    start: Math.min(s, e),
+    end: Math.max(s, e),
+    isBackward,
+  };
 }
 
 /**
@@ -90,9 +117,11 @@ export function setDomCharSelection(
   let startNodeOffset = 0;
   let endNode: Node | null = null;
   let endNodeOffset = 0;
+  let lastTextNode: Node | null = null;
 
   function traverse(node: Node) {
     if (node.nodeType === Node.TEXT_NODE) {
+      lastTextNode = node;
       const len = (node.textContent || '').length;
       if (!startNode && start <= currentOffset + len) {
         startNode = node;
@@ -112,6 +141,15 @@ export function setDomCharSelection(
   }
 
   traverse(root);
+
+  if (startNode && !endNode && lastTextNode) {
+    endNode = lastTextNode;
+    endNodeOffset = (lastTextNode.textContent || '').length;
+  }
+  if (!startNode && lastTextNode) {
+    startNode = lastTextNode;
+    startNodeOffset = (lastTextNode.textContent || '').length;
+  }
 
   if (startNode && endNode) {
     try {
@@ -170,9 +208,11 @@ export function parseEditableElToSlateSpans(
         const td = el.style.textDecoration || '';
         if (td.includes('underline') || el.tagName === 'U') {
           newMark.underlined = true;
+          newMark.underline = true;
         }
-        if (td.includes('line-through') || el.tagName === 'S' || el.tagName === 'STRIKE') {
+        if (td.includes('line-through') || el.tagName === 'S' || el.tagName === 'STRIKE' || el.tagName === 'DEL') {
           newMark.strike = true;
+          newMark.strikethrough = true;
         }
         if (el.style.color && el.style.color !== 'inherit') {
           newMark.color = el.style.color;
@@ -216,8 +256,8 @@ export function mergeAdjacentSpans(spans: any[]): any[] {
     const isSameMark =
       Boolean(prev.bold) === Boolean(span.bold) &&
       Boolean(prev.italic) === Boolean(span.italic) &&
-      Boolean(prev.underlined) === Boolean(span.underlined) &&
-      Boolean(prev.strike) === Boolean(span.strike) &&
+      Boolean(prev.underlined || prev.underline) === Boolean(span.underlined || span.underline) &&
+      Boolean(prev.strike || prev.strikethrough) === Boolean(span.strike || span.strikethrough) &&
       (prev.color || '') === (span.color || '') &&
       (prev['font-size'] || '') === (span['font-size'] || '');
     if (isSameMark) {
@@ -253,6 +293,7 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
 
     let currentText = props.text;
     let isReadonly = props.readonly !== false;
+    let cleanupEditingListeners: (() => void) | null = null;
 
     // 同步 Slate 的 selection 操作到真实 DOM 选区 (对齐 Plait 原生 Transforms.select(this.editor, [0]))
     const syncSlateSelectionToDom = () => {
@@ -280,6 +321,35 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
 
     const { apply: originalApply } = editor;
     editor.apply = (op) => {
+      if (op.type === 'set_selection' && (editor as any)._skipNextSelectAll) {
+        delete (editor as any)._skipNextSelectAll;
+        const editableEl = el.querySelector('.slate-editable-container') as HTMLElement | null;
+        const textLen = (editableEl?.textContent || '').length;
+        const lastIndex = Math.max(0, (editor.children?.[0]?.children?.length || 1) - 1);
+        const endPoint = { path: [0, lastIndex], offset: textLen };
+        editor.selection = { anchor: endPoint, focus: endPoint };
+        (editor as any).savedSelection = editor.selection;
+        (editor as any).savedDomOffsets = {
+          start: textLen,
+          end: textLen,
+          isBackward: false,
+        };
+        if (editableEl) {
+          const focusEnd = () => {
+            editableEl.focus();
+            const range = document.createRange();
+            range.selectNodeContents(editableEl);
+            range.collapse(false);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+          };
+          focusEnd();
+          requestAnimationFrame(focusEnd);
+        }
+        return;
+      }
+
       originalApply(op);
       if (op.type === 'set_selection' && !isReadonly) {
         syncSlateSelectionToDom();
@@ -315,27 +385,21 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
           : 'flex-start';
 
       const color = firstChild.color || '#333333';
-      const fontWeight = firstChild.bold ? 'bold' : 'normal';
-      const fontStyle = firstChild.italic ? 'italic' : 'normal';
-      let textDecoration = 'none';
-      if (firstChild.underlined && firstChild.strike) {
-        textDecoration = 'underline line-through';
-      } else if (firstChild.underlined) {
-        textDecoration = 'underline';
-      } else if (firstChild.strike) {
-        textDecoration = 'line-through';
-      }
+      const isMindRoot = Boolean((props as any)?.isMind && (props as any)?.isRoot);
+      const defaultWeight = (currentText as any)?.fontWeight || (isMindRoot ? '600' : 'normal');
 
       // 外层弹性容器：负责整个文本块在图形/文本框内的垂直对齐与边界约束
       const wrapperStyle = `width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: ${flexJustifyY}; box-sizing: border-box; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft Yahei', 'Hiragino Sans GB', Arial, sans-serif;`;
 
       // 内层块级容器：必须是 display: block，让内部所有 span 作为行内自然流动排版，避免成为 flex-item 导致分栏立柱畸变
-      const textStyle = `display: block; width: 100%; text-align: ${textAlign}; color: ${color}; font-weight: ${fontWeight}; font-style: ${fontStyle}; text-decoration: ${textDecoration}; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: inherit; white-space: pre-wrap; word-break: break-all; overflow-wrap: break-word; outline: none; box-sizing: border-box;`;
+      // 注意：容器仅继承颜色与字体布局，绝不能在容器上直接设置 font-style: italic 或 text-decoration: underline，
+      // 否则容器内的所有子 Span 都会强制继承，导致局部选区格式化污染整段文本！
+      const textStyle = `display: block; width: 100%; text-align: ${textAlign}; color: ${color}; font-size: ${fontSize}px; line-height: ${lineHeight}px; font-family: inherit; white-space: pre-wrap; word-break: break-all; overflow-wrap: break-word; outline: none; box-sizing: border-box;`;
 
       const spansHtml = renderSlateSpansHtml((currentText as any)?.children, {
         defaultFontSize: fontSize,
         defaultColor: color,
-        defaultFontWeight: fontWeight,
+        defaultFontWeight: defaultWeight,
       });
 
       if (isReadonly) {
@@ -348,6 +412,33 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
         if (editableEl) {
           editableEl.focus();
           let typingTimer: any = null;
+          let isTrailingDoubleClickMouseUp = false;
+
+          const selectAll = () => {
+            editableEl.focus();
+            const range = document.createRange();
+            range.selectNodeContents(editableEl);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+
+            const textLen = (editableEl.textContent || '').length;
+            const lastIndex = Math.max(0, (editor.children?.[0]?.children?.length || 1) - 1);
+            const lastLen = (editor.children?.[0]?.children?.[lastIndex]?.text || '').length;
+            const fullRange = {
+              anchor: { path: [0, 0], offset: 0 },
+              focus: { path: [0, lastIndex], offset: lastLen },
+            };
+            editor.selection = fullRange;
+            (editor as any).savedSelection = fullRange;
+            (editor as any).savedDomOffsets = {
+              start: 0,
+              end: textLen,
+              isBackward: false,
+            };
+            const wrapper = (newBoard as any).boardWrapper;
+            wrapper?.emit?.('selection:change');
+          };
 
           const syncSelection = () => {
             const offsets = getDomCharOffsets(editableEl);
@@ -366,10 +457,34 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
             }
           };
 
-          editableEl.addEventListener('mouseup', syncSelection);
+          editableEl.addEventListener('mouseup', () => {
+            if (isTrailingDoubleClickMouseUp) {
+              isTrailingDoubleClickMouseUp = false;
+              selectAll();
+              return;
+            }
+            syncSelection();
+          });
           editableEl.addEventListener('keyup', (e: KeyboardEvent) => {
             syncSelection();
           });
+
+          // 全局 selectionchange 兜底：拖选释放到 editableEl 外部、双击选词等也能100%精准同步
+          const onDocSelectionChange = () => {
+            if (isReadonly) return;
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return;
+            const range = sel.getRangeAt(0);
+            if (editableEl.contains(range.startContainer) && editableEl.contains(range.endContainer)) {
+              syncSelection();
+            }
+          };
+          document.addEventListener('selectionchange', onDocSelectionChange);
+
+          cleanupEditingListeners?.();
+          cleanupEditingListeners = () => {
+            document.removeEventListener('selectionchange', onDocSelectionChange);
+          };
 
           // 获得焦点时，浮动工具条不强制隐藏，方便用户直接使用格式面板
           editableEl.addEventListener('focus', () => {
@@ -396,24 +511,110 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
             }
           });
 
-          // 初始化选区：如果存在 savedDomOffsets 则恢复选区，否则全选文本 (对标 Plait 原生 Transforms.select(editor, [0]))
-          if ((editor as any).savedDomOffsets) {
-            const { start, end, isBackward } = (editor as any).savedDomOffsets;
-            setDomCharSelection(editableEl, start, end, isBackward);
-          } else {
-            const selectAll = () => {
+          let hasClearedDefault = false;
+
+          // 1. 如果是“选中输入”（用户在选中图元时直接键入按键），清空原内容并直接灌入该按键
+          const pendingChar = (newBoard as any)._pendingInputChar;
+          if (pendingChar) {
+            delete (newBoard as any)._pendingInputChar;
+            hasClearedDefault = true;
+            (editor as any)._skipNextSelectAll = true;
+            isTrailingDoubleClickMouseUp = false;
+
+            const baseSpan = {
+              ...((currentText as any)?.children?.[0] || {}),
+              text: pendingChar,
+            };
+            const newText = {
+              ...(currentText as any),
+              children: [baseSpan],
+            };
+            editor.children = [newText as any];
+            currentText = newText as any;
+            editableEl.textContent = pendingChar;
+
+            const endPoint = { path: [0, 0], offset: pendingChar.length };
+            const slateRange = { anchor: endPoint, focus: endPoint };
+            editor.selection = slateRange;
+            (editor as any).savedSelection = slateRange;
+            (editor as any).savedDomOffsets = {
+              start: pendingChar.length,
+              end: pendingChar.length,
+              isBackward: false,
+            };
+
+            const focusAfterChar = () => {
               editableEl.focus();
               const range = document.createRange();
               range.selectNodeContents(editableEl);
+              range.collapse(false);
               const sel = window.getSelection();
               sel?.removeAllRanges();
               sel?.addRange(range);
             };
+            focusAfterChar();
+            requestAnimationFrame(focusAfterChar);
+
+            props.onChange?.({
+              newText: newText as any,
+              operations: [
+                {
+                  type: 'insert_text',
+                  path: [0, 0],
+                  offset: 0,
+                  text: pendingChar,
+                } as any,
+              ],
+            });
+          } else if ((editor as any).savedDomOffsets) {
+            // 恢复之前保存的局部选区（如从浮动工具栏格式化后回到编辑态）
+            isTrailingDoubleClickMouseUp = false;
+            const { start, end, isBackward } = (editor as any).savedDomOffsets;
+            setDomCharSelection(editableEl, start, end, isBackward);
+            const p1 = offsetToSlatePoint(editor, start);
+            const p2 = offsetToSlatePoint(editor, end);
+            const slateRange = {
+              anchor: isBackward ? p2 : p1,
+              focus: isBackward ? p1 : p2,
+            };
+            editor.selection = slateRange;
+            (editor as any).savedSelection = slateRange;
+          } else {
+            // 初次进入编辑态（双击/回车）：聚焦并全选所有文字
+            isTrailingDoubleClickMouseUp = true;
+            setTimeout(() => {
+              isTrailingDoubleClickMouseUp = false;
+            }, 300);
             selectAll();
             requestAnimationFrame(selectAll);
-            setTimeout(selectAll, 0);
-            setTimeout(selectAll, 40);
           }
+
+          // 2. 默认占位符 "文本" 的自动清空：当文字仍为默认 "文本" 时，用户初次按键或中文输入法开始，自动清空默认占位
+          const clearDefaultTextIfMatch = (e?: KeyboardEvent) => {
+            if (hasClearedDefault) return;
+            const currentStr = editableEl.textContent?.trim();
+            if (currentStr === '文本') {
+              if (
+                e &&
+                (e.ctrlKey || e.metaKey || e.altKey || e.key.length > 1) &&
+                e.key !== 'Backspace' &&
+                e.key !== 'Delete'
+              ) {
+                return;
+              }
+              hasClearedDefault = true;
+              editableEl.textContent = '';
+              const range = document.createRange();
+              range.selectNodeContents(editableEl);
+              range.collapse(true);
+              const sel = window.getSelection();
+              sel?.removeAllRanges();
+              sel?.addRange(range);
+            }
+          };
+
+          editableEl.addEventListener('keydown', clearDefaultTextIfMatch, true);
+          editableEl.addEventListener('compositionstart', () => clearDefaultTextIfMatch(), true);
 
           const notifyTyping = () => {
             const wrapper = (newBoard as any).boardWrapper;
@@ -433,8 +634,6 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
             const spans = parseEditableElToSlateSpans(editableEl, {
               color,
               'font-size': fontSize,
-              bold: firstChild.bold,
-              italic: firstChild.italic,
             });
             const merged = mergeAdjacentSpans(spans);
             const newText = {
@@ -518,6 +717,8 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
 
     const ref: RenderComponentRef<TextProps> = {
       destroy: () => {
+        cleanupEditingListeners?.();
+        cleanupEditingListeners = null;
         el.innerHTML = '';
         if (!isReadonly) {
           const wrapper = (newBoard as any).boardWrapper;
@@ -528,19 +729,22 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
       update: (updatedProps: Partial<TextProps>) => {
         const readonlyChanged =
           updatedProps.readonly !== undefined && (updatedProps.readonly !== false) !== isReadonly;
+
+        const hasNewText = Boolean(updatedProps.text);
         if (updatedProps.text) {
           currentText = updatedProps.text;
           editor.children = [currentText as any];
         }
         if (updatedProps.readonly !== undefined) {
           isReadonly = updatedProps.readonly !== false;
+          (editor as any).isEditing = !isReadonly;
         }
 
         if (readonlyChanged) {
-          if (!isReadonly) {
-            delete (editor as any).savedDomOffsets;
-            delete (editor as any).savedSelection;
-          }
+          delete (editor as any).savedDomOffsets;
+          delete (editor as any).savedSelection;
+          editor.selection = null;
+
           const wrapper = (newBoard as any).boardWrapper;
           wrapper?.emit?.('text:editing', !isReadonly);
           wrapper?.emit?.('selection:change');
@@ -548,12 +752,38 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
 
         const wrapper = (newBoard as any).boardWrapper;
         const isTyping = Boolean(wrapper?.isTyping);
-        const isTextEqual =
-          updatedProps.text &&
-          JSON.stringify(updatedProps.text) === JSON.stringify(currentText);
 
-        // 仅在只读状态变化，或者文本内容真实变动时才重绘 DOM，防止无谓 innerHTML 替换导致浏览器双击(dblclick)事件丢失
-        if (readonlyChanged || (!isTextEqual && (isReadonly || (!isTyping && updatedProps.text)))) {
+        // 如果已处于编辑态，且传入了更新的文本（包括局部富文本样式变更）：
+        // 增量更新 editableEl.innerHTML 并保持当前选区，绝不销毁外层 DOM 和重置事件监听！
+        const existingEditable = el.querySelector('.slate-editable-container') as HTMLElement | null;
+        if (!readonlyChanged && !isReadonly && existingEditable && hasNewText && !isTyping) {
+          const firstChild = (currentText as any)?.children?.[0] || {};
+          const fontSize = firstChild['font-size']
+            ? parseFloat(firstChild['font-size'])
+            : firstChild.fontSize
+            ? parseFloat(firstChild.fontSize)
+            : 14;
+          const color = firstChild.color || '#333333';
+          const isMindRoot = Boolean((props as any)?.isMind && (props as any)?.isRoot);
+          const defaultWeight = (currentText as any)?.fontWeight || (isMindRoot ? '600' : 'normal');
+
+          const spansHtml = renderSlateSpansHtml((currentText as any)?.children, {
+            defaultFontSize: fontSize,
+            defaultColor: color,
+            defaultFontWeight: defaultWeight,
+          });
+
+          existingEditable.innerHTML = spansHtml;
+          if ((editor as any).savedDomOffsets) {
+            const { start, end, isBackward } = (editor as any).savedDomOffsets;
+            setDomCharSelection(existingEditable, start, end, isBackward);
+          }
+          return;
+        }
+
+        // 无论是只读状态变化，还是非编辑态下样式/文本变更（hasNewText），都必须立即重绘 DOM！
+        // 彻底解决只读态直接点击 B/I/S/U、字号、颜色无响应的问题！
+        if (readonlyChanged || (hasNewText && (isReadonly || !isTyping))) {
           renderDOM();
         }
       },

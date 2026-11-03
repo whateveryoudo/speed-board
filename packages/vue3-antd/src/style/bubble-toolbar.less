@@ -1,9 +1,17 @@
-// 浮动气泡工具栏与按钮通用样式 (1:1 语雀白板 Bubble Toolbar)
+// 浮动气泡工具栏与按钮通用样式 (1:1 语雀白板 Bubble Toolbar / 对齐 Drawnix 零位移零跳动)
 .floating-bubble-toolbar {
-  position: fixed;
+  position: absolute;
   z-index: 990;
   pointer-events: auto;
   user-select: none;
+  transition: none !important;
+}
+
+.speed-mindmap-floating-toolbar {
+  position: absolute;
+  pointer-events: auto;
+  user-select: none;
+  transition: none !important;
 }
 
 .bubble-toolbar-inner {

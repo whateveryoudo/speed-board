@@ -101,7 +101,7 @@ export function buildStraightBranchPath(
 }
 
 /**
- * 生成概要方括号路径 (直角方括弧风格，对标语雀思维导图)
+ * 生成概要大括号路径 (1:1 对标 Plait Mind / XMind 原生平滑圆弧大括号)
  */
 export function buildSummaryBracketPath(
   topY: number,
@@ -112,50 +112,10 @@ export function buildSummaryBracketPath(
   isLeft: boolean
 ): string {
   const midY = (topY + bottomY) / 2;
-  const h = Math.abs(bottomY - topY);
-  const r = Math.min(2, h / 4);
-
-  if (isLeft) {
-    if (r <= 0) {
-      return [
-        `M ${bracketX} ${topY}`,
-        `L ${tipX} ${topY}`,
-        `L ${tipX} ${bottomY}`,
-        `L ${bracketX} ${bottomY}`,
-        `M ${tipX} ${midY}`,
-        `L ${targetPoint[0]} ${targetPoint[1]}`,
-      ].join(' ');
-    }
-    return [
-      `M ${bracketX} ${topY}`,
-      `L ${tipX + r} ${topY}`,
-      `Q ${tipX} ${topY} ${tipX} ${topY + r}`,
-      `L ${tipX} ${bottomY - r}`,
-      `Q ${tipX} ${bottomY} ${tipX + r} ${bottomY}`,
-      `L ${bracketX} ${bottomY}`,
-      `M ${tipX} ${midY}`,
-      `L ${targetPoint[0]} ${targetPoint[1]}`,
-    ].join(' ');
-  }
-
-  // 右侧布局 (语雀直角方括弧风格)
-  if (r <= 0) {
-    return [
-      `M ${bracketX} ${topY}`,
-      `L ${tipX} ${topY}`,
-      `L ${tipX} ${bottomY}`,
-      `L ${bracketX} ${bottomY}`,
-      `M ${tipX} ${midY}`,
-      `L ${targetPoint[0]} ${targetPoint[1]}`,
-    ].join(' ');
-  }
   return [
     `M ${bracketX} ${topY}`,
-    `L ${tipX - r} ${topY}`,
-    `Q ${tipX} ${topY} ${tipX} ${topY + r}`,
-    `L ${tipX} ${bottomY - r}`,
-    `Q ${tipX} ${bottomY} ${tipX - r} ${bottomY}`,
-    `L ${bracketX} ${bottomY}`,
+    `Q ${tipX} ${topY} ${tipX} ${midY}`,
+    `Q ${tipX} ${bottomY} ${bracketX} ${bottomY}`,
     `M ${tipX} ${midY}`,
     `L ${targetPoint[0]} ${targetPoint[1]}`,
   ].join(' ');
@@ -343,6 +303,16 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
     });
   });
 
+  // 递归收集子树中所有展开的布局节点包围盒 (用于概要整体外扩避让)
+  const getSubtreeBoxes = (box: NodeLayoutBox): NodeLayoutBox[] => {
+    const list: NodeLayoutBox[] = [box];
+    if (box.element.isCollapsed) return list;
+    for (const child of box.children) {
+      list.push(...getSubtreeBoxes(child));
+    }
+    return list;
+  };
+
   // 6.2 独立计算概要节点位置及大括号曲线 (不受树引擎常规兄弟间距干扰，贴合被包裹分支群右侧居中)
   summaryElements.forEach((sEl) => {
     const coveredIds = sEl.data?.summaryFor || [];
@@ -352,8 +322,11 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
 
     if (coveredBoxes.length === 0) return;
 
-    const topY = Math.min(...coveredBoxes.map((b) => b.y)) + 4;
-    const bottomY = Math.max(...coveredBoxes.map((b) => b.y + b.height)) - 4;
+    // 获取所有被覆盖节点及其展开的所有后代子节点的整体集合
+    const allDescendantBoxes = coveredBoxes.flatMap((b) => getSubtreeBoxes(b));
+
+    const topY = Math.min(...allDescendantBoxes.map((b) => b.y)) + 4;
+    const bottomY = Math.max(...allDescendantBoxes.map((b) => b.y + b.height)) - 4;
     const isLeft = coveredBoxes[0].left;
 
     const bracketW = 16;
@@ -361,11 +334,11 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
     let tipX: number;
 
     if (isLeft) {
-      const minLeft = Math.min(...coveredBoxes.map((b) => b.x));
+      const minLeft = Math.min(...allDescendantBoxes.map((b) => b.x));
       bracketX = minLeft - 14;
       tipX = bracketX - bracketW;
     } else {
-      const maxRight = Math.max(...coveredBoxes.map((b) => b.x + b.width));
+      const maxRight = Math.max(...allDescendantBoxes.map((b) => b.x + b.width));
       bracketX = maxRight + 14;
       tipX = bracketX + bracketW;
     }

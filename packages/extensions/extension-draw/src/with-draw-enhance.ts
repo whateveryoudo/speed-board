@@ -1,6 +1,6 @@
-import type { PlaitBoard } from '@plait/core';
-import { RectangleClient } from '@plait/core';
-import { TextGenerator, ShapeDefaultSpace, PlaitDrawElement } from '@plait/draw';
+import { PlaitBoard, RectangleClient, getSelectedElements } from '@plait/core';
+import { TextGenerator, ShapeDefaultSpace, PlaitDrawElement, editText } from '@plait/draw';
+import { isVirtualKey, isDelete } from '@plait/common';
 
 let isPatched = false;
 
@@ -66,5 +66,31 @@ patchTextGeneratorVerticalAlign();
 
 export const withDrawEnhance = (board: PlaitBoard) => {
   patchTextGeneratorVerticalAlign();
+
+  const { keyDown } = board;
+  board.keyDown = (event: KeyboardEvent) => {
+    const selectedElements = getSelectedElements(board);
+    // 选中输入清空并重新输入：当单个图形被选中且用户直接键入字符时，清空原文本并启动编辑
+    if (
+      !PlaitBoard.isReadonly(board) &&
+      selectedElements.length === 1 &&
+      !isVirtualKey(event) &&
+      !isDelete(event) &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      event.key.length === 1
+    ) {
+      const targetElement = selectedElements[0] as any;
+      if (PlaitDrawElement.isGeometry(targetElement)) {
+        event.preventDefault();
+        (board as any)._pendingInputChar = event.key;
+        editText(board, targetElement);
+        return;
+      }
+    }
+    keyDown(event);
+  };
+
   return board;
 };

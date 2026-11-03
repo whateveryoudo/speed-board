@@ -1,6 +1,6 @@
 <template>
   <div
-    v-show="visible && props.visible !== false"
+    v-if="visible && props.visible !== false"
     ref="toolbarRef"
     class="floating-bubble-toolbar plait-board-attached"
     :style="toolbarStyle"
@@ -256,7 +256,10 @@ watch(visible, (v) => {
 })
 
 watch(
-  () => selectedCells.value.map((c: any) => c.id || c.points || '').join(','),
+  () =>
+    selectedCells.value
+      .map((c: any) => c.id || (props.board?.raw?.children ? props.board.raw.children.indexOf(c) : ''))
+      .join(','),
   (newVal, oldVal) => {
     if (newVal !== oldVal) {
       closePopover()
@@ -317,6 +320,7 @@ const onToolbarMouseDown = (e: MouseEvent) => {
   z-index: 1000;
   pointer-events: auto;
   user-select: none;
+  transition: none !important;
 }
 
 .bubble-toolbar-inner {
