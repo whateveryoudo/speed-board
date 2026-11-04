@@ -35,6 +35,7 @@ export interface SpeedMindNodeData {
   note?: string;
   isSummary?: boolean;
   summaryFor?: string[];
+  manualWidth?: number;
   [key: string]: any;
 }
 
@@ -48,6 +49,7 @@ export interface SpeedMindElement {
   children: SpeedMindElement[];
   isRoot?: boolean;
   isCollapsed?: boolean;
+  manualWidth?: number;
   rightNodeCount?: number;
   shape?: MindNodeShape;
   fill?: string;
@@ -94,6 +96,7 @@ export interface SummaryLayoutInfo {
   summaryBox: NodeLayoutBox;
   coveredBoxes: NodeLayoutBox[];
   element: SpeedMindElement;
+  rangeRect?: { x: number; y: number; width: number; height: number };
 }
 
 export interface ComputedMindLayout {

@@ -115,19 +115,28 @@ export function registerBoardDraw(): void {
   // 注入图片插入能力
   Board.insertImageHandler = (
     board: Board,
-    image: { url: string; width: number; height: number; name?: string },
+    image: { url: string; width: number; height: number; name?: string; status?: string },
     point?: [number, number]
   ) => {
     const center = point || board.getViewportCenterPoint();
-    const maxWidth = 400;
+    const maxWidth = 480;
     const width = image.width > maxWidth ? maxWidth : image.width || 200;
     const height = image.height ? (width / (image.width || 200)) * image.height : 150;
     const startPoint: [number, number] = [center[0] - width / 2, center[1] - height / 2];
 
     DrawTransforms.insertImage(board.raw, { url: image.url, width, height }, startPoint);
+    const imageElement = board.raw.children[board.raw.children.length - 1];
+
+    if (imageElement && image.status) {
+      (imageElement as any).status = image.status;
+    }
+
     board.setPointer(PlaitPointerType.selection);
+    if (imageElement) {
+      board.select([imageElement]);
+    }
     board.emit('change', {});
-    return { ...image, width, height };
+    return imageElement || { ...image, width, height };
   };
 }
 

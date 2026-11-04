@@ -16,7 +16,8 @@
     <div
       ref="viewportContainerRef"
       class="viewport-container"
-      style="width: 100%; height: 100%; overflow: auto;"
+      tabindex="-1"
+      style="width: 100%; height: 100%; overflow: auto; outline: none;"
     >
       <svg
         ref="hostRef"
@@ -256,6 +257,7 @@ onMounted(() => {
   const viewportEl = viewportContainerRef.value;
 
   const onPointerDown = (e: PointerEvent) => {
+    viewportContainerRef.value?.focus();
     const wrapper = (board as any).boardWrapper;
     wrapper?.emit?.('board:pointerdown', e);
 
@@ -322,15 +324,27 @@ onMounted(() => {
         wrapper.emit?.('drag', false);
       }
       setTimeout(() => {
-        wrapper.emit?.('selection:change', { selected: wrapper.selectedElements });
+        const selected = wrapper.selectedElements || getSelectedElements(board);
+        if (selected && selected.length > 0 && !PlaitBoard.isFocus(board)) {
+          Transforms.addSelectionWithTemporaryElements(board, selected);
+        }
+        wrapper.emit?.('selection:change', { selected });
       }, 0);
     }
+  };
+
+  const hasBoardFocusOrSelection = () => {
+    return (
+      PlaitBoard.isFocus(board) ||
+      (getSelectedElements(board) || []).length > 0 ||
+      Boolean((board as any).boardWrapper?.selectedElements?.length)
+    );
   };
 
   const onGlobalKeyDown = (e: KeyboardEvent) => {
     board.globalKeyDown(e);
     if (
-      PlaitBoard.isFocus(board) &&
+      hasBoardFocusOrSelection() &&
       !PlaitBoard.hasBeenTextEditing(board) &&
       !hasInputOrTextareaTarget(e.target)
     ) {
@@ -338,13 +352,13 @@ onMounted(() => {
     }
   };
   const onGlobalKeyUp = (e: KeyboardEvent) => {
-    if (PlaitBoard.isFocus(board) && !PlaitBoard.hasBeenTextEditing(board)) {
+    if (hasBoardFocusOrSelection() && !PlaitBoard.hasBeenTextEditing(board)) {
       board.keyUp(e);
     }
   };
 
   const onCopy = (e: ClipboardEvent) => {
-    if (PlaitBoard.isFocus(board) && !PlaitBoard.hasBeenTextEditing(board)) {
+    if (hasBoardFocusOrSelection() && !PlaitBoard.hasBeenTextEditing(board)) {
       e.preventDefault();
       setFragment(board, WritableClipboardOperationType.copy, e.clipboardData);
     }

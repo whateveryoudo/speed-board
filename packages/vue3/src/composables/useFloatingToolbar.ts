@@ -39,34 +39,38 @@ export function createSelectionVirtualElement(board: Board): VirtualElement | nu
   return {
     getBoundingClientRect() {
       try {
-        // 如果正在进行文本编辑，且当前焦点元素为 contenteditable，优先对齐当前焦点输入框
-        if (selected.length === 1 && typeof document !== 'undefined') {
-          const activeEl = document.activeElement as HTMLElement | null;
-          if (activeEl && activeEl.getAttribute('contenteditable') === 'true') {
-            const boardContainer = PlaitBoard.getBoardContainer(board.raw);
-            if (boardContainer && boardContainer.contains(activeEl)) {
-              const domRect = activeEl.getBoundingClientRect();
-              if (domRect && domRect.width > 0 && domRect.height > 0) {
-                return {
-                  x: domRect.left,
-                  y: domRect.top,
-                  top: domRect.top,
-                  left: domRect.left,
-                  bottom: domRect.bottom,
-                  right: domRect.right,
-                  width: domRect.width,
-                  height: domRect.height,
-                };
-              }
-            }
-          }
-        }
-
         let rect: any = null;
         try {
           rect = getRectangleByElements(board.raw, selected, false);
         } catch {
           rect = null;
+        }
+
+        // 针对刚通过拖拽创建的自适应纯文本节点 (autoSize: true)：
+        // 用户拉框时 points 是较大的拉拽矩形 (如 150px)，但实际文字 ("文本") 仅约 30px；
+        // 如果正在就地编辑，优先直接读取已挂载的文本编辑框 DOM 的真实边界，
+        // 彻底杜绝从“拉拽框居中”瞬间跳变到“文字收缩后居中”的二次位移！
+        if (selected.length === 1) {
+          const first = selected[0] as any;
+          if (first && (first.shape === 'text' || first.type === 'text') && first.autoSize !== false) {
+            const container = PlaitBoard.getBoardContainer(board.raw);
+            const activeEditor = container?.querySelector?.('.slate-editable-container, [contenteditable="true"]') as HTMLElement | null;
+            if (activeEditor) {
+              const activeRect = activeEditor.getBoundingClientRect();
+              if (activeRect.width > 10 && activeRect.height > 10) {
+                return {
+                  x: activeRect.left,
+                  y: activeRect.top,
+                  top: activeRect.top,
+                  left: activeRect.left,
+                  bottom: activeRect.bottom,
+                  right: activeRect.right,
+                  width: activeRect.width,
+                  height: activeRect.height,
+                };
+              }
+            }
+          }
         }
 
         if (!rect) {
@@ -111,6 +115,18 @@ export function createSelectionVirtualElement(board: Board): VirtualElement | nu
   };
 }
 
+export const measuredWidthCache: Record<string, number> = {
+  shape: 224,
+  text: 118,
+  'mindmap-root': 300,
+  'mindmap-node': 300,
+  'mindmap-summary': 230,
+  mindmap: 300,
+  line: 210,
+  image: 118,
+  multiple: 118,
+};
+
 /**
  * 快速同步计算浮动位置（带边界平移与高度自适应，对标 floating-ui 规则）
  */
@@ -136,19 +152,16 @@ export function computeFloatingToolbarPosition(
   const offsetTop = containerRect ? containerRect.top : 0;
 
   const type = (board.getSelectionInfo?.()?.selectedType || 'shape') as string;
-  // 根据图元类型精确配置预估宽度，保障首帧同步计算 100% 居中，杜绝任何位移动画
-  const defaultWidth =
-    type === 'text'
-      ? 110
-      : type.startsWith('mindmap')
-      ? 290
-      : type === 'image' || type === 'multiple'
-      ? 110
-      : 200;
-  const floatingWidth =
-    floatingElement && floatingElement.offsetWidth > 40
-      ? floatingElement.offsetWidth
-      : defaultWidth;
+  const defaultWidth = measuredWidthCache[type] || measuredWidthCache[type.startsWith('mindmap') ? 'mindmap' : type] || 224;
+
+  const renderedType = floatingElement?.getAttribute('data-rendered-type');
+  const isTypeMatched = !renderedType || renderedType === type;
+
+  let floatingWidth = defaultWidth;
+  if (floatingElement && isTypeMatched && floatingElement.offsetWidth > 40) {
+    floatingWidth = floatingElement.offsetWidth;
+    measuredWidthCache[type] = floatingWidth;
+  }
   const floatingHeight =
     floatingElement && floatingElement.offsetHeight > 20
       ? floatingElement.offsetHeight
@@ -203,17 +216,13 @@ export async function computeFloatingToolbarPositionAsync(
   const boundary = containerEl || undefined;
 
   const type = (board.getSelectionInfo?.()?.selectedType || 'shape') as string;
-  // 根据图元类型精确配置预估宽度，保障首帧同步计算 100% 居中，杜绝任何位移动画
-  const defaultWidth =
-    type === 'text'
-      ? 110
-      : type.startsWith('mindmap')
-      ? 290
-      : type === 'image' || type === 'multiple'
-      ? 110
-      : 200;
+  const defaultWidth = measuredWidthCache[type] || measuredWidthCache[type.startsWith('mindmap') ? 'mindmap' : type] || 224;
+
+  const renderedType = floatingElement?.getAttribute('data-rendered-type');
+  const isTypeMatched = !renderedType || renderedType === type;
+
   const floatingWidth =
-    floatingElement && floatingElement.offsetWidth > 40
+    floatingElement && isTypeMatched && floatingElement.offsetWidth > 40
       ? floatingElement.offsetWidth
       : defaultWidth;
   const floatingHeight =
@@ -321,6 +330,10 @@ export function computeFloatingToolbarProperties(
     selectionInfo.selectedType.startsWith('mindmap') ||
     board.isMindmapNode(cell) ||
     Boolean(cell.data?.topic);
+
+  if (isMind && !board.getSelectedMindNodeId?.()) {
+    return defaultState;
+  }
   const isImage = selectionInfo.selectedType === 'image';
 
   const hasFill = !isArrowLine && !isImage;
@@ -440,7 +453,16 @@ export function useFloatingToolbar(
         resizeObserver = null;
       }
       if (el && typeof ResizeObserver !== 'undefined') {
-        resizeObserver = new ResizeObserver(() => {
+        resizeObserver = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+            const w = entry.borderBoxSize?.[0]?.inlineSize || entry.contentRect.width;
+            if (w > 40) {
+              const elType = el.getAttribute('data-rendered-type');
+              const board = resolveBoard(source);
+              const curType = elType || ((board?.getSelectionInfo?.()?.selectedType || 'shape') as string);
+              measuredWidthCache[curType] = Math.round(w);
+            }
+          }
           if (state.value.visible && !isMovingOrDraggingRef.current) {
             requestSync();
           }
@@ -487,10 +509,14 @@ export function useFloatingToolbar(
           board.on(ev, requestSync);
         }
 
-        // 对标 Drawnix：直接接管 pointerMove / pointerUp 捕获拖拽/移动开始与释放
+        // 对标 Drawnix：直接接管 pointerMove / pointerUp / globalPointerUp 捕获拖拽/移动开始与释放
         const rawBoard = board.raw;
         if (rawBoard) {
-          const { pointerMove: origPointerMove, pointerUp: origPointerUp } = rawBoard;
+          const {
+            pointerMove: origPointerMove,
+            pointerUp: origPointerUp,
+            globalPointerUp: origGlobalPointerUp,
+          } = rawBoard;
 
           rawBoard.pointerMove = (event: PointerEvent) => {
             const isMovingNow = () =>
@@ -516,18 +542,28 @@ export function useFloatingToolbar(
             }
           };
 
-          rawBoard.pointerUp = (event: PointerEvent) => {
+          const handlePointerEnd = () => {
             const wasMoving = isMovingOrDraggingRef.current;
             isMovingOrDraggingRef.current = false;
-            origPointerUp(event);
             if (wasMoving || getSelectedElements(rawBoard).length > 0) {
               requestSync();
             }
           };
 
+          rawBoard.pointerUp = (event: PointerEvent) => {
+            origPointerUp(event);
+            handlePointerEnd();
+          };
+
+          rawBoard.globalPointerUp = (event: PointerEvent) => {
+            origGlobalPointerUp(event);
+            handlePointerEnd();
+          };
+
           cleanHooks = () => {
             rawBoard.pointerMove = origPointerMove;
             rawBoard.pointerUp = origPointerUp;
+            rawBoard.globalPointerUp = origGlobalPointerUp;
           };
         }
       }

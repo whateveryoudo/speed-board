@@ -159,6 +159,7 @@ import {
   updateNodeData,
   copyNodeAsText,
   copyNodeAsMarkdown,
+  cloneTree,
   cloneTreeWithNewIds,
   type SpeedMindElement,
 } from '@speed-board/extension-mindmap';
@@ -810,14 +811,15 @@ function handlePaste() {
     const info = findMindRootAndPath(rawBoard, nodeId);
     if (!info) return;
 
+    const clonedRoot = cloneTree(info.root);
     const clonedBranch = cloneTreeWithNewIds(clip.mindNode);
-    const parentNode = findNodeById(info.root, nodeId);
+    const parentNode = findNodeById(clonedRoot, nodeId);
     if (!parentNode) return;
 
     if (!parentNode.children) parentNode.children = [];
     parentNode.children.push(clonedBranch);
 
-    Transforms.setNode(rawBoard, { children: info.root.children }, info.path);
+    Transforms.setNode(rawBoard, { children: clonedRoot.children }, info.path);
     message.success('已粘贴子节点');
     return;
   }

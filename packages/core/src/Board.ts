@@ -379,9 +379,16 @@ export class Board {
 
   getViewportCenterPoint(): [number, number] {
     const container = PlaitBoard.getBoardContainer(this.raw);
-    const width = container?.clientWidth || 800;
-    const height = container?.clientHeight || 600;
-    return toViewBoxPoint(this.raw, [width / 2, height / 2]);
+    const rect = container?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) {
+      const width = container?.clientWidth || 800;
+      const height = container?.clientHeight || 600;
+      return [width / 2, height / 2];
+    }
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+    const hostPoint = toHostPoint(this.raw, clientX, clientY);
+    return toViewBoxPoint(this.raw, hostPoint);
   }
 
   insertText(text = '文本', point?: [number, number]) {
@@ -477,6 +484,34 @@ export class Board {
   addShape(options: any) {
     const shape = options.shape || options.shapeId || 'rectangle';
     return this.insertShape(shape, options);
+  }
+
+  updateImageStatus(node: any, status: string, options?: any) {
+    if (!this.raw) return;
+    const target =
+      (node && node.id ? this.raw.children.find((c: any) => c.id === node.id) : null) ||
+      node;
+
+    if (target) {
+      const idx = this.raw.children.indexOf(target);
+      if (idx >= 0) {
+        const patch: any = { status };
+        if (options?.url) {
+          patch.url = options.url;
+        }
+        if (options?.id) {
+          patch.imageId = options.id;
+        }
+        if (options?.progress !== undefined) {
+          patch.progress = options.progress;
+        }
+        if (options?.errorMessage) {
+          patch.errorMessage = options.errorMessage;
+        }
+        Transforms.setNode(this.raw, patch, [idx]);
+      }
+    }
+    this.emit('change', {});
   }
 
   // --- 视口与缩放 ---
@@ -665,6 +700,7 @@ export class Board {
     patchNodeText(this.raw, this.selectedElements, patch, (el) => this.getElementPath(el));
     this.syncNodeIndices();
     this.emit('change', {});
+    this.emit('selection:change', { selected: this.selectedElements });
   }
 
   // --- 排列与对齐 (委托到 operations/align) ---

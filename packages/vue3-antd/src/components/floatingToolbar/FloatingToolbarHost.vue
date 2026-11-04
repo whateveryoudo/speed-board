@@ -1,8 +1,9 @@
 <template>
   <div
-    v-if="visible && props.visible !== false"
+    v-show="visible && props.visible !== false"
     ref="toolbarRef"
     class="floating-bubble-toolbar plait-board-attached"
+    :data-rendered-type="currentType"
     :style="toolbarStyle"
     @mousedown="onToolbarMouseDown"
     @pointerdown.stop

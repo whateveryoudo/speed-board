@@ -294,10 +294,15 @@ const { textState, updateTextStyle } = useNodeStyle(() => props.board)
 const fontSizeOptions = [
   { label: '12px', value: 12 },
   { label: '14px', value: 14 },
+  { label: '15px', value: 15 },
   { label: '16px', value: 16 },
   { label: '18px', value: 18 },
+  { label: '19px', value: 19 },
+  { label: '22px', value: 22 },
   { label: '24px', value: 24 },
+  { label: '28px', value: 28 },
   { label: '32px', value: 32 },
+  { label: '36px', value: 36 },
 ]
 
 const alignOptions = [

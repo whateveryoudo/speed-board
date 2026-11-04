@@ -6,7 +6,7 @@ import type {
   BranchLinkInfo,
   SummaryLayoutInfo,
 } from '../types';
-import { getNodeTopicText } from '../model/treeOps';
+import { getNodeTopicText, findParentNode } from '../model/treeOps';
 import { calculateMindmapNodeWidth } from '@speed-board/shared';
 
 const DEFAULT_H_GAP = 42;
@@ -34,6 +34,12 @@ export function estimateNodeDimensions(
     const imgH = node.data.image.height || 80;
     width = Math.max(width, imgW + (isRoot ? 24 : 16));
     height = height + imgH + 8;
+  }
+
+  // 用户手动拖拽拉伸的节点自定义宽度
+  const manualW = node.manualWidth || node.data?.manualWidth;
+  if (typeof manualW === 'number' && manualW > 0) {
+    width = Math.max(width, manualW);
   }
 
   return { width, height };
@@ -325,8 +331,26 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
     // 获取所有被覆盖节点及其展开的所有后代子节点的整体集合
     const allDescendantBoxes = coveredBoxes.flatMap((b) => getSubtreeBoxes(b));
 
-    const topY = Math.min(...allDescendantBoxes.map((b) => b.y)) + 4;
-    const bottomY = Math.max(...allDescendantBoxes.map((b) => b.y + b.height)) - 4;
+    // 当前分支父节点 (例如 1121 -> [222, 333] 中的 1121，概要框选同时包裹当前分支父节点与所有被包含分支)
+    const parentInfo = findParentNode(rootElement, coveredBoxes[0].id);
+    const parentBox = parentInfo && !parentInfo.parent.isRoot ? nodeMap.get(parentInfo.parent.id) : null;
+    const enclosedBoxes = parentBox ? [parentBox, ...allDescendantBoxes] : allDescendantBoxes;
+
+    const minDescX = Math.min(...enclosedBoxes.map((b) => b.x));
+    const maxDescX = Math.max(...enclosedBoxes.map((b) => b.x + b.width));
+    const minDescY = Math.min(...enclosedBoxes.map((b) => b.y));
+    const maxDescY = Math.max(...enclosedBoxes.map((b) => b.y + b.height));
+
+    const outlineOffset = 6;
+    const rangeRect = {
+      x: minDescX - outlineOffset,
+      y: minDescY - outlineOffset,
+      width: maxDescX - minDescX + outlineOffset * 2,
+      height: maxDescY - minDescY + outlineOffset * 2,
+    };
+
+    const topY = minDescY + 4;
+    const bottomY = maxDescY - 4;
     const isLeft = coveredBoxes[0].left;
 
     const bracketW = 16;
@@ -385,6 +409,7 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
       summaryBox,
       coveredBoxes,
       element: sEl,
+      rangeRect,
     });
   });
 

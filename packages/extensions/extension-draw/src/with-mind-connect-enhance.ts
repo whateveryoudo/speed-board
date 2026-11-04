@@ -492,22 +492,26 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
       const hitShape = getHitShape(board, movingPoint);
       if (hitShape) {
         const opt = getOptimalShapeConnection(board, movingPoint, hitShape);
-        const hostPt = toHostPointFromViewBoxPoint(board, opt.point);
-        const screenPt = toScreenPointFromHostPoint(board, hostPt);
-        effectiveEvent = new PointerEvent(event.type, {
-          bubbles: event.bubbles,
-          cancelable: event.cancelable,
-          composed: event.composed,
-          clientX: screenPt[0],
-          clientY: screenPt[1],
-          pointerId: event.pointerId,
-          pointerType: event.pointerType,
-          isPrimary: event.isPrimary,
-          button: event.button,
-          buttons: event.buttons
-        });
-        Object.defineProperty(effectiveEvent, 'x', { get: () => screenPt[0], configurable: true });
-        Object.defineProperty(effectiveEvent, 'y', { get: () => screenPt[1], configurable: true });
+        if (opt && opt.point && Number.isFinite(opt.point[0]) && Number.isFinite(opt.point[1])) {
+          const hostPt = toHostPointFromViewBoxPoint(board, opt.point);
+          const screenPt = toScreenPointFromHostPoint(board, hostPt);
+          if (Number.isFinite(screenPt[0]) && Number.isFinite(screenPt[1])) {
+            effectiveEvent = new PointerEvent(event.type, {
+              bubbles: event.bubbles,
+              cancelable: event.cancelable,
+              composed: event.composed,
+              clientX: screenPt[0],
+              clientY: screenPt[1],
+              pointerId: event.pointerId,
+              pointerType: event.pointerType,
+              isPrimary: event.isPrimary,
+              button: event.button,
+              buttons: event.buttons
+            });
+            Object.defineProperty(effectiveEvent, 'x', { get: () => screenPt[0], configurable: true });
+            Object.defineProperty(effectiveEvent, 'y', { get: () => screenPt[1], configurable: true });
+          }
+        }
       }
     }
 
@@ -576,27 +580,36 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
     const snapRef = activeMindSnapRef;
     activeMindSnapRef = null;
 
+    const isLinePointer = PlaitBoard.isInPointer(board, linePointerKeys);
+    const isLineDrawing = isDrawingMode(board) && isLinePointer;
+
     let effectiveUpEvent = event;
-    const movingPoint = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
-    const hitShape = getHitShape(board, movingPoint);
-    if (hitShape) {
-      const opt = getOptimalShapeConnection(board, movingPoint, hitShape);
-      const hostPt = toHostPointFromViewBoxPoint(board, opt.point);
-      const screenPt = toScreenPointFromHostPoint(board, hostPt);
-      effectiveUpEvent = new PointerEvent(event.type, {
-        bubbles: event.bubbles,
-        cancelable: event.cancelable,
-        composed: event.composed,
-        clientX: screenPt[0],
-        clientY: screenPt[1],
-        pointerId: event.pointerId,
-        pointerType: event.pointerType,
-        isPrimary: event.isPrimary,
-        button: event.button,
-        buttons: event.buttons
-      });
-      Object.defineProperty(effectiveUpEvent, 'x', { get: () => screenPt[0], configurable: true });
-      Object.defineProperty(effectiveUpEvent, 'y', { get: () => screenPt[1], configurable: true });
+    if (isLineDrawing) {
+      const movingPoint = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
+      const hitShape = getHitShape(board, movingPoint);
+      if (hitShape) {
+        const opt = getOptimalShapeConnection(board, movingPoint, hitShape);
+        if (opt && opt.point && Number.isFinite(opt.point[0]) && Number.isFinite(opt.point[1])) {
+          const hostPt = toHostPointFromViewBoxPoint(board, opt.point);
+          const screenPt = toScreenPointFromHostPoint(board, hostPt);
+          if (Number.isFinite(screenPt[0]) && Number.isFinite(screenPt[1])) {
+            effectiveUpEvent = new PointerEvent(event.type, {
+              bubbles: event.bubbles,
+              cancelable: event.cancelable,
+              composed: event.composed,
+              clientX: screenPt[0],
+              clientY: screenPt[1],
+              pointerId: event.pointerId,
+              pointerType: event.pointerType,
+              isPrimary: event.isPrimary,
+              button: event.button,
+              buttons: event.buttons
+            });
+            Object.defineProperty(effectiveUpEvent, 'x', { get: () => screenPt[0], configurable: true });
+            Object.defineProperty(effectiveUpEvent, 'y', { get: () => screenPt[1], configurable: true });
+          }
+        }
+      }
     }
 
     const beforeLen = board.children.length;

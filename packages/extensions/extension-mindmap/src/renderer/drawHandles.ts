@@ -1,9 +1,152 @@
-import type { NodeLayoutBox } from '../types';
+import type { NodeLayoutBox, SummaryLayoutInfo } from '../types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+export function generateSummaryRangePath(
+  x1: number,
+  y1: number,
+  width: number,
+  height: number
+): string {
+  const radius = 5;
+  const handleLength = 20;
+  const handleGap = 4;
+  const handleSpace = handleLength + handleGap * 2; // 28px
+  const handleSideLine = (width - handleSpace - radius * 2) / 2;
+  const sideLine = height - radius * 2;
+
+  if (handleSideLine >= 2 && sideLine >= 0) {
+    return `M ${x1 + radius} ${y1}
+      l ${handleSideLine} 0
+      m ${handleSpace} 0
+      l ${handleSideLine} 0
+      a ${radius} ${radius} 0 0 1 ${radius} ${radius}
+      l 0 ${sideLine}
+      a ${radius} ${radius} 0 0 1 -${radius} ${radius}
+      l -${handleSideLine} 0
+      m -${handleSpace} 0
+      l -${handleSideLine} 0
+      a ${radius} ${radius} 0 0 1 -${radius} -${radius}
+      l 0 -${sideLine}
+      a ${radius} ${radius} 0 0 1 ${radius} -${radius}`;
+  } else {
+    return `M ${x1 + radius} ${y1}
+      h ${Math.max(0, width - radius * 2)}
+      a ${radius} ${radius} 0 0 1 ${radius} ${radius}
+      v ${Math.max(0, sideLine)}
+      a ${radius} ${radius} 0 0 1 -${radius} ${radius}
+      h -${Math.max(0, width - radius * 2)}
+      a ${radius} ${radius} 0 0 1 -${radius} -${radius}
+      v -${Math.max(0, sideLine)}
+      a ${radius} ${radius} 0 0 1 ${radius} -${radius}`;
+  }
+}
+
 /**
- * 绘制节点外延式 `+` 新增子节点按钮及折叠/展开徽章
+ * 绘制概要节点的框选包围盒与上下两个拖拽调节手柄 (对标 Plait/Drawnix drawAbstractIncludedOutline)
+ */
+export function renderSummaryRangeHandlesSvg(
+  handleContainer: SVGGElement,
+  summary: SummaryLayoutInfo,
+  isHovered: boolean,
+  isSelected: boolean
+): void {
+  if (!summary.rangeRect) return;
+
+  const { x: x1, y: y1, width, height } = summary.rangeRect;
+  const x2 = x1 + width;
+  const y2 = y1 + height;
+  const handleLength = 20;
+
+  const summaryG = document.createElementNS(SVG_NS, 'g');
+  summaryG.setAttribute('class', 'speed-mind-summary-range-group');
+
+  // 1. 虚线/实线圆角外框 (在上下手柄位置预留 gap 空间，完全匹配 Plait 原版几何)
+  const d = generateSummaryRangePath(x1, y1, width, height);
+
+  const borderPath = document.createElementNS(SVG_NS, 'path');
+  borderPath.setAttribute('class', 'speed-mind-summary-range-path');
+  borderPath.setAttribute('d', d);
+  borderPath.setAttribute('fill', 'rgba(102, 152, 255, 0.02)');
+  borderPath.setAttribute('stroke', isSelected ? '#6698ff' : '#94a3b8');
+  borderPath.setAttribute('stroke-width', '1.5');
+  borderPath.setAttribute('stroke-linecap', 'round');
+  borderPath.setAttribute('stroke-linejoin', 'round');
+  borderPath.setAttribute('pointer-events', 'none');
+  summaryG.appendChild(borderPath);
+
+  // 2. 调节手柄 (上下各一个，药丸胶囊状，可拖动扩大或收缩被概要包含的分支范围)
+  const topCx = x1 + width / 2;
+  const topCy = y1;
+  const bottomCx = topCx;
+  const bottomCy = y2;
+
+  const createPillHandle = (
+    cx: number,
+    cy: number,
+    action: 'summary-resize-top' | 'summary-resize-bottom'
+  ) => {
+    const handleG = document.createElementNS(SVG_NS, 'g');
+    handleG.setAttribute('class', `speed-mind-summary-handle ${action}`);
+    handleG.setAttribute('data-action', action);
+    handleG.setAttribute('data-summary-id', summary.id);
+    handleG.setAttribute('pointer-events', 'all');
+    handleG.style.cursor = 'ns-resize';
+
+    // 隐形加宽感应区 (设置极低透明度颜色与 pointer-events 确保稳定截获指针交互)
+    const hitRect = document.createElementNS(SVG_NS, 'rect');
+    hitRect.setAttribute('class', 'speed-mind-summary-handle-hit');
+    hitRect.setAttribute('x', String(cx - 20));
+    hitRect.setAttribute('y', String(cy - 10));
+    hitRect.setAttribute('width', '40');
+    hitRect.setAttribute('height', '20');
+    hitRect.setAttribute('fill', '#000000');
+    hitRect.setAttribute('opacity', '0.001');
+    hitRect.setAttribute('pointer-events', 'all');
+    hitRect.setAttribute('data-action', action);
+    hitRect.setAttribute('data-summary-id', summary.id);
+    hitRect.style.cursor = 'ns-resize';
+
+    // 实体药丸手柄
+    const pill = document.createElementNS(SVG_NS, 'rect');
+    pill.setAttribute('class', 'speed-mind-summary-handle-pill');
+    pill.setAttribute('x', String(cx - handleLength / 2));
+    pill.setAttribute('y', String(cy - 3));
+    pill.setAttribute('width', String(handleLength));
+    pill.setAttribute('height', '6');
+    pill.setAttribute('rx', '3');
+    pill.setAttribute('ry', '3');
+    pill.setAttribute('fill', isSelected ? '#3b82f6' : '#94a3b8');
+    pill.setAttribute('pointer-events', 'all');
+    pill.setAttribute('data-action', action);
+    pill.setAttribute('data-summary-id', summary.id);
+    pill.style.cursor = 'ns-resize';
+
+    handleG.appendChild(hitRect);
+    handleG.appendChild(pill);
+
+    handleG.addEventListener('mouseenter', () => {
+      pill.setAttribute('fill', '#2563eb');
+      pill.setAttribute('height', '7');
+      pill.setAttribute('y', String(cy - 3.5));
+    });
+    handleG.addEventListener('mouseleave', () => {
+      pill.setAttribute('fill', isSelected ? '#3b82f6' : '#94a3b8');
+      pill.setAttribute('height', '6');
+      pill.setAttribute('y', String(cy - 3));
+    });
+
+    return handleG;
+  };
+
+  summaryG.appendChild(createPillHandle(topCx, topCy, 'summary-resize-top'));
+  summaryG.appendChild(createPillHandle(bottomCx, bottomCy, 'summary-resize-bottom'));
+
+  handleContainer.appendChild(summaryG);
+}
+
+/**
+ * 绘制节点外延式 `+` 新增子节点按钮、折叠/展开徽章及宽度拉伸条
  */
 export function renderNodeHandlesSvg(
   handleContainer: SVGGElement,
@@ -11,8 +154,6 @@ export function renderNodeHandlesSvg(
   isHovered: boolean,
   isSelected: boolean
 ): void {
-  handleContainer.innerHTML = '';
-
   const hasChildren = Boolean(box.element.children && box.element.children.length > 0);
   const isCollapsed = Boolean(box.element.isCollapsed);
   const isRoot = Boolean(box.element.isRoot || box.depth === 0);
@@ -185,4 +326,34 @@ export function renderNodeHandlesSvg(
   });
 
   handleContainer.appendChild(plusG);
+
+  // 2.3 节点宽度拉伸感应区 (纯隐形感应，移上去显示 ew-resize 光标，不渲染实体遮挡视觉)
+  if (isSelected && !box.element.isSummary && !box.element.data?.isSummary) {
+    const resizeG = document.createElementNS(SVG_NS, 'g');
+    resizeG.setAttribute('class', 'speed-mind-node-resize-handle');
+    resizeG.setAttribute('data-action', 'resize-node-width');
+    resizeG.setAttribute('data-node-id', box.id);
+    resizeG.setAttribute('pointer-events', 'all');
+    resizeG.style.cursor = 'ew-resize';
+
+    const resizeX = isLeft ? box.x - 4 : box.x + box.width - 4;
+    const resizeY = box.y;
+    const resizeH = box.height;
+
+    // 隐形感应条：设置极低透明度颜色以截获指针，同时视觉完全隐形
+    const hitArea = document.createElementNS(SVG_NS, 'rect');
+    hitArea.setAttribute('x', String(resizeX));
+    hitArea.setAttribute('y', String(resizeY));
+    hitArea.setAttribute('width', '10');
+    hitArea.setAttribute('height', String(resizeH));
+    hitArea.setAttribute('fill', '#000000');
+    hitArea.setAttribute('opacity', '0.001');
+    hitArea.setAttribute('pointer-events', 'all');
+    hitArea.setAttribute('data-action', 'resize-node-width');
+    hitArea.setAttribute('data-node-id', box.id);
+    hitArea.style.cursor = 'ew-resize';
+
+    resizeG.appendChild(hitArea);
+    handleContainer.appendChild(resizeG);
+  }
 }

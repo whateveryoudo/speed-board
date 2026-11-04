@@ -205,7 +205,7 @@ export function parseEditableElToSlateSpans(
         if (fs === 'italic' || el.tagName === 'I' || el.tagName === 'EM') {
           newMark.italic = true;
         }
-        const td = el.style.textDecoration || '';
+        const td = (el.style.textDecoration || (el.style as any).textDecorationLine || '').toLowerCase();
         if (td.includes('underline') || el.tagName === 'U') {
           newMark.underlined = true;
           newMark.underline = true;
@@ -221,7 +221,16 @@ export function parseEditableElToSlateSpans(
           const sizeVal = parseFloat(el.style.fontSize);
           if (!isNaN(sizeVal) && sizeVal > 0) {
             newMark['font-size'] = sizeVal;
+            newMark.fontSize = sizeVal;
           }
+        }
+      }
+
+      if (el.tagName === 'A') {
+        const href = (el as HTMLAnchorElement).getAttribute('href') || (el as any).href;
+        if (href) {
+          newMark.link = href;
+          newMark.url = href;
         }
       }
 
@@ -290,6 +299,8 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
     }
     editor.children = [props.text as any];
     props.afterInit?.(editor);
+    (el as any).__slate_editor = editor;
+    (newBoard as any).__activeTextEditor = editor;
 
     let currentText = props.text;
     let isReadonly = props.readonly !== false;
@@ -405,11 +416,24 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
       if (isReadonly) {
         // 只读模式：外层 wrapper 负责垂直定位，内层 block 容器负责自然文本行流式排版
         el.innerHTML = `<div class="plait-text-wrapper" style="${wrapperStyle} user-select: none;"><div class="plait-text-container slate-editable-container" style="${textStyle}">${spansHtml}</div></div>`;
+        const linkEls = el.querySelectorAll('a.slate-link');
+        linkEls.forEach((a) => {
+          (a as HTMLElement).addEventListener('click', (e: MouseEvent) => {
+            if (e.metaKey || e.ctrlKey) {
+              e.stopPropagation();
+              e.preventDefault();
+              window.open((a as HTMLAnchorElement).href, '_blank', 'noopener,noreferrer');
+            }
+          });
+        });
       } else {
         // 编辑模式：渲染 contenteditable 块级容器
         el.innerHTML = `<div class="plait-text-wrapper" style="${wrapperStyle}"><div class="plait-text-container slate-editable-container" contenteditable="true" style="${textStyle} min-width: 20px; min-height: ${lineHeight}px; caret-color: auto;">${spansHtml}</div></div>`;
         const editableEl = (el.querySelector('.slate-editable-container') || el.firstElementChild) as HTMLElement;
         if (editableEl) {
+          (editableEl as any).__slate_editor = editor;
+          (newBoard as any).__activeEditableEl = editableEl;
+          (newBoard as any).__activeTextEditor = editor;
           editableEl.focus();
           let typingTimer: any = null;
           let isTrailingDoubleClickMouseUp = false;
@@ -436,6 +460,8 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
               end: textLen,
               isBackward: false,
             };
+            (editableEl as any).__active_offsets = (editor as any).savedDomOffsets;
+            (newBoard as any).__activeTextOffsets = (editor as any).savedDomOffsets;
             const wrapper = (newBoard as any).boardWrapper;
             wrapper?.emit?.('selection:change');
           };
@@ -452,6 +478,11 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
               editor.selection = slateRange;
               (editor as any).savedSelection = slateRange;
               (editor as any).savedDomOffsets = offsets;
+              (editableEl as any).__active_offsets = offsets;
+              (editableEl as any).__slate_editor = editor;
+              (newBoard as any).__activeTextOffsets = offsets;
+              (newBoard as any).__activeTextEditor = editor;
+              (newBoard as any).__activeEditableEl = editableEl;
               const wrapper = (newBoard as any).boardWrapper;
               wrapper?.emit?.('selection:change');
             }
@@ -497,18 +528,30 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
 
           editableEl.addEventListener('blur', (e: FocusEvent) => {
             clearTimeout(typingTimer);
+            const isHoveringToolbar = Boolean(
+              document.querySelector('.plait-board-attached:hover, .quick-bubble-popover:hover, .ant-popover:hover, .ant-select-dropdown:hover')
+            );
             const related = (e.relatedTarget || document.activeElement) as HTMLElement | null;
-            const isToolbar = related?.closest('.plait-board-attached');
+            const isToolbar = isHoveringToolbar || related?.closest('.plait-board-attached, .quick-bubble-popover, .ant-popover, .ant-select-dropdown');
             if (isToolbar) {
               // 焦点转移到浮动工具栏或 Popover，不退出编辑状态
               return;
             }
-            const wrapper = (newBoard as any).boardWrapper;
-            if (wrapper) {
-              wrapper.isTyping = false;
-              wrapper.emit?.('text:editing', false);
-              wrapper.emit?.('selection:change');
-            }
+            setTimeout(() => {
+              const active = document.activeElement;
+              const stillInToolbar = Boolean(
+                active?.closest('.plait-board-attached, .quick-bubble-popover, .ant-popover, .ant-select-dropdown') ||
+                document.querySelector('.plait-board-attached:hover, .quick-bubble-popover:hover, .ant-popover:hover, .ant-select-dropdown:hover')
+              );
+              if (stillInToolbar) return;
+
+              const wrapper = (newBoard as any).boardWrapper;
+              if (wrapper) {
+                wrapper.isTyping = false;
+                wrapper.emit?.('text:editing', false);
+                wrapper.emit?.('selection:change');
+              }
+            }, 150);
           });
 
           let hasClearedDefault = false;
@@ -589,11 +632,18 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
             requestAnimationFrame(selectAll);
           }
 
-          // 2. 默认占位符 "文本" 的自动清空：当文字仍为默认 "文本" 时，用户初次按键或中文输入法开始，自动清空默认占位
+          // 2. 默认占位符 "文本" 的自动清空：仅当文字仍为默认 "文本" 且处于“全选”状态时按键才替换占位符；
+          // 若用户已将光标折叠/移到文字末尾或某处，表明有意在该位置输入，绝不能清空已有内容！
           const clearDefaultTextIfMatch = (e?: KeyboardEvent) => {
             if (hasClearedDefault) return;
             const currentStr = editableEl.textContent?.trim();
             if (currentStr === '文本') {
+              const sel = window.getSelection();
+              // 用户已手动点击或按方向键将光标折叠，直接标记完成并保留原文本
+              if (sel && sel.isCollapsed) {
+                hasClearedDefault = true;
+                return;
+              }
               if (
                 e &&
                 (e.ctrlKey || e.metaKey || e.altKey || e.key.length > 1) &&
@@ -607,11 +657,26 @@ export const withVue = <T extends PlaitBoard = PlaitBoard>(board: T): T & PlaitT
               const range = document.createRange();
               range.selectNodeContents(editableEl);
               range.collapse(true);
-              const sel = window.getSelection();
               sel?.removeAllRanges();
               sel?.addRange(range);
+            } else {
+              hasClearedDefault = true;
             }
           };
+
+          editableEl.addEventListener('click', (e: MouseEvent) => {
+            const linkEl = (e.target as HTMLElement)?.closest('a.slate-link') as HTMLAnchorElement | null;
+            if (linkEl && linkEl.href && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(linkEl.href, '_blank', 'noopener,noreferrer');
+              return;
+            }
+            const sel = window.getSelection();
+            if (sel && sel.isCollapsed) {
+              hasClearedDefault = true;
+            }
+          });
 
           editableEl.addEventListener('keydown', clearDefaultTextIfMatch, true);
           editableEl.addEventListener('compositionstart', () => clearDefaultTextIfMatch(), true);

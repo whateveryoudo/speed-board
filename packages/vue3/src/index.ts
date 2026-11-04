@@ -4,6 +4,7 @@ export * from './plugins/withVue';
 // Components
 export { default as PlaitBoard } from './components/PlaitBoard.vue';
 export { default as BoardCanvas } from './components/BoardCanvas.vue';
+export { default as BoardText } from './components/BoardText.vue';
 
 // Composables (Headless Vue 3 reactive hooks)
 export * from './composables/useBoard';

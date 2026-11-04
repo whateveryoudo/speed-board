@@ -26,6 +26,7 @@ import {
   getNodeTopicText,
   setNodeTopicText,
   toggleCollapse,
+  cloneTree,
 } from './model/treeOps';
 import { computeMindLayout } from './layout/mindLayout';
 import {
@@ -41,6 +42,7 @@ import {
   editMindNodeTopic,
   closeInlineEditing,
 } from './renderer/inlineEditor';
+import { generateSummaryRangePath } from './renderer/drawHandles';
 import { MindNodeDnDController } from './interaction/MindNodeDnDController';
 import './registerBoardMindmap';
 
@@ -51,6 +53,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     pointerMove,
     pointerUp,
     globalPointerUp,
+    globalPointerMove,
     dblClick,
     keyDown,
     globalKeyDown,
@@ -66,6 +69,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
   let lastPointerDownNodeId: string | null = null;
   let activePointerDownRootId: string | null = null;
   let activePointerDownNodeId: string | null = null;
+  let isResizingSummary = false;
 
   // 1. 允许思维导图整树在画布上直接拖拽平移 (子节点拖拽由 dndController 接管)
   board.isMovable = (element: any): boolean => {
@@ -152,7 +156,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
           };
         }
       }
-      return layout.boundingRect;
+      return layout.rootBox || { x: element.x || 0, y: element.y || 0, width: 100, height: 40 };
     }
     return getRectangle(element) || { x: 0, y: 0, width: 0, height: 0 };
   };
@@ -207,6 +211,15 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     }
     return isRectangleHit(element, range);
   };
+
+  let resizingNodeWidthState: {
+    nodeId: string;
+    root: SpeedMindElement;
+    isLeft: boolean;
+    startMouseX: number;
+    initialWidth: number;
+    currentWidth: number;
+  } | null = null;
 
   // 4. 指针按下交互 (创建脑图、点击节点、点击加号/折叠手柄)
   board.pointerDown = (event: PointerEvent) => {
@@ -264,12 +277,14 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       if (category && nodeId) {
         const info = findMindRootAndPath(nodeId);
         if (info) {
-          clearSelectedElement(board);
-          addSelectedElement(board, info.root);
           setSelectedMindNodeId(board, nodeId);
+          const curSelected = getSelectedElements(board);
+          if (curSelected.length !== 1 || curSelected[0] !== info.root) {
+            clearSelectedElement(board);
+            addSelectedElement(board, info.root);
+          }
           const wrapper = (board as any).boardWrapper;
           wrapper?.emit?.('selection:change', { selected: [info.root] });
-          (board as any).apply({ type: 'set_selection' } as any);
         }
         const wrapper = (board as any).boardWrapper;
         wrapper?.emit?.('mindmap:marker:click', {
@@ -283,11 +298,245 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       }
     }
 
-    // 4.2 点击外延操作手柄 (+ 按钮 / 折叠展开)
-    const handleEl = target?.closest?.('[data-action]') as HTMLElement | SVGElement | null;
+    // 4.2 点击外延操作手柄 (+ 按钮 / 折叠展开 / 概要范围拉伸 / 节点宽度拉伸)
+    const handleEl = (
+      compPath.find((el) => el instanceof Element && el.hasAttribute?.('data-action')) ||
+      target?.closest?.('[data-action]')
+    ) as HTMLElement | SVGElement | null;
     if (handleEl) {
       const action = handleEl.getAttribute('data-action');
       const nodeId = handleEl.getAttribute('data-node-id');
+      const summaryId = handleEl.getAttribute('data-summary-id');
+
+      // 4.2.1 概要范围药丸调节手柄
+      if (action === 'summary-resize-top' || action === 'summary-resize-bottom') {
+        const targetSummaryId = summaryId || nodeId;
+        if (targetSummaryId) {
+          const info = findMindRootAndPath(targetSummaryId);
+          if (info) {
+            const { root } = info;
+            const summaryNode = findNodeById(root, targetSummaryId);
+            const currentFor: string[] = summaryNode?.data?.summaryFor || summaryNode?.summaryFor || [];
+            const parentInfo = currentFor.length > 0
+              ? findParentNode(root, currentFor[0])
+              : findParentNode(root, targetSummaryId);
+
+            if (parentInfo && summaryNode) {
+              const { parent } = parentInfo;
+              const candidateSiblings = (parent.children || []).filter(
+                (c) => !c.isSummary && !c.data?.isSummary
+              );
+
+              const layout = MIND_LAYOUT_CACHE.get(root) || computeMindLayout(root);
+              candidateSiblings.sort((a, b) => {
+                const boxA = layout.nodeMap.get(a.id);
+                const boxB = layout.nodeMap.get(b.id);
+                return (boxA ? boxA.y : 0) - (boxB ? boxB.y : 0);
+              });
+
+              const indices = currentFor
+                .map((id) => candidateSiblings.findIndex((c) => c.id === id))
+                .filter((idx) => idx !== -1)
+                .sort((a, b) => a - b);
+
+              const startIndex = indices.length > 0 ? indices[0] : 0;
+              const endIndex = indices.length > 0 ? indices[indices.length - 1] : candidateSiblings.length - 1;
+
+              if (candidateSiblings.length > 0) {
+                // 确保概要节点和脑图根保持选中状态
+                setSelectedMindNodeId(board, targetSummaryId);
+                const curSelected = getSelectedElements(board);
+                if (curSelected.length !== 1 || curSelected[0] !== root) {
+                  clearSelectedElement(board);
+                  addSelectedElement(board, root);
+                }
+
+                // 获取 DOM 元素以便平滑实时拉伸
+                const container = (board as any).container || PlaitBoard.getBoardContainer(board);
+                const summaryG = (handleEl.closest('.speed-mind-summary-range-group') ||
+                  container?.querySelector?.('.speed-mind-summary-range-group') ||
+                  document.querySelector('.speed-mind-summary-range-group')) as SVGGElement | null;
+                const borderPath = (summaryG?.querySelector('.speed-mind-summary-range-path') ||
+                  document.querySelector('.speed-mind-summary-range-path')) as SVGPathElement | null;
+                const topHandleG = (summaryG?.querySelector('.summary-resize-top') ||
+                  document.querySelector('.summary-resize-top')) as SVGGElement | null;
+                const bottomHandleG = (summaryG?.querySelector('.summary-resize-bottom') ||
+                  document.querySelector('.summary-resize-bottom')) as SVGGElement | null;
+
+                const activeSummary = layout.summaries?.find((s) => s.id === targetSummaryId);
+                const rangeRect = activeSummary?.rangeRect || {
+                  x: 0,
+                  y: 0,
+                  width: 100,
+                  height: 100,
+                };
+
+                const initialX1 = rangeRect.x;
+                const initialWidth = rangeRect.width;
+                const initialY1 = rangeRect.y;
+                const initialY2 = rangeRect.y + rangeRect.height;
+
+                const startClientX = event.clientX ?? (event as any).x;
+                const startClientY = event.clientY ?? (event as any).y;
+                const isTopHandle = action === 'summary-resize-top';
+                const zoom = board.viewport?.zoom || 1;
+
+                let liveCurrentY1 = initialY1;
+                let liveCurrentY2 = initialY2;
+
+                // 开启全局拖拽独占状态，锁定光标与手柄 DOM 渲染
+                isResizingSummary = true;
+                (board as any).isResizingSummary = true;
+                document.body.style.cursor = 'ns-resize';
+
+                const onWindowPointerMove = (moveEvt: PointerEvent) => {
+                  moveEvt.preventDefault();
+                  moveEvt.stopPropagation();
+                  const clientX = moveEvt.clientX ?? (moveEvt as any).x;
+                  const clientY = moveEvt.clientY ?? (moveEvt as any).y;
+                  if (typeof clientX !== 'number' || typeof clientY !== 'number') return;
+                  const deltaY = (clientY - startClientY) / zoom;
+
+                  if (isTopHandle) {
+                    liveCurrentY1 = Math.min(initialY2 - 20, initialY1 + deltaY);
+                    const actualShift = liveCurrentY1 - initialY1;
+                    if (borderPath) {
+                      borderPath.setAttribute(
+                        'd',
+                        generateSummaryRangePath(initialX1, liveCurrentY1, initialWidth, initialY2 - liveCurrentY1)
+                      );
+                    }
+                    if (topHandleG) {
+                      topHandleG.setAttribute('transform', `translate(0, ${actualShift})`);
+                    }
+                  } else {
+                    liveCurrentY2 = Math.max(initialY1 + 20, initialY2 + deltaY);
+                    const actualShift = liveCurrentY2 - initialY2;
+                    if (borderPath) {
+                      borderPath.setAttribute(
+                        'd',
+                        generateSummaryRangePath(initialX1, initialY1, initialWidth, liveCurrentY2 - initialY1)
+                      );
+                    }
+                    if (bottomHandleG) {
+                      bottomHandleG.setAttribute('transform', `translate(0, ${actualShift})`);
+                    }
+                  }
+                };
+
+                const onWindowPointerUp = (upEvt: PointerEvent) => {
+                  window.removeEventListener('pointermove', onWindowPointerMove, true);
+                  window.removeEventListener('pointerup', onWindowPointerUp, true);
+                  isResizingSummary = false;
+                  (board as any).isResizingSummary = false;
+                  document.body.style.cursor = '';
+                  topHandleG?.removeAttribute('transform');
+                  bottomHandleG?.removeAttribute('transform');
+                  upEvt.preventDefault();
+                  upEvt.stopPropagation();
+
+                  // 计算最终覆盖的子节点
+                  const finalMetric = candidateSiblings.map((sibling, idx) => {
+                    const b = layout.nodeMap.get(sibling.id);
+                    const cy = b ? b.y + b.height / 2 : 0;
+                    return { idx, id: sibling.id, cy };
+                  });
+
+                  let finalStartIndex = startIndex;
+                  let finalEndIndex = endIndex;
+
+                  if (isTopHandle) {
+                    let bestIdx = endIndex;
+                    let bestDist = Infinity;
+                    for (let i = 0; i <= endIndex; i++) {
+                      const dist = Math.abs(finalMetric[i].cy - liveCurrentY1);
+                      if (dist < bestDist) {
+                        bestDist = dist;
+                        bestIdx = i;
+                      }
+                    }
+                    finalStartIndex = bestIdx;
+                  } else {
+                    let bestIdx = startIndex;
+                    let bestDist = Infinity;
+                    for (let i = startIndex; i < finalMetric.length; i++) {
+                      const dist = Math.abs(finalMetric[i].cy - liveCurrentY2);
+                      if (dist < bestDist) {
+                        bestDist = dist;
+                        bestIdx = i;
+                      }
+                    }
+                    finalEndIndex = bestIdx;
+                  }
+
+                  if (finalStartIndex > finalEndIndex) {
+                    finalStartIndex = finalEndIndex;
+                  }
+
+                  const newSummaryFor = candidateSiblings
+                    .slice(finalStartIndex, finalEndIndex + 1)
+                    .map((c) => c.id);
+
+                  if (newSummaryFor.length > 0) {
+                    const clonedRoot = cloneTree(root);
+                    const clonedSummary = findNodeById(clonedRoot, targetSummaryId);
+                    if (clonedSummary) {
+                      clonedSummary.summaryFor = newSummaryFor;
+                      clonedSummary.data = {
+                        ...(clonedSummary.data || {}),
+                        summaryFor: newSummaryFor,
+                      };
+                    }
+
+                    const rootPath = PlaitBoard.findPath(board, root);
+                    Transforms.setNode(board, { children: clonedRoot.children } as any, rootPath);
+
+                    const comp = Array.from(SpeedMindComponent.instances).find(
+                      (c) => c.element === root || c.element.id === root.id
+                    );
+                    if (comp) {
+                      comp.renderMindmap();
+                    }
+                  }
+                };
+
+                window.addEventListener('pointermove', onWindowPointerMove, true);
+                window.addEventListener('pointerup', onWindowPointerUp, true);
+
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      // 4.2.2 节点宽度拉伸条手柄
+      if (action === 'resize-node-width' && nodeId) {
+        const info = findMindRootAndPath(nodeId);
+        if (info) {
+          const { root } = info;
+          const targetNode = findNodeById(root, nodeId);
+          if (targetNode) {
+            const layout = MIND_LAYOUT_CACHE.get(root) || computeMindLayout(root);
+            const box = layout.nodeMap.get(nodeId);
+            const currentWidth = box ? box.width : 100;
+            const startViewPoint = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
+            resizingNodeWidthState = {
+              nodeId,
+              root,
+              isLeft: Boolean(box?.left),
+              startMouseX: startViewPoint[0],
+              initialWidth: currentWidth,
+              currentWidth,
+            };
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+        }
+      }
 
       if (nodeId) {
         const info = findMindRootAndPath(nodeId);
@@ -421,9 +670,12 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       lastPointerDownTime = now;
       lastPointerDownNodeId = clickedNodeId;
 
-      clearSelectedElement(board);
-      addSelectedElement(board, clickedRoot);
       setSelectedMindNodeId(board, clickedNodeId);
+      const curSelected = getSelectedElements(board);
+      if (curSelected.length !== 1 || curSelected[0] !== clickedRoot) {
+        clearSelectedElement(board);
+        addSelectedElement(board, clickedRoot);
+      }
 
       const wrapper = (board as any).boardWrapper;
       wrapper?.emit?.('selection:change', { selected: [clickedRoot] });
@@ -435,17 +687,24 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
         event.stopPropagation();
         return;
       }
-
-      (board as any).apply({ type: 'set_selection' } as any);
     } else {
       activePointerDownRootId = null;
       activePointerDownNodeId = null;
       lastPointerDownNodeId = null;
       lastPointerDownTime = 0;
       // 点击了非脑图节点卡片区域：
-      // 仅重置脑图内部选中节点 ID，画板图元（连线、几何图形等）的选中态交给 Plait 原生 selection 机制处理
+      // 立即重置脑图内部选中节点 ID，并同步清空脑图根元素选区
       if (getSelectedMindNodeId(board)) {
         setSelectedMindNodeId(board, null);
+      }
+      const curSelected = getSelectedElements(board);
+      const isMindSelected = curSelected.some(
+        (el: any) => el && (el.type === 'mind' || el.children)
+      );
+      if (isMindSelected) {
+        clearSelectedElement(board);
+        const wrapper = (board as any).boardWrapper;
+        wrapper?.emit?.('selection:change', { selected: [] });
       }
     }
 
@@ -457,6 +716,36 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
   // 5. 悬浮监听与子节点拖拽联动 (支持 hover 悬浮及移动到边上即显示 + 和 < 操作手柄)
   board.pointerMove = (event: PointerEvent) => {
+    // 概要范围拖拽调节中：独占指针事件，严禁触发 hover 刷新导致 handles DOM 被清空
+    if (isResizingSummary) {
+      return;
+    }
+
+    // 5.0.2 节点宽度拉伸拖拽处理
+    if (resizingNodeWidthState) {
+      const { nodeId, root, isLeft, startMouseX, initialWidth } = resizingNodeWidthState;
+      const viewPoint = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
+      const deltaX = viewPoint[0] - startMouseX;
+      const newWidth = Math.max(60, Math.round(initialWidth + (isLeft ? -deltaX : deltaX)));
+      resizingNodeWidthState.currentWidth = newWidth;
+      const targetNode = findNodeById(root, nodeId);
+      if (targetNode) {
+        try {
+          targetNode.manualWidth = newWidth;
+          if (targetNode.data) targetNode.data.manualWidth = newWidth;
+        } catch {
+          // 忽略冻结对象的只读赋值异常，在 pointerUp 时会通过 cloneTree 安全提交
+        }
+        const comp = Array.from(SpeedMindComponent.instances).find(
+          (c) => c.element === root || c.element.id === root.id
+        );
+        if (comp) {
+          comp.renderMindmap();
+        }
+      }
+      return;
+    }
+
     if (dndController.onPointerMove(event)) {
       return;
     }
@@ -528,17 +817,35 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     pointerMove(event);
   };
 
-  // 5.1 释放判定：确保整树拖拽后选中状态不丢失
+  // 5.1 释放判定：确保整树拖拽后选中状态不丢失及概要/节点宽度调整提交
   board.pointerUp = (event: PointerEvent) => {
+    if (resizingNodeWidthState) {
+      const { root, nodeId, currentWidth } = resizingNodeWidthState;
+      resizingNodeWidthState = null;
+      const clonedRoot = cloneTree(root);
+      const targetNode = findNodeById(clonedRoot, nodeId);
+      if (targetNode) {
+        targetNode.manualWidth = currentWidth;
+        if (!targetNode.data) targetNode.data = {} as any;
+        targetNode.data.manualWidth = currentWidth;
+      }
+      const rootPath = PlaitBoard.findPath(board, root);
+      Transforms.setNode(board, { children: clonedRoot.children } as any, rootPath);
+      return;
+    }
+
     const isMoving = PlaitBoard.getBoardContainer(board).classList.contains('element-moving');
     pointerUp(event);
 
     if (isMoving && activePointerDownRootId) {
       const freshRoot = board.children.find((c: any) => c.id === activePointerDownRootId) as SpeedMindElement | undefined;
       if (freshRoot) {
-        clearSelectedElement(board);
-        addSelectedElement(board, freshRoot);
         setSelectedMindNodeId(board, activePointerDownNodeId || freshRoot.id);
+        const curSelected = getSelectedElements(board);
+        if (curSelected.length !== 1 || curSelected[0] !== freshRoot) {
+          clearSelectedElement(board);
+          addSelectedElement(board, freshRoot);
+        }
         const wrapper = (board as any).boardWrapper;
         wrapper?.emit?.('selection:change', { selected: [freshRoot] });
       }
@@ -547,6 +854,21 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
 
   // 5.2 全局抬起：子节点拖拽释放判定与整树拖拽完成兜底
   board.globalPointerUp = (event: PointerEvent) => {
+    if (resizingNodeWidthState) {
+      const { root, nodeId, currentWidth } = resizingNodeWidthState;
+      resizingNodeWidthState = null;
+      const clonedRoot = cloneTree(root);
+      const targetNode = findNodeById(clonedRoot, nodeId);
+      if (targetNode) {
+        targetNode.manualWidth = currentWidth;
+        if (!targetNode.data) targetNode.data = {} as any;
+        targetNode.data.manualWidth = currentWidth;
+      }
+      const rootPath = PlaitBoard.findPath(board, root);
+      Transforms.setNode(board, { children: clonedRoot.children } as any, rootPath);
+      return;
+    }
+
     const isMoving = PlaitBoard.getBoardContainer(board).classList.contains('element-moving');
     if (dndController.onGlobalPointerUp(event)) {
       return;
@@ -556,15 +878,27 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     if (isMoving && activePointerDownRootId) {
       const freshRoot = board.children.find((c: any) => c.id === activePointerDownRootId) as SpeedMindElement | undefined;
       if (freshRoot) {
-        clearSelectedElement(board);
-        addSelectedElement(board, freshRoot);
         setSelectedMindNodeId(board, activePointerDownNodeId || freshRoot.id);
+        const curSelected = getSelectedElements(board);
+        if (curSelected.length !== 1 || curSelected[0] !== freshRoot) {
+          clearSelectedElement(board);
+          addSelectedElement(board, freshRoot);
+        }
         const wrapper = (board as any).boardWrapper;
         wrapper?.emit?.('selection:change', { selected: [freshRoot] });
       }
     }
     activePointerDownRootId = null;
     activePointerDownNodeId = null;
+  };
+
+  // 5.3 全局移动监听：确保拖拽调节手柄时在整个窗口平滑流畅响应
+  board.globalPointerMove = (event: PointerEvent) => {
+    if (resizingNodeWidthState) {
+      board.pointerMove(event);
+      return;
+    }
+    globalPointerMove(event);
   };
 
   // 6. 双击节点启动就地编辑 (优先坐标几何碰撞判定，对齐画板文本节点处理逻辑)

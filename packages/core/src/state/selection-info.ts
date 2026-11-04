@@ -84,12 +84,22 @@ export function getSelectionInfo(
     first.isRoot ||
     first.children
   ) {
-    let targetNode: any = first;
     const activeNodeId =
       selectedMindNodeId ||
       (first as any).selectedMindNodeId ||
       (first as any).data?.selectedMindNodeId;
 
+    if (!activeNodeId) {
+      return {
+        selectedCells: [],
+        selectedCount: 0,
+        selectedCell: null,
+        selectedType: 'none',
+        selectedShapeId: '',
+      };
+    }
+
+    let targetNode: any = first;
     if (activeNodeId && first.children) {
       const findInner = (node: any, id: string): any => {
         if (node.id === id) return node;

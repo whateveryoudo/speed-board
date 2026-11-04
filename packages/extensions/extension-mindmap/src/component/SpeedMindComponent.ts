@@ -22,7 +22,7 @@ import {
   getTopicRectangleByBox,
   getNodeTopicData,
 } from '../renderer/drawNode';
-import { renderNodeHandlesSvg } from '../renderer/drawHandles';
+import { renderNodeHandlesSvg, renderSummaryRangeHandlesSvg } from '../renderer/drawHandles';
 import { MIND_NODE_TEXT_MANAGES, editMindNodeTopic } from '../renderer/inlineEditor';
 import { findMindRootAndPath, setNodeTopic } from '../model/treeOps';
 
@@ -53,6 +53,11 @@ export function setSelectedMindNodeId(board: PlaitBoard, nodeId: string | null):
     delete (board as any).__selectedMindNodeId;
     if ((board as any).boardWrapper) {
       delete (board as any).boardWrapper.selectedMindNodeId;
+    }
+  }
+  for (const comp of SpeedMindComponent.instances) {
+    if (comp.board === board) {
+      comp.renderMindmap();
     }
   }
 }
@@ -178,8 +183,7 @@ export class SpeedMindComponent
 
     layout.nodeMap.forEach((box: NodeLayoutBox) => {
       const isSelected: boolean =
-        isMindSelected &&
-        Boolean(selectedNodeId === box.id || (!selectedNodeId && (box.id === element.id || box.element?.isRoot)));
+        isMindSelected && Boolean(selectedNodeId && selectedNodeId === box.id);
 
       let nodeG = this.nodeGMap.get(box.id);
       let textManage = this.textManageMap.get(box.id);
@@ -295,6 +299,10 @@ export class SpeedMindComponent
   updateHandles(targetHoverNodeId?: string | null): void {
     if (!this.handlesG) return;
     const board = this.board;
+    // 概要范围拖拽调节中：严禁清空重建手柄 DOM
+    if ((board as any).isResizingSummary) {
+      return;
+    }
     const selectedNodeId = getSelectedMindNodeId(board);
     const hoverNodeId =
       targetHoverNodeId !== undefined ? targetHoverNodeId : getHoverMindNodeId(board);
@@ -309,17 +317,41 @@ export class SpeedMindComponent
       (selectedNodeId && layout.nodeMap.has(selectedNodeId))
     );
 
-    // 优先显示当前鼠标悬浮的节点，无悬浮时如果本导图被选中则显示当前选中的节点
-    const activeNodeId = hoverNodeId || (isMindSelected ? selectedNodeId : null);
+    // 未选中脑图时，严禁渲染任何操作手柄或浮动框！彻底消除无选区下的 hover 误触发
+    if (!isMindSelected) {
+      this.handlesG.innerHTML = '';
+      return;
+    }
 
     this.handlesG.innerHTML = '';
+
+    // 1. 如果选中了概要节点：仅绘制概要框选外框及上下拖拽调节药丸手柄（与概要节点选中状态严格绑定，不随 hover 显隐）
+    const isSummarySelected = Boolean(
+      selectedNodeId &&
+      layout.summaries?.some((s) => s.id === selectedNodeId)
+    );
+    if (isSummarySelected) {
+      const activeSummary = layout.summaries?.find((s) => s.id === selectedNodeId);
+      if (activeSummary && activeSummary.rangeRect) {
+        renderSummaryRangeHandlesSvg(
+          this.handlesG,
+          activeSummary,
+          false,
+          true
+        );
+      }
+      // 概要节点选中态下，独占聚焦概要操作，不渲染普通分支的加号手柄
+      return;
+    }
+
+    // 2. 绘制普通节点的操作手柄 (如果不是概要节点，则绘制外延 + 按钮、折叠按钮与宽度拉伸条)
+    // 优先显示当前鼠标悬浮的节点，无悬浮时显示当前选中的节点
+    const activeNodeId = hoverNodeId || selectedNodeId;
     if (activeNodeId) {
       const activeBox = layout.nodeMap.get(activeNodeId);
-      if (activeBox) {
+      if (activeBox && !activeBox.element.isSummary && !activeBox.element.data?.isSummary) {
         const isHovered = hoverNodeId === activeBox.id;
-        const isSelected: boolean =
-          isMindSelected &&
-          Boolean(selectedNodeId === activeBox.id || (!selectedNodeId && (activeBox.id === this.element.id || activeBox.element?.isRoot)));
+        const isSelected: boolean = Boolean(selectedNodeId && selectedNodeId === activeBox.id);
         renderNodeHandlesSvg(this.handlesG, activeBox, isHovered, isSelected);
       }
     }

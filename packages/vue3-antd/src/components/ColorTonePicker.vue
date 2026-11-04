@@ -1,5 +1,5 @@
 <template>
-  <div class="color-tone-picker">
+  <div class="color-tone-picker" @mousedown.prevent>
     <!-- 1. 顶部配色方案胶囊切换 (主题配色 / 默认配色) -->
     <div class="picker-tabs-segment">
       <div
