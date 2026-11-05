@@ -230,7 +230,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
       const viewBoxPoint = toViewBoxPoint(board, hostPoint);
 
       const emptyMind = createEmptyMindmap('中心主题', {
-        points: [[viewBoxPoint[0] - 40, viewBoxPoint[1] - 18]],
+        points: [[viewBoxPoint[0] - 50, viewBoxPoint[1] - 20]],
       });
 
       const insertIndex = board.children.length;
@@ -343,6 +343,11 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
               const endIndex = indices.length > 0 ? indices[indices.length - 1] : candidateSiblings.length - 1;
 
               if (candidateSiblings.length > 0) {
+                // 开启全局拖拽独占状态，锁定光标与手柄 DOM 渲染，防止重绘冲突
+                isResizingSummary = true;
+                (board as any).isResizingSummary = true;
+                document.body.style.cursor = 'ns-resize';
+
                 // 确保概要节点和脑图根保持选中状态
                 setSelectedMindNodeId(board, targetSummaryId);
                 const curSelected = getSelectedElements(board);
@@ -351,17 +356,35 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
                   addSelectedElement(board, root);
                 }
 
-                // 获取 DOM 元素以便平滑实时拉伸
-                const container = (board as any).container || PlaitBoard.getBoardContainer(board);
-                const summaryG = (handleEl.closest('.speed-mind-summary-range-group') ||
-                  container?.querySelector?.('.speed-mind-summary-range-group') ||
-                  document.querySelector('.speed-mind-summary-range-group')) as SVGGElement | null;
+                // 精准获取 DOM 元素以便平滑实时拉伸
+                let currentHandleG: SVGGElement | null = null;
+                if (handleEl instanceof SVGGElement && handleEl.classList.contains('speed-mind-summary-handle')) {
+                  currentHandleG = handleEl;
+                } else if (handleEl.parentElement instanceof SVGGElement && handleEl.parentElement.classList.contains('speed-mind-summary-handle')) {
+                  currentHandleG = handleEl.parentElement;
+                } else {
+                  currentHandleG = (handleEl.closest?.('.speed-mind-summary-handle') as unknown as SVGGElement) || null;
+                }
+
+                currentHandleG?.setAttribute('data-resizing', 'true');
+
+                const summaryG = (currentHandleG?.parentElement as unknown as SVGGElement) ||
+                  (handleEl.closest?.('.speed-mind-summary-range-group') as unknown as SVGGElement) ||
+                  (document.querySelector('.speed-mind-summary-range-group') as unknown as SVGGElement);
+
                 const borderPath = (summaryG?.querySelector('.speed-mind-summary-range-path') ||
                   document.querySelector('.speed-mind-summary-range-path')) as SVGPathElement | null;
                 const topHandleG = (summaryG?.querySelector('.summary-resize-top') ||
+                  (action === 'summary-resize-top' ? currentHandleG : null) ||
                   document.querySelector('.summary-resize-top')) as SVGGElement | null;
                 const bottomHandleG = (summaryG?.querySelector('.summary-resize-bottom') ||
+                  (action === 'summary-resize-bottom' ? currentHandleG : null) ||
                   document.querySelector('.summary-resize-bottom')) as SVGGElement | null;
+
+                const topPill = topHandleG?.querySelector('.speed-mind-summary-handle-pill') as SVGRectElement | null;
+                const topHit = topHandleG?.querySelector('.speed-mind-summary-handle-hit') as SVGRectElement | null;
+                const bottomPill = bottomHandleG?.querySelector('.speed-mind-summary-handle-pill') as SVGRectElement | null;
+                const bottomHit = bottomHandleG?.querySelector('.speed-mind-summary-handle-hit') as SVGRectElement | null;
 
                 const activeSummary = layout.summaries?.find((s) => s.id === targetSummaryId);
                 const rangeRect = activeSummary?.rangeRect || {
@@ -376,18 +399,14 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
                 const initialY1 = rangeRect.y;
                 const initialY2 = rangeRect.y + rangeRect.height;
 
-                const startClientX = event.clientX ?? (event as any).x;
-                const startClientY = event.clientY ?? (event as any).y;
                 const isTopHandle = action === 'summary-resize-top';
-                const zoom = board.viewport?.zoom || 1;
+
+                const startHostPoint = toHostPoint(board, event.clientX ?? (event as any).x, event.clientY ?? (event as any).y);
+                const startViewPoint = toViewBoxPoint(board, startHostPoint);
+                const startViewY = startViewPoint[1];
 
                 let liveCurrentY1 = initialY1;
                 let liveCurrentY2 = initialY2;
-
-                // 开启全局拖拽独占状态，锁定光标与手柄 DOM 渲染
-                isResizingSummary = true;
-                (board as any).isResizingSummary = true;
-                document.body.style.cursor = 'ns-resize';
 
                 const onWindowPointerMove = (moveEvt: PointerEvent) => {
                   moveEvt.preventDefault();
@@ -395,31 +414,37 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
                   const clientX = moveEvt.clientX ?? (moveEvt as any).x;
                   const clientY = moveEvt.clientY ?? (moveEvt as any).y;
                   if (typeof clientX !== 'number' || typeof clientY !== 'number') return;
-                  const deltaY = (clientY - startClientY) / zoom;
+                  const moveHostPoint = toHostPoint(board, clientX, clientY);
+                  const moveViewPoint = toViewBoxPoint(board, moveHostPoint);
+                  const deltaY = moveViewPoint[1] - startViewY;
 
                   if (isTopHandle) {
                     liveCurrentY1 = Math.min(initialY2 - 20, initialY1 + deltaY);
-                    const actualShift = liveCurrentY1 - initialY1;
                     if (borderPath) {
                       borderPath.setAttribute(
                         'd',
                         generateSummaryRangePath(initialX1, liveCurrentY1, initialWidth, initialY2 - liveCurrentY1)
                       );
                     }
-                    if (topHandleG) {
-                      topHandleG.setAttribute('transform', `translate(0, ${actualShift})`);
+                    if (topPill) {
+                      topPill.setAttribute('y', String(liveCurrentY1 - 3));
+                    }
+                    if (topHit) {
+                      topHit.setAttribute('y', String(liveCurrentY1 - 10));
                     }
                   } else {
                     liveCurrentY2 = Math.max(initialY1 + 20, initialY2 + deltaY);
-                    const actualShift = liveCurrentY2 - initialY2;
                     if (borderPath) {
                       borderPath.setAttribute(
                         'd',
                         generateSummaryRangePath(initialX1, initialY1, initialWidth, liveCurrentY2 - initialY1)
                       );
                     }
-                    if (bottomHandleG) {
-                      bottomHandleG.setAttribute('transform', `translate(0, ${actualShift})`);
+                    if (bottomPill) {
+                      bottomPill.setAttribute('y', String(liveCurrentY2 - 3));
+                    }
+                    if (bottomHit) {
+                      bottomHit.setAttribute('y', String(liveCurrentY2 - 10));
                     }
                   }
                 };
@@ -427,46 +452,57 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
                 const onWindowPointerUp = (upEvt: PointerEvent) => {
                   window.removeEventListener('pointermove', onWindowPointerMove, true);
                   window.removeEventListener('pointerup', onWindowPointerUp, true);
+                  currentHandleG?.removeAttribute('data-resizing');
                   isResizingSummary = false;
                   (board as any).isResizingSummary = false;
                   document.body.style.cursor = '';
-                  topHandleG?.removeAttribute('transform');
-                  bottomHandleG?.removeAttribute('transform');
                   upEvt.preventDefault();
                   upEvt.stopPropagation();
 
-                  // 计算最终覆盖的子节点
-                  const finalMetric = candidateSiblings.map((sibling, idx) => {
-                    const b = layout.nodeMap.get(sibling.id);
-                    const cy = b ? b.y + b.height / 2 : 0;
-                    return { idx, id: sibling.id, cy };
+                  // 计算各候选分支及其所有展开后代节点的真实垂直范围与 50% 中心阈值
+                  const getSubtreeBoxes = (b: NodeLayoutBox): NodeLayoutBox[] => {
+                    const list = [b];
+                    if (b.element.isCollapsed) return list;
+                    for (const child of b.children || []) {
+                      list.push(...getSubtreeBoxes(child));
+                    }
+                    return list;
+                  };
+
+                  const siblingMetrics = candidateSiblings.map((sibling, idx) => {
+                    const box = layout.nodeMap.get(sibling.id);
+                    if (!box) {
+                      return { idx, id: sibling.id, minY: 0, maxY: 0, center: 0 };
+                    }
+                    const allBoxes = getSubtreeBoxes(box);
+                    const minY = Math.min(...allBoxes.map((b) => b.y));
+                    const maxY = Math.max(...allBoxes.map((b) => b.y + b.height));
+                    const center = (minY + maxY) / 2;
+                    return { idx, id: sibling.id, minY, maxY, center };
                   });
 
                   let finalStartIndex = startIndex;
                   let finalEndIndex = endIndex;
 
                   if (isTopHandle) {
-                    let bestIdx = endIndex;
-                    let bestDist = Infinity;
+                    // 顶部手柄：从上往下扫描，只有拉到某个分支的 50% 中心线之上（<= center），才视为包含该分支
+                    finalStartIndex = endIndex;
                     for (let i = 0; i <= endIndex; i++) {
-                      const dist = Math.abs(finalMetric[i].cy - liveCurrentY1);
-                      if (dist < bestDist) {
-                        bestDist = dist;
-                        bestIdx = i;
+                      if (liveCurrentY1 <= siblingMetrics[i].center) {
+                        finalStartIndex = i;
+                        break;
                       }
                     }
-                    finalStartIndex = bestIdx;
                   } else {
-                    let bestIdx = startIndex;
-                    let bestDist = Infinity;
-                    for (let i = startIndex; i < finalMetric.length; i++) {
-                      const dist = Math.abs(finalMetric[i].cy - liveCurrentY2);
-                      if (dist < bestDist) {
-                        bestDist = dist;
-                        bestIdx = i;
+                    // 底部手柄：从下往上扫描，只有拉到某个分支的 50% 中心线之下（>= center），才视为包含该分支；
+                    // 处于节点之间缝隙时，未达到下一节点 50% 绝不冒进吞并下一节点！
+                    finalEndIndex = startIndex;
+                    for (let i = candidateSiblings.length - 1; i >= startIndex; i--) {
+                      if (liveCurrentY2 >= siblingMetrics[i].center) {
+                        finalEndIndex = i;
+                        break;
                       }
                     }
-                    finalEndIndex = bestIdx;
                   }
 
                   if (finalStartIndex > finalEndIndex) {
@@ -488,9 +524,19 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
                       };
                     }
 
+                    MIND_LAYOUT_CACHE.delete(root);
+
                     const rootPath = PlaitBoard.findPath(board, root);
                     Transforms.setNode(board, { children: clonedRoot.children } as any, rootPath);
 
+                    const comp = Array.from(SpeedMindComponent.instances).find(
+                      (c) => c.element === root || c.element.id === root.id
+                    );
+                    if (comp) {
+                      comp.renderMindmap();
+                    }
+                  } else {
+                    MIND_LAYOUT_CACHE.delete(root);
                     const comp = Array.from(SpeedMindComponent.instances).find(
                       (c) => c.element === root || c.element.id === root.id
                     );
@@ -757,8 +803,7 @@ export const withSpeedMind = <T extends PlaitBoard = PlaitBoard>(board: T): T =>
     const isOverHandle = compPath.some(
       (el) =>
         el instanceof Element &&
-        (el.classList?.contains('speed-mind-handles-layer') ||
-          el.classList?.contains('speed-mind-add-handle') ||
+        (el.classList?.contains('speed-mind-add-handle') ||
           el.classList?.contains('speed-mind-collapse-handle') ||
           el.classList?.contains('speed-mind-handle-bridge'))
     );

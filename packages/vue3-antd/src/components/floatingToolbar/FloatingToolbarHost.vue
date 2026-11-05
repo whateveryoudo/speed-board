@@ -1,6 +1,6 @@
 <template>
   <div
-    v-show="visible && props.visible !== false"
+    v-show="visible && props.visible !== false && activeToolbarItems.length > 0"
     ref="toolbarRef"
     class="floating-bubble-toolbar plait-board-attached"
     :data-rendered-type="currentType"

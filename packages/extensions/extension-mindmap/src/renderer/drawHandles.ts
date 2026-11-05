@@ -60,6 +60,7 @@ export function renderSummaryRangeHandlesSvg(
 
   const summaryG = document.createElementNS(SVG_NS, 'g');
   summaryG.setAttribute('class', 'speed-mind-summary-range-group');
+  summaryG.setAttribute('pointer-events', 'none');
 
   // 1. 虚线/实线圆角外框 (在上下手柄位置预留 gap 空间，完全匹配 Plait 原版几何)
   const d = generateSummaryRangePath(x1, y1, width, height);
@@ -126,11 +127,13 @@ export function renderSummaryRangeHandlesSvg(
     handleG.appendChild(pill);
 
     handleG.addEventListener('mouseenter', () => {
+      if (handleG.getAttribute('data-resizing') === 'true') return;
       pill.setAttribute('fill', '#2563eb');
       pill.setAttribute('height', '7');
       pill.setAttribute('y', String(cy - 3.5));
     });
     handleG.addEventListener('mouseleave', () => {
+      if (handleG.getAttribute('data-resizing') === 'true') return;
       pill.setAttribute('fill', isSelected ? '#3b82f6' : '#94a3b8');
       pill.setAttribute('height', '6');
       pill.setAttribute('y', String(cy - 3));

@@ -22,5 +22,7 @@ export {
   createTextElement,
   DrawTransforms,
   getDefaultGeometryPoints,
+  getDefaultGeometryProperty,
+  drawGeometry,
   insertElement,
 } from '@plait/draw';

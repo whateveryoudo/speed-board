@@ -564,71 +564,7 @@
 }
 
 
-// 鼠标跟随虚影放置图层样式
-.speed-placement-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 70;
-  pointer-events: all;
-  cursor: crosshair;
-}
 
-.speed-placement-ghost {
-  opacity: 0.65;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  transition: opacity 0.12s ease;
-
-  .placement-ghost-text {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 4px;
-    white-space: nowrap !important;
-    border: 1.5px dashed #3b82f6;
-    background: rgba(239, 246, 255, 0.7);
-    color: #262626;
-    border-radius: 4px;
-    box-sizing: border-box;
-    span {
-      white-space: nowrap;
-    }
-  }
-
-  .placement-ghost-shape {
-    border: 1.5px dashed #3b82f6;
-    border-radius: 4px;
-    background: rgba(239, 246, 255, 0.5);
-    box-sizing: border-box;
-  }
-
-  .placement-ghost-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1.5px dashed #3b82f6;
-    border-radius: 6px;
-    background: rgba(239, 246, 255, 0.6);
-    box-sizing: border-box;
-
-    svg {
-      width: 70%;
-      height: 70%;
-    }
-  }
-
-  .placement-ghost-basic {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px dashed;
-    border-radius: 8px;
-    font-weight: 500;
-    box-sizing: border-box;
-  }
-}
 
 
 

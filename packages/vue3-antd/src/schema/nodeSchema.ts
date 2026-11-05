@@ -74,15 +74,15 @@ export const shapeSchema: NodeSchema = {
   },
 }
 
-/** 2. 图片图元 (Image) —— 1:1 对齐语雀：样式 Tab 仅有【不透明度】 */
+/** 2. 图片/图标图元 (Image) —— 保持 img 简单稳定，不展示浮动气泡工具栏 */
 export const imageSchema: NodeSchema = {
   type: 'image',
   label: '图片',
-  quickToolbar: ['opacity', 'link', 'open-panel'],
+  quickToolbar: [],
   panel: {
     tabs: ['style', 'text', 'arrange'],
     sections: {
-      style: ['opacity'], // 🌟 仅不透明度！
+      style: ['opacity'],
       text: ['typography', 'link'],
       arrange: ['arrange-align', 'arrange-layer', 'arrange-group'],
     },

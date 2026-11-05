@@ -26,18 +26,17 @@
 import { ref } from 'vue';
 import { SpeedBoard, SpeedMindmap } from '@speed-board/vue3-antd';
 import type { Board } from '@speed-board/core';
-
 const currentMode = ref<'board' | 'mindmap'>('board');
 
 const authToken =
-  'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNzkyMjI4MzA0fQ.laTeKvvb7_O629ceqrIdEZIwCnSh6E91yO6UfK1ue-Y';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNzk0MzY2MjU5fQ.nVmF8gOi8Vr9WBYQTM7q7AnhZqvKdKXaI7yUOo-G0D8';
 
 const uploadConfig = {
   fileUploadSingle: async (formData: FormData) => {
-    const res = await fetch('/api/v1/attachment/upload/single', {
+    const res = await fetch('/api/api/v1/attachment/upload/single', {
       method: 'POST',
       headers: {
-        Authorization: authToken,
+        Authorization: 'Bearer ' + authToken,
       },
       body: formData,
     });
@@ -48,7 +47,7 @@ const uploadConfig = {
     return await res.json();
   },
   getPreviewUrl: (fileId: string) => {
-    return `/api/v1/attachment/public/preview/${fileId}`;
+    return `/api/api/v1/attachment/public/preview/${fileId}`;
   },
 };
 

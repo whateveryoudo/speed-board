@@ -15,7 +15,12 @@ import {
   deleteNode,
   findMindRootAndPath,
 } from './model/treeOps';
-import { getSelectedMindNodeId, setSelectedMindNodeId } from './component/SpeedMindComponent';
+import {
+  getSelectedMindNodeId,
+  setSelectedMindNodeId,
+  SpeedMindComponent,
+  MIND_LAYOUT_CACHE,
+} from './component/SpeedMindComponent';
 import { editMindNodeTopic } from './renderer/inlineEditor';
 
 export function registerBoardMindmap(): void {
@@ -45,7 +50,7 @@ export function registerBoardMindmap(): void {
 
   Board.setMindmapLayoutHandler = (board: Board, layout: string) => {
     const selected = (board.selectedElements || []).filter(
-      (el) => (el as any).type === 'mind'
+      (el) => (el as any).type === 'mind' || (el as any).isRoot
     ) as SpeedMindElement[];
     if (selected.length === 0) return;
 
@@ -53,13 +58,46 @@ export function registerBoardMindmap(): void {
     selected.forEach((el) => {
       const path = board.getElementPath(el);
       if (path) {
-        Transforms.setNode(board.raw, { layout }, path);
+        MIND_LAYOUT_CACHE.delete(el);
+        const nonSummaryChildren = (el.children || []).filter(
+          (c) => !c.isSummary && !c.data?.isSummary
+        );
+        let rightNodeCount: number | undefined;
+        if (layout === 'standard' || layout === 'balanced' || layout === 'timeline-h') {
+          rightNodeCount = Math.ceil(nonSummaryChildren.length / 2);
+        } else if (
+          layout === 'left' ||
+          layout === 'tree-left' ||
+          layout === 'tree-left-top' ||
+          layout === 'bracket-left'
+        ) {
+          rightNodeCount = 0;
+        } else {
+          rightNodeCount = nonSummaryChildren.length;
+        }
+
+        const data = { ...(el.data || {}), structure: layout };
+
+        Transforms.setNode(board.raw, { layout, rightNodeCount, data }, path);
         board.syncNodeIndices();
         const updatedRoot = board.raw.children[path[0]] as SpeedMindElement;
         if (updatedRoot) {
+          MIND_LAYOUT_CACHE.delete(updatedRoot);
+          MIND_LAYOUT_CACHE.delete(el);
           clearSelectedElement(board.raw);
           addSelectedElement(board.raw, updatedRoot);
           board.emit('selection:change', { selected: [updatedRoot] });
+
+          const comp = Array.from(SpeedMindComponent.instances).find(
+            (c) =>
+              c.element === el ||
+              c.element.id === el.id ||
+              c.element === updatedRoot ||
+              c.element.id === updatedRoot.id
+          );
+          if (comp) {
+            comp.renderMindmap(updatedRoot);
+          }
         }
       }
     });

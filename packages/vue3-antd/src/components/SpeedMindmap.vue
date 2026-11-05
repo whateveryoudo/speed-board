@@ -10,8 +10,8 @@
       @save="onSave"
     />
 
-    <!-- 思维导图专属选区浮动工具栏 (布局/分支颜色/节点形状/标记图标/概要) -->
-    <MindmapFloatingToolbarHost
+    <!-- 思维导图专属选区浮动工具栏 (1:1 白板全功能就地配置：布局/外形/分支/标记/填充/边框/文本排版/链接) -->
+    <FloatingToolbar
       :board="boardInstance"
       @open-panel="showSettingsPanel = true"
       @toggle-settings="showSettingsPanel = !showSettingsPanel"
@@ -28,8 +28,8 @@
       @close="showMarkerPicker = false"
     />
 
-    <!-- 思维导图专属属性深度设置抽屉 -->
-    <MindmapSettingsPanel
+    <!-- 属性深度设置抽屉 (1:1 白板属性面板：样式、文本排版、颜色与快捷键指南) -->
+    <StyleSettingsPanel
       v-model:visible="showSettingsPanel"
       :board="boardInstance"
     />
@@ -52,8 +52,8 @@ import {
 } from '@speed-board/extension-mindmap';
 import { BoardCanvas } from '@speed-board/vue3';
 import TopToolbar from './TopToolbar.vue';
-import MindmapFloatingToolbarHost from './floatingToolbar/MindmapFloatingToolbarHost.vue';
-import MindmapSettingsPanel from './MindmapSettingsPanel.vue';
+import FloatingToolbar from './FloatingToolbar.vue';
+import StyleSettingsPanel from './StyleSettingsPanel.vue';
 import MindmapMarkerQuickPicker from './MindmapMarkerQuickPicker.vue';
 import { useAntdCssVars } from 'speed-components-ui/hooks';
 import '../style/index.less';

@@ -127,10 +127,6 @@ export function registerBoardDraw(): void {
     DrawTransforms.insertImage(board.raw, { url: image.url, width, height }, startPoint);
     const imageElement = board.raw.children[board.raw.children.length - 1];
 
-    if (imageElement && image.status) {
-      (imageElement as any).status = image.status;
-    }
-
     board.setPointer(PlaitPointerType.selection);
     if (imageElement) {
       board.select([imageElement]);

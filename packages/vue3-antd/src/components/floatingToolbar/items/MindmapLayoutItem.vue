@@ -35,10 +35,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
 import { IconFont as SIconFont } from 'speed-components-ui/components'
 import type { Board } from '@speed-board/core'
+import { useCellAttributes } from '@speed-board/vue3'
 import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{
@@ -47,33 +48,42 @@ const props = defineProps<{
 
 const { isOpen, getPopupContainer } = useToolbarPopover('mindmap-layout')
 
+// 1:1 精准对应 icon-kl-jiegou 字体图标的真实图形与布局 Key
 const LAYOUT_OPTIONS = [
   { key: 'balanced', icon: 'icon-kl-jiegou1', label: '思维导图 (向两侧)' },
   { key: 'right', icon: 'icon-kl-jiegou2', label: '逻辑图 (向右)' },
-  { key: 'org-down', icon: 'icon-kl-jiegou3', label: '组织架构图' },
-  { key: 'fishbone', icon: 'icon-kl-jiegou4', label: '鱼骨图' },
-  { key: 'timeline-h', icon: 'icon-kl-jiegou5', label: '水平时间轴' },
-  { key: 'tree-right', icon: 'icon-kl-jiegou6', label: '树状图' },
-  { key: 'bracket-right', icon: 'icon-kl-jiegou7', label: '括号图' },
-  { key: 'timeline-up', icon: 'icon-kl-jiegou8', label: '单向时间轴' },
-  { key: 'timeline-v', icon: 'icon-kl-jiegou9', label: '垂直时间轴' },
-  { key: 'left', icon: 'icon-kl-jiegou10', label: '逻辑图 (向左)' },
-  { key: 'tree-left', icon: 'icon-kl-jiegou11', label: '左向树状图' },
+  { key: 'left', icon: 'icon-kl-jiegou3', label: '逻辑图 (向左)' },
+  { key: 'org-down', icon: 'icon-kl-jiegou4', label: '组织架构图 (向下)' },
+  { key: 'timeline-up', icon: 'icon-kl-jiegou5', label: '向上架构图' },
+  { key: 'tree-right', icon: 'icon-kl-jiegou6', label: '树状图 (向右)' },
+  { key: 'tree-left', icon: 'icon-kl-jiegou9', label: '左向树状图 (向左)' },
+  { key: 'bracket-right', icon: 'icon-kl-jiegou10', label: '括号图 / 水平时间轴' },
+  { key: 'tree-right-top', icon: 'icon-kl-jiegou7', label: '向上树状图' },
+  { key: 'tree-left-top', icon: 'icon-kl-jiegou8', label: '向上左向树状图' },
+  { key: 'bracket-left', icon: 'icon-kl-jiegou11', label: '左向括号图' },
 ]
 
-const selectedCell = computed(() => {
-  return (props.board?.selectedElements?.[0] || null) as any
+const selectedLayoutKey = ref<string | null>(null)
+
+const rawLayout = useCellAttributes(
+  () => props.board,
+  (cell: any) => cell?.layout || cell?.data?.structure || cell?.structure || 'balanced',
+  'balanced'
+)
+
+watch(rawLayout, () => {
+  selectedLayoutKey.value = null
 })
 
 const currentStructure = computed<string>(() => {
-  if (!selectedCell.value || !props.board) return 'balanced'
-  const cell = selectedCell.value
-  const layout = cell.layout || cell.data?.structure || cell.structure || 'balanced'
+  const layout = selectedLayoutKey.value || rawLayout.value || 'balanced'
   if (layout === 'standard') return 'balanced'
   if (layout === 'downward') return 'org-down'
   if (layout === 'upward') return 'timeline-up'
   if (layout === 'right-bottom-indented') return 'tree-right'
   if (layout === 'left-bottom-indented') return 'tree-left'
+  if (layout === 'right-top-indented') return 'tree-right-top'
+  if (layout === 'left-top-indented') return 'tree-left-top'
   return layout
 })
 
@@ -84,6 +94,7 @@ const currentLayoutIcon = computed(() => {
 
 const selectLayout = (layoutKey: string) => {
   if (!props.board) return
+  selectedLayoutKey.value = layoutKey
   if (typeof (props.board as any).setMindmapLayout === 'function') {
     (props.board as any).setMindmapLayout(layoutKey)
   }

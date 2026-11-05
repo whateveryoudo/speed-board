@@ -88,6 +88,9 @@ export interface BranchLinkInfo {
   sourceBox: NodeLayoutBox;
   targetBox: NodeLayoutBox;
   trunkX?: number;
+  trunkY?: number;
+  isVertical?: boolean;
+  isIndented?: boolean;
 }
 
 export interface SummaryLayoutInfo {

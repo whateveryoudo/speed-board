@@ -143,17 +143,20 @@ export class SpeedMindComponent
     this.renderMindmap();
   }
 
-  renderMindmap(): void {
+  renderMindmap(targetElement?: SpeedMindElement): void {
     if (!this.linksG || !this.nodesG || !this.handlesG || !this.summariesG) {
       return;
     }
 
-    const element = this.element;
+    const element = targetElement || this.element;
     const board = this.board;
 
     // 1. 计算布局
     const layout = computeMindLayout(element);
     MIND_LAYOUT_CACHE.set(element, layout);
+    if (targetElement && targetElement !== this.element) {
+      MIND_LAYOUT_CACHE.set(this.element, layout);
+    }
 
     // 2. 渲染分支连线与概要大括号
     renderBranchLinksSvg(this.linksG, layout.links);
@@ -309,7 +312,7 @@ export class SpeedMindComponent
     const layout = MIND_LAYOUT_CACHE.get(this.element);
     if (!layout) return;
 
-    // 强韧化导图选中态判定
+    // 导图选中态判定
     const currentSelected = getSelectedElements(board);
     const isMindSelected = Boolean(
       this.selected ||
@@ -317,15 +320,9 @@ export class SpeedMindComponent
       (selectedNodeId && layout.nodeMap.has(selectedNodeId))
     );
 
-    // 未选中脑图时，严禁渲染任何操作手柄或浮动框！彻底消除无选区下的 hover 误触发
-    if (!isMindSelected) {
-      this.handlesG.innerHTML = '';
-      return;
-    }
-
     this.handlesG.innerHTML = '';
 
-    // 1. 如果选中了概要节点：仅绘制概要框选外框及上下拖拽调节药丸手柄（与概要节点选中状态严格绑定，不随 hover 显隐）
+    // 1. 如果选中了概要节点：绘制概要框选外框及上下拖拽调节药丸手柄（与概要节点选中状态严格绑定，不随 hover 显隐）
     const isSummarySelected = Boolean(
       selectedNodeId &&
       layout.summaries?.some((s) => s.id === selectedNodeId)
@@ -340,13 +337,12 @@ export class SpeedMindComponent
           true
         );
       }
-      // 概要节点选中态下，独占聚焦概要操作，不渲染普通分支的加号手柄
-      return;
+      // 不再 return 阻断，支持概要框显示的同时响应普通节点的 hover 手柄显示
     }
 
     // 2. 绘制普通节点的操作手柄 (如果不是概要节点，则绘制外延 + 按钮、折叠按钮与宽度拉伸条)
-    // 优先显示当前鼠标悬浮的节点，无悬浮时显示当前选中的节点
-    const activeNodeId = hoverNodeId || selectedNodeId;
+    // 优先显示当前鼠标悬浮的节点，无悬浮且未选中概要时显示当前选中的节点
+    const activeNodeId = hoverNodeId || (!isSummarySelected ? selectedNodeId : null);
     if (activeNodeId) {
       const activeBox = layout.nodeMap.get(activeNodeId);
       if (activeBox && !activeBox.element.isSummary && !activeBox.element.data?.isSummary) {

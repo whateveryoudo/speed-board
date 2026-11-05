@@ -52,14 +52,34 @@ function mapToMindLayoutType(layout?: string): MindLayoutType {
   switch (layout) {
     case 'standard':
     case 'balanced':
+    case 'timeline-h':
       return MindLayoutType.standard;
     case 'left':
+    case 'bracket-left':
       return MindLayoutType.left;
     case 'downward':
+    case 'org-down':
+    case 'timeline-v':
       return MindLayoutType.downward;
     case 'upward':
+    case 'timeline-up':
+    case 'org-up':
       return MindLayoutType.upward;
+    case 'tree-right':
+    case 'right-bottom-indented':
+      return MindLayoutType.rightBottomIndented;
+    case 'tree-left':
+    case 'left-bottom-indented':
+      return MindLayoutType.leftBottomIndented;
+    case 'tree-right-top':
+    case 'right-top-indented':
+      return MindLayoutType.rightTopIndented;
+    case 'tree-left-top':
+    case 'left-top-indented':
+      return MindLayoutType.leftTopIndented;
     case 'right':
+    case 'fishbone':
+    case 'bracket-right':
     default:
       return MindLayoutType.right;
   }
@@ -87,6 +107,27 @@ export function buildBezierBranchPath(
 }
 
 /**
+ * 生成纵向平滑贝塞尔曲线路径 (用于组织架构图向下/向上布局)
+ */
+export function buildVerticalBezierBranchPath(
+  source: [number, number],
+  target: [number, number]
+): string {
+  const [sx, sy] = source;
+  const [tx, ty] = target;
+  if (Math.abs(tx - sx) < 4) {
+    return `M ${sx} ${sy} L ${tx} ${ty}`;
+  }
+  const dy = Math.max(Math.abs(ty - sy) * 0.5, 16);
+  const factor = ty >= sy ? 1 : -1;
+  const cy1 = sy + dy * factor;
+  const cx1 = sx;
+  const cy2 = ty - dy * factor;
+  const cx2 = tx;
+  return `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
+}
+
+/**
  * 生成折线分支路径 (对标 X6 mindmap-straight)
  */
 export function buildStraightBranchPath(
@@ -100,10 +141,41 @@ export function buildStraightBranchPath(
   if (Math.abs(dy) < 2) {
     return `M ${sx} ${sy} L ${tx} ${ty}`;
   }
-  // 折点位置：支持指定同级共享干线 trunkX，保证所有子分支在同一直线上直角转折 (对标主流思维导图直角结构)
   const midX = trunkX !== undefined ? trunkX : (sx + tx) / 2;
-
   return `M ${sx} ${sy} L ${midX} ${sy} L ${midX} ${ty} L ${tx} ${ty}`;
+}
+
+/**
+ * 生成纵向折线分支路径 (用于组织架构图向下/向上直角连线)
+ */
+export function buildVerticalStraightBranchPath(
+  source: [number, number],
+  target: [number, number],
+  trunkY?: number
+): string {
+  const [sx, sy] = source;
+  const [tx, ty] = target;
+  const midY = trunkY !== undefined ? trunkY : (sy + ty) / 2;
+  return `M ${sx} ${sy} L ${sx} ${midY} L ${tx} ${midY} L ${tx} ${ty}`;
+}
+
+/**
+ * 生成缩进树状图分支路径 (用于树状图向右/向左 L 形平滑转折连线)
+ */
+export function buildIndentedBranchPath(
+  source: [number, number],
+  target: [number, number],
+  isLeft = false
+): string {
+  const [sx, sy] = source;
+  const [tx, ty] = target;
+  const radius = Math.min(6, Math.abs(ty - sy) / 2, Math.abs(tx - sx) / 2);
+  if (radius <= 1) {
+    return `M ${sx} ${sy} L ${sx} ${ty} L ${tx} ${ty}`;
+  }
+  const turnY = ty >= sy ? ty - radius : ty + radius;
+  const endX = isLeft ? sx - radius : sx + radius;
+  return `M ${sx} ${sy} L ${sx} ${turnY} Q ${sx} ${ty} ${endX} ${ty} L ${tx} ${ty}`;
 }
 
 /**
@@ -134,8 +206,10 @@ function cleanTreeForLayout(node: SpeedMindElement): SpeedMindElement {
   const cleanChildren = (node.children || [])
     .filter((c) => !c.isSummary && !c.data?.isSummary)
     .map((c) => cleanTreeForLayout(c));
+  const rawL = node.layout || node.data?.structure || (node as any).structure;
   return {
     ...node,
+    layout: rawL ? (mapToMindLayoutType(rawL) as any) : undefined,
     children: cleanChildren,
   };
 }
@@ -160,16 +234,36 @@ function collectSummaryElements(node: SpeedMindElement, result: SpeedMindElement
  */
 export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLayout {
   const rootPoint = rootElement.points?.[0] || [400, 300];
-  const mindLayoutType = mapToMindLayoutType(rootElement.layout);
+  const rawLayout =
+    rootElement.layout || rootElement.data?.structure || (rootElement as any).structure;
+  const mindLayoutType = mapToMindLayoutType(rawLayout);
 
   const summaryElements = collectSummaryElements(rootElement);
   const cleanRoot = cleanTreeForLayout(rootElement);
 
   // 1. 标准平衡布局：计算左右子节点配比 (基于无概要的纯净标准节点树)
-  const rightNodeCount =
+  let rightNodeCount =
     typeof rootElement.rightNodeCount === 'number'
       ? rootElement.rightNodeCount
       : Math.ceil((cleanRoot.children?.length || 0) / 2);
+
+  if (mindLayoutType === MindLayoutType.standard) {
+    if (
+      typeof rootElement.rightNodeCount !== 'number' ||
+      rootElement.rightNodeCount >= (cleanRoot.children?.length || 0) ||
+      rootElement.rightNodeCount <= 0
+    ) {
+      rightNodeCount = Math.ceil((cleanRoot.children?.length || 0) / 2);
+    }
+  } else if (
+    mindLayoutType === MindLayoutType.left ||
+    mindLayoutType === MindLayoutType.leftBottomIndented ||
+    mindLayoutType === MindLayoutType.leftTopIndented
+  ) {
+    rightNodeCount = 0;
+  } else {
+    rightNodeCount = cleanRoot.children?.length || 0;
+  }
 
   const treeData = {
     ...cleanRoot,
@@ -276,16 +370,64 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
       leftTrunkX = (box.x + maxChildX) / 2;
     }
 
+    const isVerticalLayout =
+      mindLayoutType === MindLayoutType.downward || mindLayoutType === MindLayoutType.upward;
+    const isIndented =
+      mindLayoutType === MindLayoutType.rightBottomIndented ||
+      mindLayoutType === MindLayoutType.leftBottomIndented ||
+      mindLayoutType === MindLayoutType.rightTopIndented ||
+      mindLayoutType === MindLayoutType.leftTopIndented;
+
+    let commonTrunkY: number | undefined;
+    if (isVerticalLayout && regularChildren.length > 0) {
+      if (mindLayoutType === MindLayoutType.downward) {
+        const minChildY = Math.min(...regularChildren.map((c) => c.y));
+        commonTrunkY = (box.y + box.height + minChildY) / 2;
+      } else {
+        const maxChildY = Math.max(...regularChildren.map((c) => c.y + c.height));
+        commonTrunkY = (box.y + maxChildY) / 2;
+      }
+    }
+
     // 6.1 构造常规分支连线
     regularChildren.forEach((childBox) => {
-      const isLeft = childBox.left;
-      const from: [number, number] = isLeft
-        ? [box.x, box.y + box.height / 2]
-        : [box.x + box.width, box.y + box.height / 2];
+      let from: [number, number];
+      let to: [number, number];
+      let trunkX: number | undefined;
+      let trunkY: number | undefined;
 
-      const to: [number, number] = isLeft
-        ? [childBox.x + childBox.width, childBox.y + childBox.height / 2]
-        : [childBox.x, childBox.y + childBox.height / 2];
+      if (isIndented) {
+        const isLeft = childBox.left;
+        const startX = isLeft
+          ? box.x + box.width - Math.min(20, box.width / 2)
+          : box.x + Math.min(20, box.width / 2);
+        const startY = box.y + box.height;
+        const endX = isLeft ? childBox.x + childBox.width : childBox.x;
+        const endY = childBox.y + childBox.height / 2;
+
+        from = [startX, startY];
+        to = [endX, endY];
+      } else if (isVerticalLayout) {
+        if (mindLayoutType === MindLayoutType.downward) {
+          from = [box.x + box.width / 2, box.y + box.height];
+          to = [childBox.x + childBox.width / 2, childBox.y];
+        } else {
+          from = [box.x + box.width / 2, box.y];
+          to = [childBox.x + childBox.width / 2, childBox.y + childBox.height];
+        }
+        trunkY = commonTrunkY;
+      } else {
+        const isLeft = childBox.left;
+        from = isLeft
+          ? [box.x, box.y + box.height / 2]
+          : [box.x + box.width, box.y + box.height / 2];
+
+        to = isLeft
+          ? [childBox.x + childBox.width, childBox.y + childBox.height / 2]
+          : [childBox.x, childBox.y + childBox.height / 2];
+
+        trunkX = isLeft ? leftTrunkX : rightTrunkX;
+      }
 
       const rawShape =
         childBox.element.branchShape ||
@@ -293,8 +435,6 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
         (rootElement as any).branchShape ||
         'curve';
       const branchShape = (rawShape === 'polyline' || rawShape === 'straight' ? 'polyline' : 'curve') as 'curve' | 'polyline';
-
-      const trunkX = isLeft ? leftTrunkX : rightTrunkX;
 
       links.push({
         from,
@@ -305,6 +445,9 @@ export function computeMindLayout(rootElement: SpeedMindElement): ComputedMindLa
         sourceBox: box,
         targetBox: childBox,
         trunkX,
+        trunkY,
+        isVertical: isVerticalLayout,
+        isIndented,
       });
     });
   });

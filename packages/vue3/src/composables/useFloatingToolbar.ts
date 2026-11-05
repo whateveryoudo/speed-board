@@ -46,33 +46,6 @@ export function createSelectionVirtualElement(board: Board): VirtualElement | nu
           rect = null;
         }
 
-        // 针对刚通过拖拽创建的自适应纯文本节点 (autoSize: true)：
-        // 用户拉框时 points 是较大的拉拽矩形 (如 150px)，但实际文字 ("文本") 仅约 30px；
-        // 如果正在就地编辑，优先直接读取已挂载的文本编辑框 DOM 的真实边界，
-        // 彻底杜绝从“拉拽框居中”瞬间跳变到“文字收缩后居中”的二次位移！
-        if (selected.length === 1) {
-          const first = selected[0] as any;
-          if (first && (first.shape === 'text' || first.type === 'text') && first.autoSize !== false) {
-            const container = PlaitBoard.getBoardContainer(board.raw);
-            const activeEditor = container?.querySelector?.('.slate-editable-container, [contenteditable="true"]') as HTMLElement | null;
-            if (activeEditor) {
-              const activeRect = activeEditor.getBoundingClientRect();
-              if (activeRect.width > 10 && activeRect.height > 10) {
-                return {
-                  x: activeRect.left,
-                  y: activeRect.top,
-                  top: activeRect.top,
-                  left: activeRect.left,
-                  bottom: activeRect.bottom,
-                  right: activeRect.right,
-                  width: activeRect.width,
-                  height: activeRect.height,
-                };
-              }
-            }
-          }
-        }
-
         if (!rect) {
           const first = selected[0] as any;
           if (first && first.points && first.points.length > 0) {
@@ -116,15 +89,15 @@ export function createSelectionVirtualElement(board: Board): VirtualElement | nu
 }
 
 export const measuredWidthCache: Record<string, number> = {
-  shape: 224,
-  text: 118,
-  'mindmap-root': 300,
-  'mindmap-node': 300,
-  'mindmap-summary': 230,
-  mindmap: 300,
-  line: 210,
-  image: 118,
-  multiple: 118,
+  shape: 260,
+  text: 136,
+  'mindmap-root': 380,
+  'mindmap-node': 380,
+  'mindmap-summary': 260,
+  mindmap: 380,
+  line: 260,
+  image: 82,
+  multiple: 136,
 };
 
 /**
@@ -152,7 +125,7 @@ export function computeFloatingToolbarPosition(
   const offsetTop = containerRect ? containerRect.top : 0;
 
   const type = (board.getSelectionInfo?.()?.selectedType || 'shape') as string;
-  const defaultWidth = measuredWidthCache[type] || measuredWidthCache[type.startsWith('mindmap') ? 'mindmap' : type] || 224;
+  const defaultWidth = measuredWidthCache[type] || measuredWidthCache[type.startsWith('mindmap') ? 'mindmap' : type] || 260;
 
   const renderedType = floatingElement?.getAttribute('data-rendered-type');
   const isTypeMatched = !renderedType || renderedType === type;
@@ -172,7 +145,7 @@ export function computeFloatingToolbarPosition(
   const requiredTop = floatingHeight + offset;
   const isFlipToBottom = availableTop < requiredTop;
 
-  // 水平居中并吸边防截断 (shift padding: 12)
+  // 1:1 对标语雀白板：绝对 left 居中与吸边算法 (padding: 12px)
   const containerWidth = containerRect ? containerRect.width : window.innerWidth;
   const idealLeft = rect.left - offsetLeft + (rect.width - floatingWidth) / 2;
   const clampedLeft = Math.max(12, Math.min(idealLeft, containerWidth - floatingWidth - 12));
@@ -402,6 +375,7 @@ export function useFloatingToolbar(
 
   const state = ref<FloatingToolbarProperties>(defaultState);
   const isMovingOrDraggingRef = { current: false };
+  const isMeasuring = ref(false);
 
   let rafId: any = null;
   const requestSync = () => {
@@ -415,6 +389,7 @@ export function useFloatingToolbar(
   const sync = () => {
     const board = resolveBoard(source);
     if (!board) {
+      isMeasuring.value = false;
       state.value = { ...defaultState, position: state.value.position };
       return;
     }
@@ -430,6 +405,7 @@ export function useFloatingToolbar(
     const initialProps = computeFloatingToolbarProperties(board, customOffset, toolbarEl);
 
     if (!initialProps.visible) {
+      isMeasuring.value = false;
       state.value = {
         ...initialProps,
         position: state.value.position,
@@ -437,8 +413,36 @@ export function useFloatingToolbar(
       return;
     }
 
-    // 同步一步到位更新 state.value（坐标与可见性在同一次响应式更新中生效，彻底消除首帧进入位移动作）
+    const curType = initialProps.selectedType;
+    const renderedType = toolbarEl?.getAttribute('data-rendered-type');
+    const isDomUnmeasured =
+      !state.value.visible ||
+      !toolbarEl ||
+      toolbarEl.offsetWidth <= 40 ||
+      (renderedType && renderedType !== curType);
+
+    // 对标语雀 rc-trigger 隐藏测量生命周期：
+    // 初次展示或图元类型切换时，首帧以透明状态挂载，微任务量出真实 DOM 宽度算出最终绝对 left 再显形，彻底消除位移闪烁！
+    if (isDomUnmeasured) {
+      isMeasuring.value = true;
+      state.value = initialProps;
+
+      nextTick(() => {
+        const el = unref(toolbarRefOption) || null;
+        if (el && el.offsetWidth > 40) {
+          measuredWidthCache[curType] = el.offsetWidth;
+        }
+        const preciseProps = computeFloatingToolbarProperties(board, customOffset, el);
+        if (preciseProps.visible && !isMovingOrDraggingRef.current) {
+          state.value = preciseProps;
+        }
+        isMeasuring.value = false;
+      });
+      return;
+    }
+
     if (!isMovingOrDraggingRef.current) {
+      isMeasuring.value = false;
       state.value = initialProps;
     }
   };
@@ -578,6 +582,9 @@ export function useFloatingToolbar(
       left: `${state.value.position.left}px`,
       top: `${state.value.position.top}px`,
       zIndex: 1000,
+      opacity: isMeasuring.value ? 0 : 1,
+      pointerEvents: isMeasuring.value ? ('none' as const) : ('auto' as const),
+      transition: isMeasuring.value ? 'none' : 'opacity 0.12s ease',
     };
   });
 
@@ -655,6 +662,7 @@ export function useFloatingToolbar(
   return {
     state,
     visible: computed(() => state.value.visible),
+    isMeasuring,
     toolbarStyle,
     floatingStyle: toolbarStyle,
     sync,

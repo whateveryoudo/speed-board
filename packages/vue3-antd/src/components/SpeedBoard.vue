@@ -66,6 +66,13 @@
         @created="onBoardCreated"
         @contextmenu="handleContextMenu"
       />
+
+      <!-- 语雀 1:1 待放置鼠标虚影跟随 (Ghost Placement Overlay / 鼠标模拟项) -->
+      <PlacementGhostOverlay
+        :board="boardInstance"
+        :wrapper-el="canvasWrapperRef"
+        :active-mode="activeMode"
+      />
     </div>
   </div>
 </template>
@@ -103,6 +110,7 @@ import FloatingToolbar from './FloatingToolbar.vue';
 import MindmapMarkerQuickPicker from './MindmapMarkerQuickPicker.vue';
 import StyleSettingsPanel from './StyleSettingsPanel.vue';
 import ContextMenu from './ContextMenu.vue';
+import PlacementGhostOverlay from './PlacementGhostOverlay.vue';
 import { useAntdCssVars } from 'speed-components-ui/hooks';
 import type { IconProvider } from '../data/defaultIcons';
 import '../style/index.less';
@@ -160,6 +168,17 @@ const onBoardCreated = (board: Board) => {
     showMarkerPicker.value = true;
   });
 
+  eventEmitter.on('pointer:change', (pointer: any) => {
+    if (pointer === PlaitPointerType.selection && activeMode.value !== 'select' && activeMode.value !== 'hand') {
+      activeMode.value = 'select';
+    }
+  });
+  eventEmitter.on('change', () => {
+    if (board.pointer === PlaitPointerType.selection && activeMode.value !== 'select' && activeMode.value !== 'hand') {
+      activeMode.value = 'select';
+    }
+  });
+
   emit('created', board);
 };
 
@@ -195,7 +214,7 @@ const onToolbarModeChange = (payload: {
       boardInstance.value.setPointer(BasicShapes.text);
       break;
     case 'line': {
-      const lineType = payload.lineType || 'elbow';
+      const lineType = payload.lineType || 'straight';
       if (lineType === 'elbow') {
         boardInstance.value.setPointer(ArrowLineShape.elbow);
       } else if (lineType === 'curve') {

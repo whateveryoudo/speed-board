@@ -210,7 +210,7 @@
         <div class="tool-divider" />
         <!-- 1.8 图片插入 (配置了上传接口才开放此入口) -->
         <a-tooltip v-if="hasUploadConfig" title="图片" placement="right">
-          <a-button type="text" class="shadow-btn-wrapper" :loading="imageUploading" @click="triggerImageUpload">
+          <a-button type="text" class="shadow-btn-wrapper" @click="triggerImageUpload">
             <SIconFont type="icon-kl-image" :size="20" />
           </a-button>
         </a-tooltip>
@@ -342,7 +342,7 @@ const emit = defineEmits<{
 // 基础模式状态
 const currentTool = ref<'select' | 'brush' | 'vector' | 'line' | 'text' | 'shape' | 'mindmap'>('select')
 const currentBrush = ref<'pencil' | 'marker' | 'eraser'>('pencil')
-const currentLineType = ref<'elbow' | 'straight' | 'curve'>('elbow')
+const currentLineType = ref<'elbow' | 'straight' | 'curve'>('straight')
 
 // 弹窗状态受控管理（互斥切换，且点击外部自动收起）
 const brushPopoverOpen = ref(false)
@@ -558,7 +558,7 @@ useBoardEvent(() => props.board, ['pointer:change', 'change'], () => {
     ptr === ArrowLineShape.elbow
   ) {
     currentTool.value = 'line'
-    currentLineType.value = ptr as any
+    // 不在此处自动覆写 currentLineType，避免从形状连接点临时拖出连线时被底层默认的 elbow 污染覆盖
   } else if (
     ptr === FreehandShape.nibPen ||
     ptr === FreehandShape.feltTipPen ||
@@ -685,7 +685,6 @@ const onSelectIcon = (icon: BoardIconItem) => {
     props.board.setPointer(PlaitPointerType.selection)
   }
   emit('mode-change', { mode: 'select' })
-  message.success(`已插入图标: ${icon.name}`)
 }
 
 // --- 1.8 图片上传与插入 (1:1 语雀交互：视口中心自适应插入) ---
@@ -741,7 +740,7 @@ const onFileInputChange = async (event: Event) => {
     targetHeight = Math.round(targetHeight * scale)
   }
 
-  // 2. 核心交互升级：不再用全局 message 弹窗打扰！立即在画板视口中心落盘图片图元，并在图元本身呈现上传遮罩
+  // 2. 立即在画板视口中心落盘图片图元
   let imageNode: any = null
   if (props.board) {
     imageNode = props.board.addImage({
@@ -749,7 +748,6 @@ const onFileInputChange = async (event: Event) => {
       name: file.name,
       width: targetWidth,
       height: targetHeight,
-      status: 'uploading',
     })
     props.board.setDrawingMode('select')
     emit('mode-change', { mode: 'select' })
@@ -758,10 +756,6 @@ const onFileInputChange = async (event: Event) => {
   // 后台上传执行与重试闭包
   const executeUpload = async () => {
     try {
-      if (imageNode && props.board) {
-        props.board.updateImageStatus(imageNode, 'uploading', { progress: 30, url: tempUrl })
-      }
-
       let imageUrl = ''
       let imageId = ''
 

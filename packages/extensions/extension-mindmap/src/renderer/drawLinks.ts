@@ -1,5 +1,11 @@
 import type { BranchLinkInfo, SummaryLayoutInfo } from '../types';
-import { buildBezierBranchPath, buildStraightBranchPath } from '../layout/mindLayout';
+import {
+  buildBezierBranchPath,
+  buildStraightBranchPath,
+  buildVerticalBezierBranchPath,
+  buildVerticalStraightBranchPath,
+  buildIndentedBranchPath,
+} from '../layout/mindLayout';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -15,10 +21,15 @@ export function renderBranchLinksSvg(
 
   links.forEach((link) => {
     const pathEl = document.createElementNS(SVG_NS, 'path');
-    const pathD =
-      link.shape === 'polyline'
-        ? buildStraightBranchPath(link.from, link.to, link.trunkX)
-        : buildBezierBranchPath(link.from, link.to);
+    const pathD = link.isIndented
+      ? buildIndentedBranchPath(link.from, link.to, Boolean(link.targetBox?.left))
+      : link.isVertical
+        ? link.shape === 'polyline'
+          ? buildVerticalStraightBranchPath(link.from, link.to, link.trunkY)
+          : buildVerticalBezierBranchPath(link.from, link.to)
+        : link.shape === 'polyline'
+          ? buildStraightBranchPath(link.from, link.to, link.trunkX)
+          : buildBezierBranchPath(link.from, link.to);
 
     pathEl.setAttribute('d', pathD);
     pathEl.setAttribute('fill', 'none');

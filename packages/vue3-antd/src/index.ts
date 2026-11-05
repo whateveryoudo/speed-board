@@ -8,6 +8,7 @@ export { default as StyleSettingsPanel } from './components/StyleSettingsPanel.v
 export { default as ShapePickerPopover } from './components/ShapePickerPopover.vue';
 export { default as IconfontPopover } from './components/IconfontPopover.vue';
 export { default as ColorTonePicker } from './components/ColorTonePicker.vue';
+export { default as PlacementGhostOverlay } from './components/PlacementGhostOverlay.vue';
 
 export * from './data/shapeLibrary';
 export * from './data/defaultIcons';
