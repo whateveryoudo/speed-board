@@ -10,9 +10,13 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "build:deploy": "pnpm build && pnpm docs:build && node scripts/prepare-deploy.js"
+    "build:deploy": "pnpm build && pnpm docs:build && node scripts/prepare-deploy.js",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.1",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.0.0",
     "fs-extra": "^11.3.0",
