@@ -20,6 +20,16 @@
 
 ---
 
+## 💡 致敬与自研优化
+
+本项目底层借鉴并参考了 [worktile/plait](https://github.com/worktile/plait) 与 [plait-board/drawnix](https://github.com/plait-board/drawnix)，可视为其在 **Vue 3 生态**下的现代化高内聚封装与业务落地版本。
+
+- **沿用官方核心**：仅沿用了 `@plait/core`、`@plait/common`、`@plait/layouts`、`@plait/text-plugins` 最核心的基础能力。
+- **思维导图自主重构**：脑图模块全新自研，解耦业务并**新增端点连线支持**，脑图节点可与几何图形自由建立避障连线。
+- **查看态 / 编辑态分离模式**：针对官方 Issue [#564](https://github.com/worktile/plait/issues/564) 的常驻 Slate 实例性能瓶颈，本仓库采用静态查看态与动态编辑态分离机制，仅在双击编辑时按需挂载 Slate，大幅降低千级节点下的内存占用与视口平移开销。
+
+---
+
 ## 📖 在线体验与文档
 
 - 📘 **完整文档**：[https://whateveryoudo.github.io/speed-board/docs/](https://whateveryoudo.github.io/speed-board/docs/)
