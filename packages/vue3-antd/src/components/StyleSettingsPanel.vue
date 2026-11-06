@@ -115,20 +115,24 @@
             <span class="label">字形</span>
             <div class="btn-toggle-group">
               <button class="icon-toggle-btn" :class="{ 'is-active': textState.bold }"
+                title="加粗"
                 @click="updateTextStyle({ bold: !textState.bold })">
-                <strong>B</strong>
+                <BoldOutlined />
               </button>
               <button class="icon-toggle-btn" :class="{ 'is-active': textState.italic }"
+                title="斜体"
                 @click="updateTextStyle({ italic: !textState.italic })">
-                <em>I</em>
+                <ItalicOutlined />
               </button>
               <button class="icon-toggle-btn" :class="{ 'is-active': textState.underline }"
+                title="下划线"
                 @click="updateTextStyle({ underline: !textState.underline })">
-                <u>U</u>
+                <UnderlineOutlined />
               </button>
               <button class="icon-toggle-btn" :class="{ 'is-active': textState.strike }"
+                title="删除线"
                 @click="updateTextStyle({ strike: !textState.strike })">
-                <s>S</s>
+                <StrikethroughOutlined />
               </button>
             </div>
           </div>
@@ -143,11 +147,7 @@
                 title="左对齐"
                 @click="updateTextStyle({ align: 'left' })"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="15" y2="12" />
-                  <line x1="3" y1="18" x2="18" y2="18" />
-                </svg>
+                <AlignLeftOutlined />
               </button>
               <button
                 class="icon-toggle-btn"
@@ -155,11 +155,7 @@
                 title="居中对齐"
                 @click="updateTextStyle({ align: 'center' })"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="6" y1="12" x2="18" y2="12" />
-                  <line x1="4" y1="18" x2="20" y2="18" />
-                </svg>
+                <AlignCenterOutlined />
               </button>
               <button
                 class="icon-toggle-btn"
@@ -167,11 +163,7 @@
                 title="右对齐"
                 @click="updateTextStyle({ align: 'right' })"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="9" y1="12" x2="21" y2="12" />
-                  <line x1="6" y1="18" x2="21" y2="18" />
-                </svg>
+                <AlignRightOutlined />
               </button>
             </div>
           </div>
@@ -186,10 +178,7 @@
                 title="顶部对齐"
                 @click="updateTextStyle({ verticalAlign: 'top' })"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="4" y1="4" x2="20" y2="4" stroke-width="2.5" />
-                  <path d="M12 7v13M8 11l4-4 4 4" />
-                </svg>
+                <VerticalAlignTopOutlined />
               </button>
               <button
                 class="icon-toggle-btn"
@@ -197,10 +186,7 @@
                 title="垂直居中"
                 @click="updateTextStyle({ verticalAlign: 'middle' })"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5" />
-                  <path d="M12 5v14M8 8l4-3 4 3M8 16l4 3 4-3" />
-                </svg>
+                <VerticalAlignMiddleOutlined />
               </button>
               <button
                 class="icon-toggle-btn"
@@ -208,10 +194,7 @@
                 title="底部对齐"
                 @click="updateTextStyle({ verticalAlign: 'bottom' })"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="4" y1="20" x2="20" y2="20" stroke-width="2.5" />
-                  <path d="M12 17V4M8 13l4 4 4-4" />
-                </svg>
+                <VerticalAlignBottomOutlined />
               </button>
             </div>
           </div>
@@ -276,7 +259,19 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { CloseOutlined } from '@ant-design/icons-vue'
+import {
+  CloseOutlined,
+  BoldOutlined,
+  ItalicOutlined,
+  UnderlineOutlined,
+  StrikethroughOutlined,
+  AlignLeftOutlined,
+  AlignCenterOutlined,
+  AlignRightOutlined,
+  VerticalAlignTopOutlined,
+  VerticalAlignMiddleOutlined,
+  VerticalAlignBottomOutlined,
+} from '@ant-design/icons-vue'
 import {
   Tabs as ATabs,
   TabPane as ATabPane,

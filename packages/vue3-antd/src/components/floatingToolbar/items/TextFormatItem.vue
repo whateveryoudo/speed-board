@@ -10,7 +10,7 @@
   >
     <template #content>
       <div class="quick-text-popover" @mousedown.prevent>
-        <!-- 上排：B I S U -->
+        <!-- 上排：B I S U (Ant Design Vue 图标，对齐 speed-editor / speed-sheet) -->
         <div class="format-btn-row">
           <button
             class="fmt-btn is-bold"
@@ -19,7 +19,7 @@
             @mousedown.prevent
             @click="toggleBold"
           >
-            B
+            <BoldOutlined />
           </button>
           <button
             class="fmt-btn is-italic"
@@ -28,7 +28,7 @@
             @mousedown.prevent
             @click="toggleItalic"
           >
-            I
+            <ItalicOutlined />
           </button>
           <button
             class="fmt-btn is-strike"
@@ -37,7 +37,7 @@
             @mousedown.prevent
             @click="toggleStrike"
           >
-            S
+            <StrikethroughOutlined />
           </button>
           <button
             class="fmt-btn is-underline"
@@ -46,7 +46,7 @@
             @mousedown.prevent
             @click="toggleUnderline"
           >
-            U
+            <UnderlineOutlined />
           </button>
         </div>
 
@@ -75,14 +75,13 @@
                   @click="onSelectFontSize(opt.value)"
                 >
                   <span class="font-size-label">{{ opt.label }}</span>
+                  <CheckOutlined v-if="(textState.fontSize || 14) === opt.value" style="color: #10b981; font-size: 11px; margin-left: auto;" />
                 </div>
               </div>
             </template>
             <button class="font-size-btn" title="字号" :class="{ 'is-active': fontSizeOpen }" @mousedown.prevent>
               <span class="font-size-text">{{ textState.fontSize || 14 }}px</span>
-              <svg class="dropdown-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
+              <DownOutlined class="dropdown-arrow" />
             </button>
           </a-popover>
 
@@ -109,7 +108,7 @@
             </button>
           </a-popover>
 
-          <!-- 水平对齐切换 (1:1 语雀二级下拉选择: 左对齐 / 居中对齐 / 右对齐 / 两端对齐) -->
+          <!-- 水平对齐切换 (1:1 语雀 / speed-sheet: 左对齐 / 居中对齐 / 右对齐 / 两端对齐) -->
           <a-popover
             v-model:open="alignOpen"
             trigger="click"
@@ -130,73 +129,30 @@
                   @click="onSelectAlign(opt.value)"
                 >
                   <span class="check-icon">
-                    <svg
+                    <CheckOutlined
                       v-if="(textState.align || 'center') === opt.value"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#10b981"
-                      stroke-width="2.5"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
+                      style="color: #10b981; font-size: 11px;"
+                    />
                   </span>
                   <span class="align-opt-icon">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <template v-if="opt.value === 'center'">
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <line x1="6" y1="12" x2="18" y2="12" />
-                        <line x1="4" y1="18" x2="20" y2="18" />
-                      </template>
-                      <template v-else-if="opt.value === 'right'">
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <line x1="9" y1="12" x2="21" y2="12" />
-                        <line x1="6" y1="18" x2="21" y2="18" />
-                      </template>
-                      <template v-else-if="opt.value === 'justify'">
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <line x1="3" y1="12" x2="21" y2="12" />
-                        <line x1="3" y1="18" x2="21" y2="18" />
-                      </template>
-                      <template v-else>
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <line x1="3" y1="12" x2="15" y2="12" />
-                        <line x1="3" y1="18" x2="18" y2="18" />
-                      </template>
-                    </svg>
+                    <AlignLeftOutlined v-if="opt.value === 'left'" />
+                    <AlignRightOutlined v-else-if="opt.value === 'right'" />
+                    <MenuOutlined v-else-if="opt.value === 'justify'" />
+                    <AlignCenterOutlined v-else />
                   </span>
                   <span class="align-opt-label">{{ opt.label }}</span>
                 </div>
               </div>
             </template>
             <button class="cycle-align-btn" title="水平对齐" :class="{ 'is-active': alignOpen }" @mousedown.prevent>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <template v-if="textState.align === 'center'">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="6" y1="12" x2="18" y2="12" />
-                  <line x1="4" y1="18" x2="20" y2="18" />
-                </template>
-                <template v-else-if="textState.align === 'right'">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="9" y1="12" x2="21" y2="12" />
-                  <line x1="6" y1="18" x2="21" y2="18" />
-                </template>
-                <template v-else-if="textState.align === 'justify'">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </template>
-                <template v-else>
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="15" y2="12" />
-                  <line x1="3" y1="18" x2="18" y2="18" />
-                </template>
-              </svg>
+              <AlignLeftOutlined v-if="textState.align === 'left'" />
+              <AlignRightOutlined v-else-if="textState.align === 'right'" />
+              <MenuOutlined v-else-if="textState.align === 'justify'" />
+              <AlignCenterOutlined v-else />
             </button>
           </a-popover>
 
-          <!-- 垂直对齐切换 (1:1 语雀二级下拉选择: 顶部对齐 / 居中对齐 / 底部对齐) -->
+          <!-- 垂直对齐切换 (1:1 speed-sheet: 顶部对齐 / 居中对齐 / 底部对齐) -->
           <a-popover
             v-model:open="valignOpen"
             trigger="click"
@@ -217,37 +173,24 @@
                   @click="onSelectValign(opt.value)"
                 >
                   <span class="check-icon">
-                    <svg
+                    <CheckOutlined
                       v-if="(textState.verticalAlign || 'middle') === opt.value"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#10b981"
-                      stroke-width="2.5"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
+                      style="color: #10b981; font-size: 11px;"
+                    />
                   </span>
                   <span class="align-opt-icon">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5" />
-                      <path v-if="opt.value === 'top'" d="M12 7v13M8 11l4-4 4 4" />
-                      <path v-else-if="opt.value === 'bottom'" d="M12 17V4M8 13l4 4 4-4" />
-                      <path v-else d="M12 5v14M8 8l4-3 4 3M8 16l4 3 4-3" />
-                    </svg>
+                    <VerticalAlignTopOutlined v-if="opt.value === 'top'" />
+                    <VerticalAlignBottomOutlined v-else-if="opt.value === 'bottom'" />
+                    <VerticalAlignMiddleOutlined v-else />
                   </span>
                   <span class="align-opt-label">{{ opt.label }}</span>
                 </div>
               </div>
             </template>
             <button class="cycle-align-btn" title="垂直对齐" :class="{ 'is-active': valignOpen }" @mousedown.prevent>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5" />
-                <path v-if="textState.verticalAlign === 'top'" d="M12 7v13M8 11l4-4 4 4" />
-                <path v-else-if="textState.verticalAlign === 'bottom'" d="M12 17V4M8 13l4 4 4-4" />
-                <path v-else d="M12 5v14M8 8l4-3 4 3M8 16l4 3 4-3" />
-              </svg>
+              <VerticalAlignTopOutlined v-if="textState.verticalAlign === 'top'" />
+              <VerticalAlignBottomOutlined v-else-if="textState.verticalAlign === 'bottom'" />
+              <VerticalAlignMiddleOutlined v-else />
             </button>
           </a-popover>
         </div>
@@ -256,7 +199,7 @@
 
     <a-tooltip title="文本" placement="top" :open="isOpen ? false : undefined">
       <button class="bubble-toolbar-btn" :class="{ 'is-active': isOpen }" @mousedown.prevent>
-        <SIconFont type="icon-kl-text2" :size="18"/>
+        <FontSizeOutlined :style="{ fontSize: '16px' }" />
       </button>
     </a-tooltip>
   </a-popover>
@@ -265,10 +208,25 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { Popover as APopover, Tooltip as ATooltip } from 'ant-design-vue'
+import {
+  BoldOutlined,
+  ItalicOutlined,
+  UnderlineOutlined,
+  StrikethroughOutlined,
+  AlignLeftOutlined,
+  AlignCenterOutlined,
+  AlignRightOutlined,
+  MenuOutlined,
+  VerticalAlignTopOutlined,
+  VerticalAlignMiddleOutlined,
+  VerticalAlignBottomOutlined,
+  DownOutlined,
+  CheckOutlined,
+  FontSizeOutlined,
+} from '@ant-design/icons-vue'
 import type { Board } from '@speed-board/core'
 import ColorTonePicker from '../../ColorTonePicker.vue'
 import { useNodeStyle } from '@speed-board/vue3'
-import { IconFont as SIconFont } from 'speed-components-ui/components'
 import { useToolbarPopover } from '../useToolbarPopover'
 
 const props = defineProps<{

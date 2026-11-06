@@ -1,168 +1,238 @@
-# SpeedBoard 现代原生白板引擎与分层架构
+# SpeedBoard
 
-> 本分支（`feat/plait-migration`）记录了 SpeedBoard 彻底淘汰旧版 `@antv/x6` 架构，全面迁移至现代原生白板引擎 **Plait**，并落地面向多框架（Vue 3 / React / Solid）的工业级无头分层体系（Headless Architecture）的全过程。
+> 现代化轻量白板与思维导图套件 · 原生 SVG 视口 · Plait 引擎 · 独立双模式
 
-[![GitHub branch](https://img.shields.io/badge/branch-feat%2Fplait--migration-blue)](https://github.com/whateveryoudo/speed-board/tree/feat/plait-migration)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
----
-
-## 📌 为什么必须重构？（淘汰 X6 全面拥抱 Plait 的核心真相）
-
-过去 SpeedBoard 基于 `@antv/x6` 开发。我们在旧架构上投入了大量心血进行功能攻坚，但越到后期，底层定位带来的**根本性缺陷**越发无法克服，尤其是**连线交互与路由避障**这一白板核心体验，成为了压垮旧架构的关键稻草。
-
-### 1. 核心矛盾之首：连线交互的“血泪史”（旧版 X6 的挣扎 vs Plait 内置原生解法）
-
-连线是白板最基础、最频繁的交互。我们在 X6 上花了极长时间反复调试优化，但最终实现依然很不完美、Bug 频出：
-
-| 连线核心维度 | 旧版方案 (@antv/x6 的巨大代价与硬伤) | 新版方案 (Plait 内置的原生降维打击) |
-| :--- | :--- | :--- |
-| **矩形正交避障路由<br/>(Orthogonal / Manhattan Router)** | **极为脆弱的曼哈顿算法**：<br/>• X6 的 `router: 'manhattan'` 在节点移动、临近拖拽时频繁产生**折返死结、回旋圈、锯齿尖角、甚至斜向贯穿节点内部**；<br/>• 官方参数（`step`, `padding`, `maxDirections`）无论怎么微调，在复杂连线场景下依然会发生路径重叠与抽搐；<br/>• 为此我们手写外置路由补丁，但带来极高的计算卡顿与维护成本，依然实现不完美。 | **内置专用优雅正交折线算法**：<br/>• Plait 核心内置专用算法（`generateElbowLineRoute` 与 `simplifyOrthogonalPoints`）；<br/>• 原生兼顾起终点方向向量、包围盒外边距（`DEFAULT_ROUTE_MARGIN`）、自环（`isSelfLoop`）、图元相交与冗余折点化简；<br/>• 节点拖拽移动时，折线始终呈现教科书级工整的 90° 矩形直角避障，**完全无需业务层编写一行脆弱的路由补丁**！ |
-| **边缘吸附与磁吸对齐<br/>(Adsorption & Snapping)** | **沉重繁琐的 DOM 桩位系统**：<br/>• X6 依赖庞杂的 Ports、Magnet 和 Anchor 机制；<br/>• 连线端点拖拽时吸附判定死板，经常发生“漏吸”、“吸附错位”或与节点拖拽事件冲突；<br/>• 移动图形时，连线端点经常断裂、漂移或异常吸附到节点几何中心，无法自然咬合轮廓。 | **几何感知吸附流水线**：<br/>• Plait 内置 `with-arrow-line-bound-reaction` 与 `with-arrow-line-create`；<br/>• 端点拖拽自动感知目标图元边缘的黄金分割点与轴心点，高精度磁吸吸附；<br/>• 移动图形时，连线端点原生自动响应联动（`boundReaction`），永远严密贴合图元边界。 |
-| **连线形态平滑切换<br/>(Elbow / Straight / Curve)** | **销毁重构的破坏性切换**：<br/>• X6 中折线、直线、贝塞尔曲线由不同 Connector 和 Router 驱动，切换形态需销毁 Edge 实例或强行篡改底层几何模型，极易导致连线端点解绑、选区丢失与撤销重做（Undo/Redo）历史错乱。 | **单一模型的原位平滑切换**：<br/>• 折线（`elbow`）、直线（`straight`）、平滑曲线（`curve`）统一属于 `PlaitArrowLine` 标准数据模型；<br/>• 仅需调用一次 `board.setShapeProperty({ shape: type })` 即可原位无缝切换，吸附关系、箭头样式、文字完全无损保留。 |
-| **连线居中文本与富文本** | **外挂 Label 浮层的割裂感**：<br/>• X6 连线文字依赖外置 Label 配置或 DOM 悬浮层，文字居中定位在折线拐弯时经常遮挡箭头或偏移出屏幕，且不支持内联富文本编辑。 | **原生 Slate 富文本集成**：<br/>• 连线文本直接集成 Slate.js，双击直接在连线中心原位打字编辑；<br/>• 连线折叠与弯曲时，文字自动随折线几何中心自适应平移，体验浑然一体。 |
+[![GitHub Pages](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://whateveryoudo.github.io/speed-board/docs/)
+[![Live Demo](https://img.shields.io/badge/demo-online-brightgreen)](https://whateveryoudo.github.io/speed-board/demo/)
+[![Vue 3](https://img.shields.io/badge/vue-3.x-green)](https://vuejs.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---
 
-### 2. 其他维度全面对比：为什么必须彻底放弃 X6？
+## 🎯 核心特性
 
-除了连线交互这一核心痛点外，底层架构的本质差异同样决定了迁移的不可逆性：
-
-| 维度 / 痛点 | 旧版 (@antv/x6 方案) | 新版 (Plait 原生白板方案) | 业务价值 |
-| :--- | :--- | :--- | :--- |
-| **产品定位** | **拓扑图 / 流程图引擎**<br/>专为有向无环图（DAG）连线拓扑设计，无法很好地适应大画布自由交互 | **现代原生自由协同白板引擎**<br/>专为无界自由白板打造，原生支持几何图形、思维导图、手绘自由混排 | 体验从“画流程图”质变为“现代化在线协同白板” |
-| **渲染机制** | **重型 DOM 外挂 + `<foreignObject>`**<br/>节点大量依赖外挂 HTML 容器，画布缩放平移时产生亚像素抖动与层级闪烁 | **100% 纯原生 SVG Viewport 渲染**<br/>所有图元在单一 SVG 视口变换矩阵中高效绘制，零 DOM 外挂，缩放极其丝滑 | 渲染性能提升数倍，彻底杜绝浮层错位与性能瓶颈 |
-| **富文本与编辑** | **割裂的外挂 input/textarea**<br/>双击编辑时动态叠加 HTML 元素，光标选区与节点属性分离，撤销重做无法原子化 | **原生 Slate.js 富文本原子集成**<br/>文字排版、光标、样式变更与节点本身数据流完全合一 | 原生富文本输入体验，支持细粒度排版与协同 |
-| **思维导图与手绘** | **外置繁琐重算**<br/>导图结构增删需编写全量 recalculate；画笔受限于 SVG Path 更新，性能低 | **核心内置专用排版流水线**<br/>导图原生支持左右/鱼骨图等布局；手绘内置 Catmull-Rom 算法平滑拟合 | 导图拖拽排版与画笔绘制流畅顺手 |
-| **依赖包袱** | **臃肿庞大**<br/>引入 230+ 个 X6 插件与兼容垫片，技术债务累累 | **纯净轻量**<br/>彻底移除 230+ X6 废弃依赖包，代码结构清爽可控 | 打包体积大幅缩减，依赖关系清晰健康 |
+- 🧠 **独立双场景形态**：提供 `<SpeedBoard />`（自由无界全功能白板）与 `<SpeedMindmap />`（开箱即写专属思维导图文档）双形态，支持按需使用与 Tree-shaking 彻底隔离。
+- 🌳 **11 种思维导图布局**：支持逻辑图（向左/向右/双向分布）、组织架构图、鱼骨图、时间线、缩进图等，支持快捷气泡切换优先级/进度/旗帜标记及概要（Summary）大括号分组。
+- 📐 **19+ 矢量几何图元**：矩形、圆角矩形、菱形、多边形、立方体、气泡等，支持中空穿透智能命中（`withHitEnhance`）与 Slate 富文本原位双击排版。
+- ⚡ **智能连线正交避障**：内置曼哈顿直角避障路由（Manhattan Router），拖拽图元时自动规避阻挡、90° 规则绕行，支持端点磁吸吸附。
+- 🎨 **1:1 原生待放置虚影**：从工具栏点选拖入画布时，以 Plait 原生绘图指令原位投射 1:1 绝对坐标虚影，杜绝缩放模糊与落地跳动。
+- 🎛 **统一 Schema 驱动交互**：选区浮动工具栏与右侧样式抽屉均由图元 Schema 动态装配，开箱即用。
 
 ---
 
-### 3. 底层攻坚踩坑复盘：图形中空点击选不中的根本原因与修复
+## 📖 在线体验与文档
 
-在迁移初期，我们定位并彻底攻克了另一个隐蔽但致命的交互问题：**“在画布中画了一个图形，点击图形中间毫无反应，为什么必须精准点击 4px 的极细边框或通过框选才能选中？”**
-
-#### ① 查阅 Plait 底层源码：CAD 时代的“中空穿透”哲学
-查阅 Plait 官方核心源码 [`packages/draw/src/utils/hit.ts`](https://github.com/worktile/plait/blob/develop/packages/draw/src/utils/hit.ts#L217-L230)：
-```ts
-export const isHitDrawElement = (board, element, point, isStrict = true) => {
-    // 1. 优先检测是否点中 4~5px 的边框边缘
-    if (isHitEdgeOfShape(board, element, point, HIT_DISTANCE_BUFFER)) {
-        return true;  // <--- 点中边框返回 true
-    }
-    
-    // 2. 关键底层逻辑：在严格拾取模式下，没有文字且没有填充颜色的图形
-    if (!!isStrict && isEmptyTextElement(element) && !isFilledDrawElement(board, element)) {
-        return false; // <--- 只要点在图形内部空白处，底层直接拦截返回 false！
-    }
-
-    const engine = getEngine(getElementShape(element));
-    return isHitText || engine.isInsidePoint(rectangle!, point);
-};
-```
-在 Plait 核心类型定义中，官方作者专门留下了设计说明：
-> `// When the element has no fill color, it is considered a hit only if it hits the border.`
-
-官方作者沿用了传统 CAD / 矢量设计软件（如 Illustrator）中对待“线框（Wireframe）”的假设：**认为无填充、无文字的图形是透明中空的，中间点击应该直接穿透以选取背后的图元**。但这种设计严重违背了现代白板（Figma、Miro、Board）的用户直觉——**正常用户拖出一个矩形后，本能就是点击图形腹地正中心，不可能小心翼翼用鼠标对准 4px 细线点！**
-
-#### ② 富文本未挂载时序 NPE Bug
-此外，刚创建新图形时，Slate 文本编辑器尚未挂载到全局 WeakMap，`isEmptyTextElement` 内部调用 `editor.children[0]` 会抛出 `Cannot read properties of undefined (reading 'children')`，外层 catch 吞掉后直接判定未命中。
-
-#### ③ 为什么框选又能中？
-框选调用的是 `isRectangleHitDrawElement`，走的是包围盒相交几何检测，**完全不走严格中空判定，也不在乎是否有填充色或文字**，碰上即中！
-
-#### ④ 优雅的修复方案：`withHitEnhance` 插件
-我们在核心层中编写了 [`withHitEnhance`](packages/core/src/plait/with-hit-enhance.ts) 切片插件：
-- 捕获并防御底层未初始化 NPE 异常；
-- 当底层因“无填充无文字”直接返回 `false` 时，介入并调用 Plait 几何多边形包含算法 `board.isInsidePoint(element, point)`；
-- 无论图形是否填色、是否有字，**只要点击点落在闭合几何轮廓内部，均立即判定为命中**，彻底解决了“必须瞄准边框点击”的反直觉问题！
+- 📘 **完整文档**：[https://whateveryoudo.github.io/speed-board/docs/](https://whateveryoudo.github.io/speed-board/docs/)
+- 🚀 **在线 Demo**：[https://whateveryoudo.github.io/speed-board/demo/](https://whateveryoudo.github.io/speed-board/demo/)
 
 ---
 
-## 🏗️ 全新项目架构（Headless 3+1 极简工业级分层）
+## 📦 安装与快速上手
 
-SpeedBoard 严格遵循**高内聚、零无用包装**的工程哲学。由于底层白板引擎 Plait 本身已原生集成了“不可变数据模型（Core）+ SVG 视口渲染与事件矩阵（View）”，SpeedBoard 避免了教条式的过度分层，形成了极简清爽的 3+1 架构：
-
-```mermaid
-graph TD
-    subgraph CoreFoundation ["1. 底座与统一引擎层 (Pure TypeScript)"]
-        Shared["@speed-board/shared<br/>• 20+ 矢量图形库与 SVG Path 生成<br/>• 9 大标准端点预设 (ARROWHEAD_PRESETS)<br/>• 几何类型与文字测量工具<br/>• 调色板与全局常量 (Zero Dependency)"]
-        Core["@speed-board/core<br/>• Plait 引擎封装与统一 Board 门面实例<br/>• 选区分析 (getSelectionInfo) 与浮动条计算 (getFloatingToolbarPosition)<br/>• 连线、导图、节点样式原子操作指令<br/>• withHitEnhance 内部点击命中增强<br/>• withMind, withFreehand, withPinchZoom 扩展流水线"]
-    end
-
-    subgraph FrameworkLayer ["2. 框架响应式绑定层 (Headless Hooks, Zero UI Dependency)"]
-        Vue3["@speed-board/vue3<br/>• useBoard, useBoardEvent<br/>• useBoardSelection, useFloatingToolbar<br/>• useLineOperations, useNodeStyle<br/>• useBoardHistory, useMindmap, useShapeSwitch<br/>• 纯 SVG 宿主组件 BoardCanvas.vue"]
-        React["@speed-board/react (未来扩展)<br/>• 直连 Board 实例封装 React Hooks"]
-        Solid["@speed-board/solid (未来扩展)<br/>• 直连 Board 实例封装 Solid Primitives"]
-    end
-
-    subgraph PresentationLayer ["3. 视觉组件呈现层 (UI Components)"]
-        Vue3Antd["@speed-board/vue3-antd<br/>• SpeedBoard (白板一体化总容器)<br/>• TopToolbar, LeftToolbar (悬浮胶囊工具栏)<br/>• FloatingToolbar (选区贴合悬浮工具栏)<br/>• StyleSettingsPanel (右侧高级样式抽屉)<br/>• 基于 Ant Design Vue + 阿里矢量图标库"]
-        ElementPlus["@speed-board/vue3-element-plus (极易快速扩展)"]
-    end
-
-    Shared --> Core
-    Core --> Vue3
-    Core -.-> React
-    Core -.-> Solid
-    Vue3 --> Vue3Antd
-    Vue3 -.-> ElementPlus
-```
-
-### 为什么我们果断去掉了 `@speed-board/view` 中间层？（与 speed-sheet 的架构对比）
-在项目初期，我们曾仿照 `speed-sheet` 的四层结构创建了一个 `@speed-board/view` 包。但在深度复盘后果断将其合并淘汰：
-- **在 `speed-sheet` 中**：`core` 纯粹到连画布都不认识，必须有一个框架无关的 `view` 包从零编写 20KB+ 的纯 Canvas 视口交互引擎（滚轮监听、虚拟滚动分屏、行列头吸顶、选区框选）。
-- **但在 `speed-board` 中**：**底层引擎 Plait 本身就已经是一个高度内聚的 `Core + View` 完全体**，所有 SVG 视口平移缩放、指针分发、连线正交折线避障全都在底层搞定。外层的 `view` 既不操作 DOM 也不渲染 UI，纯粹沦为了单行调用的“透传空壳（Middle Man）”。
-- **架构重归纯粹**：将选区分析、悬浮栏位置换算和操作指令直接收编至 `@speed-board/core`，将端点预设归入 `@speed-board/shared`，彻底干掉中间层。调用链少一层包装，响应更直接，代码更清爽！
-
-### 各层职责分工表
-
-| 包名 | 定位 | 技术特征 | 职责边界 |
-| :--- | :--- | :--- | :--- |
-| **`@speed-board/shared`** | 基础几何模型与资源库 | 纯 TS、零依赖 | 提供 20+ 矢量图形库（SVG Path）、9 大连线箭头预设（`ARROWHEAD_PRESETS`）、文字测量工具、几何数学计算、调色板与常量。 |
-| **`@speed-board/core`** | 原生白板统一调度中枢 | 纯 TS、零 DOM 耦合 | 统一封装 Plait 实例为声明式 `Board` 门面；装载 `withHitEnhance`、`withMind` 等核心流水线插件；提供选区推断、悬浮条视口宿主双坐标系换算、连线/导图/图形/样式全量操作能力。 |
-| **`@speed-board/vue3`** | **无 DOM 的响应式 Hook 绑定层** | 仅依赖 Vue 3 Composition API，**零 Ant Design 依赖** | 提供 `useBoard`、`useFloatingToolbar`、`useLineOperations`、`useNodeStyle`、`useBoardSelection` 等极薄响应式 Hooks 及纯 SVG 画布容器 `BoardCanvas.vue`。 |
-| **`@speed-board/vue3-antd`** | 完整 Ant Design Vue 界面组件库 | 基于 Ant Design Vue 的视觉呈现层 | 提供开箱即用的白板工作台 `SpeedBoard`，顶部栏、左侧工具栏、贴合浮动工具栏及右侧样式抽屉。 |
-
----
-
-## 🙏 开源生态致谢与指引
-
-SpeedBoard 在重构过程中深度依托并借鉴了优秀的开源生态。在此向以下核心开源项目致以诚挚的感谢与崇高的敬意：
-
-1. **[Plait (https://github.com/worktile/plait)](https://github.com/worktile/plait)**
-   - **贡献与指引**：由 Worktile 团队开源的优秀多图元协同白板底座。提供了纯粹的 Immer 不可变数据流、Transforms 变换流水线、Slate.js 原生富文本绑定以及高质量的几何图形排版引擎。
-   - **推荐阅读**：深入理解白板底座运作机制，建议研读其 `packages/core`、`packages/draw` 与 `packages/mind` 源码。
-
-2. **[Drawnix (https://github.com/plait-board/drawnix/tree/develop)](https://github.com/plait-board/drawnix/tree/develop)**
-   - **贡献与指引**：基于 Plait 打造的现代工业级开源白板应用。提供了高水平的手绘平滑拟合（Catmull-Rom）、悬浮工具栏属性提取规范及成熟的白板交互实践。
-   - **推荐阅读**：进行白板界面设计与高级画笔、图片功能二次开发时，非常推荐参考其开源实现。
-
----
-
-## 🚀 快速上手与本地调试
-
-### 1. 环境准备
-推荐使用 Node.js >= 18 及 `pnpm >= 8`：
+### 1. 安装依赖
 
 ```bash
-# 1. 克隆代码并切换至迁移分支
-git clone https://github.com/whateveryoudo/speed-board.git
-cd speed-board
-git checkout feat/plait-migration
+pnpm add @speed-board/vue3-antd ant-design-vue
+```
 
-# 2. 安装工作区全部依赖
+### 2. 全局注册
+
+在入口文件（如 `main.ts`）中引入：
+
+```ts
+import { createApp } from 'vue';
+import Antd from 'ant-design-vue';
+import SpeedBoardPlugin from '@speed-board/vue3-antd';
+
+import 'ant-design-vue/dist/reset.css';
+import '@speed-board/vue3-antd/dist/index.css';
+import App from './App.vue';
+
+const app = createApp(App);
+app.use(Antd);
+app.use(SpeedBoardPlugin);
+app.mount('#app');
+```
+
+---
+
+## 💻 场景使用示例
+
+### 场景 A：全功能协作白板 (`<SpeedBoard />`)
+
+自由混合画布，支持同时绘制多棵思维导图、几何图元、避障连线与自由手绘：
+
+```vue
+<template>
+  <div style="width: 100vw; height: 100vh;">
+    <SpeedBoard
+      title="项目架构白板"
+      :data="boardData"
+      :upload-config="uploadConfig"
+      @created="onBoardCreated"
+      @save="onSaveBoard"
+      @change="onBoardChange"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import { SpeedBoard } from '@speed-board/vue3-antd';
+import type { Board } from '@speed-board/core';
+
+const boardInstance = ref<Board | null>(null);
+const boardData = ref<any[]>([]);
+
+const uploadConfig = {
+  uploadImage: async (file: File) => {
+    // 实际项目中可上传至服务器，此处直接返回对象 URL
+    return { url: URL.createObjectURL(file), id: 'img_' + Date.now() };
+  },
+};
+
+const onBoardCreated = (board: Board) => {
+  boardInstance.value = board;
+};
+
+const onSaveBoard = () => {
+  if (!boardInstance.value) return;
+  const data = boardInstance.value.raw.children;
+  console.log('保存白板数据:', data);
+};
+
+const onBoardChange = (elements: any[]) => {
+  // 画布内容变动
+};
+</script>
+```
+
+### 场景 B：独立思维导图专属文档 (`<SpeedMindmap />`)
+
+画布中央默认初始主题，开箱即写，屏蔽白板左侧工具栏，适合专属大纲、读书笔记与深度思考：
+
+```vue
+<template>
+  <div style="width: 100vw; height: 100vh;">
+    <SpeedMindmap
+      title="产品规划导图"
+      :data="mindmapData"
+      @created="onMindmapCreated"
+      @save="onSaveMindmap"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import { SpeedMindmap } from '@speed-board/vue3-antd';
+import { createEmptyMindmap } from '@speed-board/extension-mindmap';
+import type { Board } from '@speed-board/core';
+
+const mindmapBoard = ref<Board | null>(null);
+
+// 可选：指定中心主题与预设布局 ('right' | 'standard' | 'organization' 等)
+const mindmapData = createEmptyMindmap('核心主题', {
+  layout: 'right',
+  fill: '#3b82f6',
+  color: '#ffffff',
+});
+
+const onMindmapCreated = (board: Board) => {
+  mindmapBoard.value = board;
+};
+
+const onSaveMindmap = () => {
+  if (!mindmapBoard.value) return;
+  const currentTree = mindmapBoard.value.raw.children[0];
+  console.log('保存导图树:', currentTree);
+};
+</script>
+```
+
+---
+
+## ⚙️ 常用 Props 与 Emits
+
+### Props 速查
+
+| 组件 | 属性名 | 类型 | 默认值 | 说明 |
+| :--- | :--- | :--- | :--- | :--- |
+| **SpeedBoard** | `title` | `string` | `'测试画板1'` | 顶部标题 |
+| | `data` | `PlaitElement[]` | `[]` | 画布初始图元数据 |
+| | `uploadConfig` | `UploadConfig` | `undefined` | 图片上传与在线预览配置 |
+| | `options` | `BoardOptions` | `{}` | 底层 Plait 视口配置项 |
+| **SpeedMindmap** | `title` | `string` | `'新建思维导图'` | 顶部标题 |
+| | `data` | `SpeedMindElement` | `undefined` | 根导图数据（缺省时自动生成中心主题） |
+| | `options` | `BoardOptions` | `{}` | 底层 Plait 视口配置项 |
+
+### Emits 速查
+
+- `@created="(board: Board) => void"`: 画布实例初始化就绪时触发；
+- `@save="() => void"`: 点击保存按钮或按下 `⌘ + S` / `Ctrl + S` 时触发；
+- `@change="(elements: any[]) => void"`: 画布内容修改时触发。
+
+---
+
+## 🛠 `Board` 门面常用 API
+
+通过 `@created="board => ..."` 获得的 `board` 实例已封装常用画布操作：
+
+```ts
+// 数据存取
+const elements = board.raw.children;           // 获取全量图元 JSON
+board.setChildren(newElements);               // 重设全量图元
+
+// 视口与缩放
+board.zoom(0.1);                              // 放大 10%
+board.zoom(-0.1);                             // 缩小 10%
+board.zoomTo(1.0);                            // 恢复 100% 原始尺寸
+board.centerContent();                        // 居中并自适应内容
+board.setHandMode(true);                      // 切换抓手漫游模式
+
+// 选区与对齐
+board.deleteSelectedElements();               // 删除当前选中图元
+board.alignSelectedNodes('center');           // 选中图元水平居中对齐
+board.distributeSelectedNodes('horizontal');  // 选中图元水平等间距分布
+
+// 历史操作
+board.undo();                                 // 撤销
+board.redo();                                 // 重做
+```
+
+---
+
+## 🏗 Monorepo 模块分层
+
+| 包名 | 职责说明 |
+| :--- | :--- |
+| `@speed-board/shared` | 纯工具函数库、调色板预设、9 种连线端点箭头预设 |
+| `@speed-board/core` | Plait 引擎二次封装、Board 门面 API、选区浮动坐标换算 |
+| `@speed-board/extension-draw` | 19 种基础矢量图形库、曼哈顿正交避障连线算法、磁吸机制 |
+| `@speed-board/extension-mindmap`| 树形思维导图引擎、11 种布局排版算法、节点概要、状态标记 |
+| `@speed-board/vue3` | 框架抽象层，提供 `useBoard`、`BoardCanvas.vue` 纯 SVG 画布 |
+| `@speed-board/vue3-antd` | UI 表现层，提供 `<SpeedBoard />`、`<SpeedMindmap />`、选区浮动栏、样式抽屉 |
+
+---
+
+## 🚀 本地开发与构建
+
+```bash
+# 安装依赖
 pnpm install
 
-# 3. 启动开发调试预览服务
+# 启动本地开发 Demo 调试（支持白板/思维导图双模式切换）
 pnpm dev
-```
-启动后访问 `http://localhost:5176/` 即可体验全新的 Plait 原生白板工作台。
 
-### 2. 生产构建
+# 启动 VitePress 文档站开发
+pnpm docs:dev
 
-```bash
-# 执行全量 Monorepo 构建
-pnpm build
+# 全量打包构建（文档 + 演示站点）
+pnpm build:deploy
 ```
-全量包构建耗时仅约数秒，生产包无任何 X6 历史包袱。
+
+---
+
+## 📄 License
+
+MIT © [Speed Platform](https://github.com/whateveryoudo)

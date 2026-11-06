@@ -6,11 +6,18 @@
   "scripts": {
     "dev": "pnpm --filter @speed-board/vue3-demo dev",
     "build": "pnpm -r run build",
-    "typecheck": "pnpm -r run typecheck"
+    "typecheck": "pnpm -r run typecheck",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "build:deploy": "pnpm build && pnpm docs:build && node scripts/prepare-deploy.js"
   },
   "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.0.0",
-    "typescript": "^5.6.0"
+    "fs-extra": "^11.3.0",
+    "typescript": "^5.6.0",
+    "vitepress": "^1.6.4"
   },
   "packageManager": "pnpm@9.15.0"
 }

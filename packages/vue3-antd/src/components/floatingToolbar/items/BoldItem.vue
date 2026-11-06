@@ -6,13 +6,14 @@
       @mousedown.prevent
       @click="toggleBold"
     >
-      <span class="bold-b">B</span>
+      <BoldOutlined :style="{ fontSize: '15px' }" />
     </button>
   </a-tooltip>
 </template>
 
 <script setup lang="ts">
 import { Tooltip as ATooltip } from 'ant-design-vue'
+import { BoldOutlined } from '@ant-design/icons-vue'
 import type { Board } from '@speed-board/core'
 import { useNodeStyle } from '@speed-board/vue3'
 
