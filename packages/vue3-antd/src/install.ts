@@ -38,13 +38,7 @@ export function installSpeedBoardUi(
     })
   }
 
-  const defaultIconfontUrl = '//at.alicdn.com/t/c/font_3786040_k69q5351cel.js'
-  const iconfontUrl = options?.iconfontUrl
-    ? Array.isArray(options.iconfontUrl)
-      ? options.iconfontUrl
-      : [options.iconfontUrl]
-    : [defaultIconfontUrl]
-
+  const iconfontUrl = ['//at.alicdn.com/t/c/font_3786040_k69q5351cel.js']
   if (isSpeedComponentsInstalled(app)) {
     ensureSpeedComponents(app, {
       iconfontUrl,

@@ -5,18 +5,24 @@
         <a-radio-button value="board">🎨 全功能白板</a-radio-button>
         <a-radio-button value="mindmap">🧠 独立思维导图</a-radio-button>
       </a-radio-group>
+      <a-radio-group v-model:value="isReadonly" button-style="solid" size="small" style="margin-left: 8px;">
+        <a-radio-button :value="false">✏️ 编辑态</a-radio-button>
+        <a-radio-button :value="true">👁️ 查看态</a-radio-button>
+      </a-radio-group>
     </div>
 
     <SpeedBoard
       v-if="currentMode === 'board'"
       title="SpeedBoard Next 纯净版"
       :upload-config="uploadConfig"
+      :readonly="isReadonly"
       @created="onBoardCreated"
     />
 
     <SpeedMindmap
       v-else
       title="思维导图专属文档"
+      :readonly="isReadonly"
       @created="onBoardCreated"
     />
   </div>
@@ -27,6 +33,7 @@ import { ref } from 'vue';
 import { SpeedBoard, SpeedMindmap } from '@speed-board/vue3-antd';
 import type { Board } from '@speed-board/core';
 const currentMode = ref<'board' | 'mindmap'>('board');
+const isReadonly = ref(false);
 
 const authToken =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNzk0MzY2MjU5fQ.nVmF8gOi8Vr9WBYQTM7q7AnhZqvKdKXaI7yUOo-G0D8';
@@ -103,12 +110,14 @@ const onBoardCreated = (board: Board) => {
 
 .mode-switcher {
   position: absolute;
-  top: 8px;
-  right: 180px;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 100;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 4px;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 4px 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f0f0;
 }
 </style>

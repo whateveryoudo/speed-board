@@ -826,13 +826,14 @@ const onFileInputChange = async (event: Event) => {
 <style scoped lang="less">
 .left-toolbar-wrapper {
   position: absolute;
-  left: 16px;
-  top: 110px;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 100;
   user-select: none;
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   pointer-events: none; // 让胶囊外部的整个空白区域点击/绘制100%穿透到画布
 }

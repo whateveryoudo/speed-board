@@ -6,13 +6,15 @@
       :title="props.title"
       :show-left-toolbar="showLeftToolbar"
       :show-settings="showSettingsPanel"
+      :readonly="props.readonly"
       @update:show-left-toolbar="showLeftToolbar = $event"
       @toggle-settings="showSettingsPanel = !showSettingsPanel"
       @save="onSave"
     />
 
-    <!-- 左侧悬浮胶囊工具栏 (选择/抓手/画笔/文本/图形库/连线/思维导图/图标) -->
+    <!-- 左侧悬浮胶囊工具栏 (仅在编辑态可见) -->
     <LeftToolbar
+      v-if="!props.readonly"
       :board="boardInstance"
       :icon-provider="props.iconProvider"
       :upload-config="props.uploadConfig"
@@ -21,15 +23,17 @@
       @mode-change="onToolbarModeChange"
     />
 
-    <!-- 选区浮动工具栏 (贴合所选图元的 Tip Config，支持描边/填充/连线箭头/脑图结构/更多图层对齐操作) -->
+    <!-- 选区浮动工具栏 (仅在编辑态可见) -->
     <FloatingToolbar
+      v-if="!props.readonly"
       :board="boardInstance"
       @open-panel="showSettingsPanel = true"
       @toggle-settings="showSettingsPanel = !showSettingsPanel"
     />
 
-    <!-- 脑图标记快捷选择弹层 (点击节点上的优先级/进度/旗帜时就地弹出切换) -->
+    <!-- 脑图标记快捷选择弹层 (仅在编辑态可点击切换) -->
     <MindmapMarkerQuickPicker
+      v-if="!props.readonly"
       :board="boardInstance"
       :visible="showMarkerPicker"
       :target-el="markerPickerTargetEl"
@@ -39,14 +43,16 @@
       @close="showMarkerPicker = false"
     />
 
-    <!-- 右侧属性深度设置抽屉 -->
+    <!-- 右侧属性深度设置抽屉 (仅在编辑态可用) -->
     <StyleSettingsPanel
+      v-if="!props.readonly"
       v-model:visible="showSettingsPanel"
       :board="boardInstance"
     />
 
-    <!-- 右键快捷上下文菜单 (区分脑图节点与通用图形，右键直接选中目标) -->
+    <!-- 右键快捷上下文菜单 (仅在编辑态激活) -->
     <ContextMenu
+      v-if="!props.readonly"
       :board="boardInstance"
       :visible="contextMenuVisible"
       :position="contextMenuPosition"
@@ -67,8 +73,9 @@
         @contextmenu="handleContextMenu"
       />
 
-      <!-- 语雀 1:1 待放置鼠标虚影跟随 (Ghost Placement Overlay / 鼠标模拟项) -->
+      <!-- 语雀 1:1 待放置鼠标虚影跟随 (仅在编辑态生效) -->
       <PlacementGhostOverlay
+        v-if="!props.readonly"
         :board="boardInstance"
         :wrapper-el="canvasWrapperRef"
         :active-mode="activeMode"
@@ -78,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { message } from 'ant-design-vue';
 import {
   Board,
@@ -125,9 +132,11 @@ const props = withDefaults(
     iconProvider?: IconProvider;
     uploadConfig?: any;
     title?: string;
+    readonly?: boolean;
   }>(),
   {
     title: '测试画板1',
+    readonly: false,
   }
 );
 
@@ -153,11 +162,27 @@ const markerPickerValue = ref<any>(null);
 
 const mergedOptions = computed(() => ({
   ...props.options,
+  options: {
+    ...(props.options?.options || {}),
+    readonly: props.readonly,
+  },
   plugins: [withDrawKit, withSpeedMind, ...(props.options?.plugins || [])],
 }));
 
+watch(
+  () => props.readonly,
+  (val) => {
+    boardInstance.value?.setReadonly(val);
+  }
+);
+
 const onBoardCreated = (board: Board) => {
   boardInstance.value = board;
+
+  if (props.readonly) {
+    board.setHandMode(true);
+    activeMode.value = 'hand';
+  }
 
   const eventEmitter = (board as any).boardWrapper || board;
   eventEmitter.on('mindmap:marker:click', (payload: any) => {
@@ -259,7 +284,7 @@ const handleContextMenu = (e: MouseEvent) => {
   e.preventDefault();
   e.stopPropagation();
 
-  if (!boardInstance.value) return;
+  if (props.readonly || !boardInstance.value) return;
   const board = boardInstance.value;
   const rawBoard = board.raw;
 

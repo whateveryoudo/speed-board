@@ -1,31 +1,7 @@
 <template>
   <div class="top-bar-container plait-board-attached">
-    <!-- 1. 顶部全局导航栏 (语雀风格全宽轻量条) -->
-    <header class="top-nav-header">
-      <div class="header-left">
-        <span class="board-title">{{ props.title || '测试画板1' }}</span>
-        <span class="board-sync-status">
-          <CloudOutlined class="sync-icon" />
-          <span>已加载最新版本</span>
-        </span>
-      </div>
-
-      <div class="header-right">
-        <a-tooltip title="收藏">
-          <a-button type="text" class="header-action-btn">
-            <StarOutlined />
-          </a-button>
-        </a-tooltip>
-        <a-tooltip title="分享画板">
-          <a-button type="text" class="header-action-btn">
-            <ShareAltOutlined />
-          </a-button>
-        </a-tooltip>
-      </div>
-    </header>
-
-    <!-- 2. 左上角悬浮胶囊：保存 / 撤销 / 重做 -->
-    <div class="board-floating-capsule top-left-floating-capsule">
+    <!-- 1. 左上角悬浮胶囊：保存 / 撤销 / 重做 (编辑态独占) -->
+    <div v-if="!props.readonly" class="board-floating-capsule top-left-floating-capsule">
       <a-tooltip title="保存 (⌘+S)">
         <a-button
           type="text"
@@ -135,8 +111,8 @@
         </a-tooltip>
       </div> -->
 
-      <!-- 胶囊 3: 展开/收起左侧工具栏 (快捷键 ⌘+.) -->
-      <div class="board-floating-capsule toggle-capsule">
+      <!-- 胶囊 3: 展开/收起左侧工具栏 (快捷键 ⌘+.) (仅在非只读态展示) -->
+      <div v-if="!props.readonly" class="board-floating-capsule toggle-capsule">
         <a-tooltip :title="props.showLeftToolbar ? '收起工具栏 (⌘+.)' : '展开工具栏 (⌘+.)'">
           <a-button
             type="text"
@@ -165,9 +141,6 @@ import {
   PlusOutlined,
   AimOutlined,
   SettingOutlined,
-  CloudOutlined,
-  StarOutlined,
-  ShareAltOutlined,
   DoubleRightOutlined,
   DoubleLeftOutlined,
 } from '@ant-design/icons-vue'
@@ -180,11 +153,13 @@ const props = withDefaults(
     title?: string
     showLeftToolbar?: boolean
     showSettings?: boolean
+    readonly?: boolean
   }>(),
   {
     title: '测试画板1',
     showLeftToolbar: true,
     showSettings: false,
+    readonly: false,
   }
 )
 
@@ -246,6 +221,7 @@ const centerContent = () => {
 
 // 监听快捷键 ⌘+. / Ctrl+. 切换工具栏
 const handleKeydown = (e: KeyboardEvent) => {
+  if (props.readonly) return
   if ((e.metaKey || e.ctrlKey) && e.key === '.') {
     e.preventDefault()
     toggleLeftToolbar()
@@ -296,65 +272,10 @@ onBeforeUnmount(() => {
   user-select: none;
 }
 
-// 顶部全宽标题导航条
-.top-nav-header {
-  height: 48px;
-  background: var(--speed-board-bg, #ffffff);
-  border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  pointer-events: auto;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.board-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ant-color-text, rgba(0, 0, 0, 0.88));
-}
-
-.board-sync-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--ant-color-text-tertiary, rgba(0, 0, 0, 0.45));
-
-  .sync-icon {
-    font-size: 14px;
-    color: var(--ant-color-text-tertiary, rgba(0, 0, 0, 0.45));
-  }
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.header-action-btn {
-  height: 32px;
-  min-width: 32px;
-  padding: 4px;
-  color: var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65));
-
-  &:hover {
-    color: var(--ant-color-text, rgba(0, 0, 0, 0.88));
-    background: var(--ant-color-fill-secondary, rgba(0, 0, 0, 0.06));
-  }
-}
-
 // 左上角浮动胶囊 (保存 / 撤销 / 重做)
 .top-left-floating-capsule {
   position: absolute;
-  top: 58px;
+  top: 16px;
   left: 16px;
   pointer-events: auto;
   gap: 2px;
@@ -364,7 +285,7 @@ onBeforeUnmount(() => {
 // 右上角浮动胶囊组
 .top-right-floating-group {
   position: absolute;
-  top: 58px;
+  top: 16px;
   right: 16px;
   display: flex;
   align-items: center;

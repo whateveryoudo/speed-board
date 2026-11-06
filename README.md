@@ -169,10 +169,12 @@ const onSaveMindmap = () => {
 | 组件 | 属性名 | 类型 | 默认值 | 说明 |
 | :--- | :--- | :--- | :--- | :--- |
 | **SpeedBoard** | `title` | `string` | `'测试画板1'` | 顶部标题 |
+| | `readonly` | `boolean` | `false` | **查看态（只读模式）**：禁用图元移动/缩放/编辑，隐藏工具栏与浮动条，默认激活抓手漫游 |
 | | `data` | `PlaitElement[]` | `[]` | 画布初始图元数据 |
 | | `uploadConfig` | `UploadConfig` | `undefined` | 图片上传与在线预览配置 |
 | | `options` | `BoardOptions` | `{}` | 底层 Plait 视口配置项 |
 | **SpeedMindmap** | `title` | `string` | `'新建思维导图'` | 顶部标题 |
+| | `readonly` | `boolean` | `false` | **查看态（只读模式）**：单导图只读展示，允许滚轮缩放与平移，屏蔽编辑交互 |
 | | `data` | `SpeedMindElement` | `undefined` | 根导图数据（缺省时自动生成中心主题） |
 | | `options` | `BoardOptions` | `{}` | 底层 Plait 视口配置项 |
 

@@ -6,19 +6,22 @@
       :title="props.title"
       :show-left-toolbar="false"
       :show-settings="showSettingsPanel"
+      :readonly="props.readonly"
       @toggle-settings="showSettingsPanel = !showSettingsPanel"
       @save="onSave"
     />
 
-    <!-- 思维导图专属选区浮动工具栏 (1:1 白板全功能就地配置：布局/外形/分支/标记/填充/边框/文本排版/链接) -->
+    <!-- 思维导图专属选区浮动工具栏 (仅在编辑态可见) -->
     <FloatingToolbar
+      v-if="!props.readonly"
       :board="boardInstance"
       @open-panel="showSettingsPanel = true"
       @toggle-settings="showSettingsPanel = !showSettingsPanel"
     />
 
-    <!-- 脑图标记快捷选择弹层 (点击节点上的优先级/进度/旗帜时就地弹出切换) -->
+    <!-- 脑图标记快捷选择弹层 (仅在编辑态可点击切换) -->
     <MindmapMarkerQuickPicker
+      v-if="!props.readonly"
       :board="boardInstance"
       :visible="showMarkerPicker"
       :target-el="markerPickerTargetEl"
@@ -28,8 +31,9 @@
       @close="showMarkerPicker = false"
     />
 
-    <!-- 属性深度设置抽屉 (1:1 白板属性面板：样式、文本排版、颜色与快捷键指南) -->
+    <!-- 属性深度设置抽屉 (仅在编辑态可用) -->
     <StyleSettingsPanel
+      v-if="!props.readonly"
       v-model:visible="showSettingsPanel"
       :board="boardInstance"
     />
@@ -42,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, computed } from 'vue';
+import { ref, shallowRef, computed, watch } from 'vue';
 import { message } from 'ant-design-vue';
 import type { Board, BoardOptions } from '@speed-board/core';
 import {
@@ -67,9 +71,11 @@ const props = withDefaults(
     options?: Omit<BoardOptions, 'container'>;
     data?: SpeedMindElement;
     title?: string;
+    readonly?: boolean;
   }>(),
   {
     title: '新建思维导图',
+    readonly: false,
   }
 );
 
@@ -102,6 +108,10 @@ const mergedOptions = computed(() => {
 
   return {
     ...props.options,
+    options: {
+      ...(props.options?.options || {}),
+      readonly: props.readonly,
+    },
     plugins: [withSpeedMind, ...(props.options?.plugins || [])],
     value:
       props.options?.value && props.options.value.length > 0
@@ -109,6 +119,13 @@ const mergedOptions = computed(() => {
         : [initialData],
   };
 });
+
+watch(
+  () => props.readonly,
+  (val) => {
+    boardInstance.value?.setReadonly(val);
+  }
+);
 
 const onBoardCreated = (board: Board) => {
   boardInstance.value = board;
@@ -122,8 +139,10 @@ const onBoardCreated = (board: Board) => {
     showMarkerPicker.value = true;
   });
 
-  // 默认选中思维导图根节点
-  if (board.raw.children && board.raw.children.length > 0) {
+  if (props.readonly) {
+    board.setHandMode(true);
+  } else if (board.raw.children && board.raw.children.length > 0) {
+    // 编辑态默认选中思维导图根节点
     const firstMind = board.raw.children[0];
     board.select([firstMind]);
   }

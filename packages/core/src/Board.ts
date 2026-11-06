@@ -174,6 +174,21 @@ export class Board {
     this.setPointer(active ? PlaitPointerType.hand : PlaitPointerType.selection);
   }
 
+  get isReadonly(): boolean {
+    return !!PlaitBoard.isReadonly(this.raw);
+  }
+
+  setReadonly(readonly: boolean) {
+    this.raw.options.readonly = readonly;
+    if (readonly) {
+      this.clearSelection();
+      this.setHandMode(true);
+    } else {
+      this.setHandMode(false);
+    }
+    this.emit('readonly:change', readonly);
+  }
+
   setDrawingMode(mode: string, options?: any) {
     this.setTool(mode);
   }
