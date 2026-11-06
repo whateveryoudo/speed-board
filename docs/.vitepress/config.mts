@@ -94,4 +94,9 @@ export default defineConfig({
       copyright: "Copyright © Speed Platform",
     },
   },
+  vite: {
+    server: {
+      port: 5177,
+    },
+  },
 });
