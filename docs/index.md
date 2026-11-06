@@ -4,7 +4,6 @@ layout: home
 hero:
   name: "Speed Board"
   text: "现代原生白板与思维导图套件"
-  tagline: "基于原生 SVG 与 Plait 引擎打造 · 独立全功能白板与专属导图双形态 · 曼哈顿避障连线 · Schema 驱动"
   actions:
     - theme: brand
       text: 快速开始
