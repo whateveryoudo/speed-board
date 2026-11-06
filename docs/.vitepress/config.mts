@@ -1,7 +1,6 @@
 import { defineConfig } from "vitepress";
 
-const base =
-  process.env.NODE_ENV === "production" ? "/speed-board/docs/" : "/";
+const base = process.env.NODE_ENV === "production" ? "/speed-board/docs/" : "/";
 
 export default defineConfig({
   title: "Speed Board",
@@ -12,12 +11,38 @@ export default defineConfig({
   },
   head: [
     ["link", { rel: "icon", href: "/favicon.ico" }],
-    ["meta", { name: "keywords", content: "speed-board, plait, 白板, 思维导图, vue3, svg, 协同白板, 曼哈顿避障, 流程图, 架构图" }],
+    [
+      "meta",
+      {
+        name: "keywords",
+        content:
+          "speed-board, plait, 白板, 思维导图, vue3, svg, 协同白板, 曼哈顿避障, 流程图, 架构图",
+      },
+    ],
     ["meta", { name: "author", content: "Speed Platform" }],
-    ["meta", { property: "og:title", content: "Speed Board - 现代原生白板与思维导图套件" }],
-    ["meta", { property: "og:description", content: "原生 SVG 视口 · Plait 引擎 · 独立白板与思维导图双模式 · 11种导图布局 · 19+几何图元 · 曼哈顿正交避障连线。" }],
+    [
+      "meta",
+      {
+        property: "og:title",
+        content: "Speed Board - 现代原生白板与思维导图套件",
+      },
+    ],
+    [
+      "meta",
+      {
+        property: "og:description",
+        content:
+          "原生 SVG 视口 · Plait 引擎 · 独立白板与思维导图双模式 · 11种导图布局 · 19+几何图元 · 曼哈顿正交避障连线。",
+      },
+    ],
     ["meta", { property: "og:type", content: "website" }],
-    ["meta", { property: "og:url", content: "https://whateveryoudo.github.io/speed-board/docs/" }],
+    [
+      "meta",
+      {
+        property: "og:url",
+        content: "https://whateveryoudo.github.io/speed-board/docs/",
+      },
+    ],
   ],
   themeConfig: {
     logo: "🎨",
@@ -26,8 +51,10 @@ export default defineConfig({
       { text: "指南", link: "/guide/" },
       { text: "配置与 API", link: "/config/props" },
       { text: "思维导图", link: "/mindmap/" },
-      { text: "架构设计", link: "/architecture/" },
-      { text: "在线体验", link: "https://whateveryoudo.github.io/speed-board/demo/" },
+      {
+        text: "在线体验",
+        link: "https://whateveryoudo.github.io/speed-board/demo/",
+      },
       { text: "GitHub", link: "https://github.com/whateveryoudo/speed-board" },
     ],
     sidebar: {
@@ -46,7 +73,6 @@ export default defineConfig({
           items: [
             { text: "组件 Props 与 Emits", link: "/config/props" },
             { text: "Board 门面常用 API", link: "/config/api-ref" },
-            { text: "浮动工具栏与样式面板", link: "/config/toolbar" },
           ],
         },
       ],
@@ -56,15 +82,6 @@ export default defineConfig({
           items: [
             { text: "独立思维导图组件", link: "/mindmap/" },
             { text: "11 种布局与节点标记", link: "/mindmap/layouts" },
-          ],
-        },
-      ],
-      "/architecture/": [
-        {
-          text: "核心架构",
-          items: [
-            { text: "分层架构与核心算法", link: "/architecture/" },
-            { text: "并发控制与协同演进", link: "/architecture/collaboration" },
           ],
         },
       ],
