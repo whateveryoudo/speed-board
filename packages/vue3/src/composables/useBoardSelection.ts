@@ -1,4 +1,4 @@
-import { ref, watchEffect, type Ref } from 'vue';
+import { ref, shallowRef, watchEffect, type Ref } from 'vue';
 import type { Board, SelectedElementType } from '@speed-board/core';
 import { resolveBoard, type BoardSource } from './useBoardEvent';
 
@@ -14,8 +14,8 @@ export interface BoardSelectionState {
  * 响应式画板选区管理 Hook (直连 Board 实例)
  */
 export function useBoardSelection(source: BoardSource): BoardSelectionState {
-  const selectedCells = ref<any[]>([]);
-  const selectedCell = ref<any | null>(null);
+  const selectedCells = shallowRef<any[]>([]);
+  const selectedCell = shallowRef<any | null>(null);
   const selectedType = ref<SelectedElementType>('none');
   const selectedShapeId = ref('');
   const selectedCount = ref(0);

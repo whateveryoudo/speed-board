@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, computed, watch } from 'vue';
+import { ref, shallowRef, markRaw, computed, watch } from 'vue';
 import { message } from 'ant-design-vue';
 import type { Board, BoardOptions } from '@speed-board/core';
 import {
@@ -72,10 +72,12 @@ const props = withDefaults(
     data?: SpeedMindElement;
     title?: string;
     readonly?: boolean;
+    ydoc?: any | null;
   }>(),
   {
     title: '新建思维导图',
     readonly: false,
+    ydoc: null,
   }
 );
 
@@ -127,7 +129,18 @@ watch(
   }
 );
 
+watch(
+  () => props.data,
+  (newData) => {
+    if (props.readonly && boardInstance.value && newData) {
+      boardInstance.value.setChildren([JSON.parse(JSON.stringify(newData))]);
+    }
+  },
+  { deep: true }
+);
+
 const onBoardCreated = (board: Board) => {
+  markRaw(board);
   boardInstance.value = board;
 
   const eventEmitter = (board as any).boardWrapper || board;
@@ -147,8 +160,99 @@ const onBoardCreated = (board: Board) => {
     board.select([firstMind]);
   }
 
+  eventEmitter.on('change', () => {
+    // 协同变更同步
+    if (props.ydoc && !props.readonly && !isRemoteUpdating) {
+      if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = setTimeout(syncToYDoc, 100);
+    }
+  });
+
+  setupYDocSync();
   emit('created', board);
 };
+
+// --- Yjs 协同支持 ---
+let unobserveYElements: (() => void) | null = null;
+let isRemoteUpdating = false;
+let syncDebounceTimer: any = null;
+
+const syncToYDoc = () => {
+  if (props.readonly || !props.ydoc || !boardInstance.value || isRemoteUpdating) return;
+
+  const yElements = props.ydoc.getArray('elements');
+  const currentChildren = boardInstance.value.children || [];
+  const currentJsonStr = JSON.stringify(currentChildren);
+  const yJsonStr = JSON.stringify(yElements.toJSON());
+
+  if (currentJsonStr === yJsonStr) return;
+
+  props.ydoc.transact(() => {
+    yElements.delete(0, yElements.length);
+    if (currentChildren.length > 0) {
+      yElements.insert(0, JSON.parse(currentJsonStr));
+    }
+  }, 'local-speed-mind');
+};
+
+const setupYDocSync = () => {
+  if (unobserveYElements) {
+    unobserveYElements();
+    unobserveYElements = null;
+  }
+
+  if (!props.ydoc || !boardInstance.value) return;
+
+  const yElements = props.ydoc.getArray('elements');
+
+  if (yElements.length > 0) {
+    isRemoteUpdating = true;
+    boardInstance.value.setChildren(JSON.parse(JSON.stringify(yElements.toJSON())));
+    isRemoteUpdating = false;
+  } else if (!props.readonly) {
+    const initChildren = boardInstance.value.children || [];
+    if (initChildren.length > 0) {
+      props.ydoc.transact(() => {
+        yElements.insert(0, JSON.parse(JSON.stringify(initChildren)));
+      }, 'local-speed-mind');
+    }
+  }
+
+  const observer = (event: any) => {
+    if (event.transaction?.origin === 'local-speed-mind') return;
+    if (!boardInstance.value) return;
+
+    isRemoteUpdating = true;
+    const remoteElements = yElements.toJSON();
+    boardInstance.value.setChildren(JSON.parse(JSON.stringify(remoteElements)));
+    isRemoteUpdating = false;
+  };
+
+  yElements.observe(observer);
+  unobserveYElements = () => {
+    try {
+      yElements.unobserve(observer);
+    } catch {}
+  };
+};
+
+watch(
+  () => props.ydoc,
+  () => {
+    setupYDocSync();
+  }
+);
+
+onBeforeUnmount(() => {
+  if (syncDebounceTimer) {
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = null;
+  }
+  if (unobserveYElements) {
+    unobserveYElements();
+    unobserveYElements = null;
+  }
+});
 
 const onSave = () => {
   emit('save');

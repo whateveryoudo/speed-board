@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, type CSSProperties } from 'vue';
+import { ref, shallowRef, markRaw, onMounted, onBeforeUnmount, computed, type CSSProperties } from 'vue';
 import rough from 'roughjs';
 import { isResizing } from '@plait/common';
 import {
@@ -131,7 +131,7 @@ const elementUpperHostRef = ref<SVGGElement>();
 const elementTopHostRef = ref<SVGGElement>();
 const activeHostRef = ref<SVGGElement>();
 
-const boardInstance = ref<PlaitBoard | null>(null);
+const boardInstance = shallowRef<PlaitBoard | null>(null);
 const isFocused = computed(() => (boardInstance.value ? PlaitBoard.isFocus(boardInstance.value) : false));
 const isReadonly = computed(() => (boardInstance.value ? PlaitBoard.isReadonly(boardInstance.value) : false));
 
@@ -156,6 +156,7 @@ onMounted(() => {
     viewport: props.viewport,
     theme: props.theme,
   });
+  markRaw(board);
 
   const roughSVG = rough.svg(hostRef.value, {
     options: { roughness: 0, strokeWidth: 1 },

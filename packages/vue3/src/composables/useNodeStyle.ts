@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue';
+import { ref, shallowRef, watch } from 'vue';
 import type {
   Board,
   NodeStyleState,
@@ -9,7 +9,7 @@ import { resolveBoard, type BoardSource } from './useBoardEvent';
 
 export function useNodeStyle(source: BoardSource) {
   const selectedType = ref<SelectedElementType>('none');
-  const selectedCells = ref<any[]>([]);
+  const selectedCells = shallowRef<any[]>([]);
 
   const styleState = ref<NodeStyleState>({
     fill: '#ffffff',

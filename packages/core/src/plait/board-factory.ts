@@ -38,7 +38,7 @@ export type BoardOptions = CreatePlaitBoardOptions & {
  * 所有业务功能 (流程图、手绘、思维导图) 100% 走 plugins 插件注入！
  */
 export function createSpeedPlaitBoard(config: CreatePlaitBoardOptions = {}): PlaitBoard {
-  const initialValue = config.value || [];
+  const initialValue = config.value ? JSON.parse(JSON.stringify(config.value)) : [];
   const options: PlaitBoardOptions = {
     readonly: false,
     hideScrollbar: true,
@@ -78,6 +78,8 @@ export function createSpeedPlaitBoard(config: CreatePlaitBoardOptions = {}): Pla
   if (config.theme) {
     board.theme = config.theme;
   }
+
+  (board as any)['__v_skip'] = true;
 
   return board;
 }

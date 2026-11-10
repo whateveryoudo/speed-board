@@ -14,6 +14,8 @@ import {
   clearSelectedElement,
   NODE_TO_INDEX,
   NODE_TO_PARENT,
+  BOARD_TO_ON_CHANGE,
+  BOARD_TO_AFTER_CHANGE,
 } from './plait';
 import { createSpeedPlaitBoard, type CreatePlaitBoardOptions } from './plait/board-factory';
 import type { ShapeDefinition } from '@speed-board/shared';
@@ -89,11 +91,14 @@ export class Board {
   set plaitBoard(b: PlaitBoard) {
     this.raw = b;
     (b as any).boardWrapper = this;
+    (b as any)['__v_skip'] = true;
   }
 
   constructor(options: CreatePlaitBoardOptions = {}) {
+    (this as any)['__v_skip'] = true;
     this.raw = createSpeedPlaitBoard(options);
     (this.raw as any).boardWrapper = this;
+    (this.raw as any)['__v_skip'] = true;
   }
 
   // --- 事件发射与侦听 ---
@@ -123,6 +128,13 @@ export class Board {
   // --- 子节点集合 ---
   get children(): PlaitElement[] {
     return this.raw.children;
+  }
+
+  setChildren(newChildren: PlaitElement[]) {
+    if (!this.raw) return;
+    this.raw.children = newChildren ? JSON.parse(JSON.stringify(newChildren)) : [];
+    BOARD_TO_ON_CHANGE.get(this.raw)?.();
+    BOARD_TO_AFTER_CHANGE.get(this.raw)?.();
   }
 
   // --- 手绘配置 ---

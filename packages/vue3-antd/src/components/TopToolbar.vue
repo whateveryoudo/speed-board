@@ -2,7 +2,7 @@
   <div class="top-bar-container plait-board-attached">
     <!-- 1. 左上角悬浮胶囊：保存 / 撤销 / 重做 (编辑态独占) -->
     <div v-if="!props.readonly" class="board-floating-capsule top-left-floating-capsule">
-      <a-tooltip title="保存 (⌘+S)">
+      <!-- <a-tooltip title="保存 (⌘+S)">
         <a-button
           type="text"
           class="shadow-btn-wrapper"
@@ -10,7 +10,7 @@
         >
           <SaveOutlined />
         </a-button>
-      </a-tooltip>
+      </a-tooltip> -->
 
       <a-tooltip title="撤销 (⌘+Z)">
         <a-button
@@ -150,13 +150,11 @@ import type { Board } from '@speed-board/core'
 const props = withDefaults(
   defineProps<{
     board: Board | null
-    title?: string
     showLeftToolbar?: boolean
     showSettings?: boolean
     readonly?: boolean
   }>(),
   {
-    title: '测试画板1',
     showLeftToolbar: true,
     showSettings: false,
     readonly: false,
