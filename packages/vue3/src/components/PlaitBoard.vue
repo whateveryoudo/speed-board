@@ -342,13 +342,30 @@ onMounted(() => {
     );
   };
 
+  const isInputOrEditableTarget = (target: EventTarget | null) => {
+    if (hasInputOrTextareaTarget(target)) return true;
+    if (target && target instanceof HTMLElement) {
+      if (target.isContentEditable || Boolean(target.closest?.('[contenteditable="true"]'))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   const onGlobalKeyDown = (e: KeyboardEvent) => {
+    // 1. 只读态画板完全静默，绝不响应任何键盘事件（天然免疫多画板未激活冲突）
+    if (PlaitBoard.isReadonly(board)) {
+      return;
+    }
+
     board.globalKeyDown(e);
     if (
       hasBoardFocusOrSelection() &&
       !PlaitBoard.hasBeenTextEditing(board) &&
-      !hasInputOrTextareaTarget(e.target)
+      !isInputOrEditableTarget(e.target)
     ) {
+      // 2. 只要当前画板在消费按键（删除图形、脑图快捷键等），阻止冒泡，严防外层 TipTap 将整个卡片误删！
+      e.stopPropagation();
       board.keyDown(e);
     }
   };

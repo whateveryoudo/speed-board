@@ -690,6 +690,7 @@ export const withMindConnectEnhance: PlaitPlugin = (board: PlaitBoard) => {
 
         const updatedLine = board.children[path[0]];
         if (updatedLine) {
+          clearSelectedElement(board);
           addSelectedElement(board, updatedLine);
         }
       }
